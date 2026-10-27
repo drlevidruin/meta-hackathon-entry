@@ -75,11 +75,14 @@ export function ReadScreen({ turn, onRecord, onRetryNext }) {
 }
 
 export function DoneScreen({ turn, onNext }) {
+  const starsLabel = `${turn.stars} ${turn.stars === 1 ? 'star' : 'stars'}`;
   return <section className="done-content">
-    <div className="done-stars" role="img" aria-label={`${turn.stars} stars earned this turn`}>
-      {Array.from({ length: Math.max(1, turn.stars) }, (_, index) => <Star key={index} filled={index < turn.stars} />)}
+    <Avatar name={turn.child.avatar} />
+    <div className="done-stars" role="img" aria-label={`${starsLabel} earned this turn`}>
+      {Array.from({ length: Math.min(10, turn.stars) }, (_, index) => <Star key={index} filled />)}
+      {turn.stars > 10 && <span className="done-star-count" aria-hidden="true">{turn.stars}</span>}
     </div>
-    <h1>{turn.stars} stars!</h1>
+    <h1>{starsLabel}!</h1>
     <p className="turn-message">{turnMessage(turn.facts)}</p>
     <p className="next-friend">Go get the next friend!</p>
     <button className="primary" onClick={() => { onNext(); navigate('/', { replace: true }); }}>Next friend</button>

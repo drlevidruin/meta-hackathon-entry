@@ -74,7 +74,7 @@ export function TeacherGate({ children, developer = false }) {
 
 export function ClassView() {
   const resource = useResource(api.classView);
-  return <section className="page class-page"><div className="page-heading"><h1>Class</h1><a className="secondary" href="#/teacher/roster">Roster</a></div>
+  return <section className="page class-page"><div className="page-heading"><h1>Class</h1></div>
     <Resource resource={resource}>{data => <div className="class-layout">
       <section className="groups"><h2>Practice groups</h2><div className="group-grid">
         {data.groups.map(group => {
@@ -192,8 +192,8 @@ export function Roster() {
   return <section className="page roster-page"><h1>Roster</h1><div className="roster-layout">
     <div><Resource resource={resource}>{children => <div className="roster-list">{children.map(child =>
       <article className="roster-row" key={child.id}><Avatar name={child.avatar} small /><div><h2>{child.name}</h2><span>Level {child.level}</span></div>
-        <button className="secondary" disabled={busy} onClick={() => edit(child)}>Edit <span className="sr-only">{child.name}</span></button>
-        <button className="secondary" disabled={busy} onClick={event => { deleteTrigger.current = event.currentTarget; setError(''); setConfirming(child); }}>Delete <span className="sr-only">{child.name}</span></button>
+        <div className="roster-actions"><button className="primary" disabled={busy} onClick={() => edit(child)}>Edit <span className="sr-only">{child.name}</span></button>
+          <button className="roster-delete" disabled={busy} onClick={event => { deleteTrigger.current = event.currentTarget; setError(''); setConfirming(child); }}>Delete <span className="sr-only">{child.name}</span></button></div>
       </article>)}</div>}</Resource></div>
     <form className="roster-form" onSubmit={submit}><h2>{editing ? 'Edit child' : 'Add child'}</h2>
       <label>First name<input ref={editor} required maxLength={40} autoComplete="off" value={form.name} onChange={event => setForm({ ...form, name: event.target.value })} /></label>
