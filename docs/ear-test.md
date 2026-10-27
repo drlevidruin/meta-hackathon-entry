@@ -1,0 +1,41 @@
+# Ear test
+
+The go or no-go. The ear passes when it writes the sound that was said, mistakes included. If it writes the word as it should be, it is correcting, and nothing else gets built on it until that is fixed.
+
+## Round 1: an adult voice
+
+Read each clip once, at a normal pace, in Ashkenazi pronunciation. One clip per recording. Any phone voice memo works.
+
+| File name | Hebrew | Say | Planted | The ear should write |
+| --- | --- | --- | --- | --- |
+| shabbos_va-for-ba | שַׁבָּת | sha-vos | ב read as ו | sha-vos |
+| baruch_clean | בָּרוּךְ | bo-ruch | nothing | bo-ruch |
+| shalom_patach-for-kamatz | שָׁלוֹם | sha-loym | kamatz read as patach | sha-loym |
+| melech_skipped-syllable | מֶלֶךְ | mech | לֶ skipped | mech |
+| haolam_wrong-word | הָעוֹלָם | ha-ma-kom | a different word | ha-ma-kom |
+| yisrael_shin-for-sin | יִשְׂרָאֵל | yish-ro-eyl | שׂ read as שׁ | yish-ro-eyl |
+| elokeinu_segol-for-tzere | אֱלֹהֵינוּ | e-loy-ke-nu | tzere read as segol | e-loy-ke-nu |
+| echad_extra-syllable | אֶחָד | e-cho-de | an extra syllable | e-cho-de |
+| modeh_shuruk-for-cholam | מוֹדֶה | mu-de | cholam read as shuruk | mu-de |
+| ani_clean | אֲנִי | a-ni | nothing | a-ni |
+| lefanecha_pei-for-fei | לְפָנֶיךָ | le-po-ne-cho | פ read as פּ | le-po-ne-cho |
+| shema-line_skipped-word | שְׁמַע יִשְׂרָאֵל יְהֹוָה אֱלֹהֵינוּ יְהֹוָה אֶחָד | she-ma yis-ro-eyl a-do-noy a-do-noy e-chod | אֱלֹהֵינוּ skipped | five words, no e-loy-key-nu |
+
+## Round 2: a child's voice
+
+Only with a parent's consent. The child reads a line and plants one mistake on purpose, chosen from the table above. These recordings stay in recordings/private/, which never enters the public repo, and are deleted once the test is done.
+
+## Passing
+
+Each planted mistake must come back as the sound that was said. A pass on the adult round is not enough: the gate is a child's voice.
+
+## Round 0: synthetic voices
+
+`recordings/make-synthetic.sh` builds 13 clips with the macOS voices: a Hebrew voice reading pointed text with the mistake written in, and an English voice reading spelled-out sounds ("shah voss") so nothing can be corrected toward a Hebrew word. Run them with `node ear/cli.js recordings/synthetic/<clip>.wav`.
+
+First results, October 26, three runs per model:
+
+- The English-voice plants came back as said from Muse Spark 1.2 and Muse Wonder 1.0: "shah voss" as sha-vas, "vah rook" as va-ruk.
+- Muse Spark 1.3 corrected "shah voss" to sha-bos and added "ba-ruch ru-ach", the three example words that were in the prompt. The prompt now uses made-up sounds for its examples.
+- Muse Spark 1.2 answered in English prose ("I can't hear audio") on about a third of the clips, the same clips every run. The ear retries once, then fails the line cleanly rather than grading a refusal.
+- The Hebrew voice read וָרוּךְ as ba-ruch in every model, so that clip cannot tell a correcting ear from a voice that ignored the planted vav. Recorded voices settle it.
