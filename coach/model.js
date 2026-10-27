@@ -8,7 +8,7 @@ const sound = value => {
   return typeof value === 'string' && /^[a-z?]+(?:[ /-][a-z?]+)*$/.test(value) ? value : '?';
 };
 
-function promptFor(profile, results, rule, levels, candidates) {
+function promptFor(profile, results, levels, candidates) {
   const weak = Object.entries(profile.skills)
     .map(([id, record]) => [id, record.recent.reduce((sum, mark) => sum + mark, 0)])
     .filter(([id, count]) => skillId.test(id) && count > 0)
@@ -24,8 +24,6 @@ function promptFor(profile, results, rule, levels, candidates) {
     'reason: <one sentence>',
     `Current level: ${profile.level}`,
     `Allowed levels: ${levels.join(', ')}`,
-    `Rule pick: ${rule.itemIds.filter(id => candidates.some(item => item.id === id)).join(', ')}`,
-    `Rule reason: ${rule.reason}`,
     `Weak skills with recent miss counts: ${weak.map(([id, count]) => `${id} ${count}`).join(', ') || 'none'}`,
     `Proven skills: ${safeSkills(profile.proven).sort().join(', ') || 'none'}`,
     'Recent missed pairs (expected sounds -> heard sounds | skills):',
@@ -44,15 +42,16 @@ export async function modelPick(profile, results, rule, levels, candidates, fetc
   let timer;
   try {
     const timeout = new Promise((resolve) => {
-      timer = setTimeout(() => { controller.abort(); resolve(null); }, 20_000);
+      timer = setTimeout(() => { controller.abort(); resolve(null); }, 30_000);
     });
     const request = async () => {
       const response = await fetcher('https://api.meta.ai/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.META_API_KEY}` },
         body: JSON.stringify({
-          model: 'muse-spark-1.3', max_tokens: 2000, temperature: 0,
-          messages: [{ role: 'user', content: promptFor(profile, results, rule, levels, candidates) }],
+          model: 'muse-spark-1.3', max_tokens: 16000, temperature: 0,
+          reasoning_effort: process.env.COACH_REASONING_EFFORT || 'minimal',
+          messages: [{ role: 'user', content: promptFor(profile, results, levels, candidates) }],
         }),
         signal: controller.signal,
       });

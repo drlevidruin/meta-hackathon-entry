@@ -16,6 +16,14 @@ export function startProfile({ level = 1 } = {}) {
   };
 }
 
+/** Keep learning history while starting the checkpoint and hold counts afresh. */
+export function startTurn(profile) {
+  const next = structuredClone(profile);
+  next.checkpoints = 0;
+  next.cleanAtLevel = { clean: false, held: [] };
+  return next;
+}
+
 function cleanLine({ summary }) {
   return summary.pairs > 0 && summary.ok === summary.pairs &&
     ['wrong_letter', 'wrong_vowel', 'skipped', 'extra', 'uncertain', 'not_decoded']
@@ -46,8 +54,15 @@ export function updateProfile(profile, results, items) {
       }
     }
     if (!clean && !missed.size && !cleanSkills.size && !uncredited.size) {
-      // An unplaced or unclear read cannot establish clean skill evidence.
-      for (const skill of item.skills) missed.add(skill);
+      const failure = ['wrong_letter', 'wrong_vowel', 'skipped', 'not_decoded']
+        .some(key => result.summary[key] > 0);
+      if (failure) {
+        // A genuine failure without pair attribution conservatively misses all.
+        for (const skill of item.skills) missed.add(skill);
+      } else if (!result.summary.pairs || result.summary.ok !== result.summary.pairs) {
+        // Uncertainty supplies no miss evidence or attributable clean evidence.
+        for (const skill of item.skills) uncredited.add(skill);
+      }
     }
     for (const skill of new Set(item.skills)) {
       if (!missed.has(skill) && uncredited.has(skill) && !cleanSkills.has(skill)) continue;
@@ -201,7 +216,9 @@ function decisionFor(profile, picked, items, plan) {
   const move = picked.level > profile.level ? 'up' : picked.level < profile.level ? 'down'
     : profile.checkpoints ? 'stay' : 'start';
   return {
-    move, from: profile.level, level: picked.level, target: first?.focus || null,
+    move, from: profile.level, level: picked.level, target: plan.target,
+    focus: first?.focus || null,
+    recentMisses: plan.target && profile.skills[plan.target] ? misses(profile.skills[plan.target]) : 0,
     why: move === 'start' ? 'start'
       : picked.level === plan.level && plan.why !== 'start' ? plan.why : 'mixed',
     misses: move === 'down' && plan.why === 'missed_twice' ? plan.misses : 0,
@@ -213,7 +230,7 @@ function stopped(profile, reason) {
   return {
     itemIds: [], level: profile.level, profile, done: true, reason, source: 'rule',
     decision: {
-      move: 'stay', from: profile.level, level: profile.level, target: null,
+      move: 'stay', from: profile.level, level: profile.level, target: null, focus: null, recentMisses: 0,
       why: 'mixed', misses: 0, challengeId: null,
     },
   };
@@ -221,8 +238,8 @@ function stopped(profile, reason) {
 
 export async function chooseNextSet(profile, results, items, options = {}) {
   const updated = updateProfile(profile, results, items);
-  if (options.elapsedMs >= 240_000) return stopped(updated, 'Turn ended after four minutes.');
-  if (updated.checkpoints >= 8) return stopped(updated, 'Turn ended after eight checkpoints.');
+  if (results.length && options.elapsedMs >= 240_000) return stopped(updated, 'Turn ended after four minutes.');
+  if (results.length && updated.checkpoints >= 8) return stopped(updated, 'Turn ended after eight checkpoints.');
   const rule = ruleNextSet(updated, items);
   const plan = rulePlan(updated);
   const { levels, candidates } = candidatesFor(updated, items, rule);
@@ -252,7 +269,7 @@ export async function chooseNextSet(profile, results, items, options = {}) {
   if (decision.move === 'up' || decision.move === 'down') {
     updated.cleanAtLevel = { clean: false, held: [] };
   }
-  if (heldLongEnough(updated)) return stopped(updated, 'Turn ended after three held checkpoints with practiced skills.');
+  if (results.length && heldLongEnough(updated)) return stopped(updated, 'Turn ended after three held checkpoints with practiced skills.');
   return { ...picked, profile: updated, decision, done: false, source };
 }
 
@@ -265,9 +282,11 @@ function skillName(skill) {
 
 /** Only structured facts reach this template, never the model's reason. */
 export function explain(decision) {
-  const focus = decision.target ? `the ${skillName(decision.target)}` : null;
+  const focus = decision.target && decision.recentMisses > 0
+    ? `the ${skillName(decision.target)}` : null;
   if (decision.move === 'start') {
-    return `Started at level ${decision.level}${focus ? ` with a focus on ${focus}` : ''}.`;
+    const startFocus = decision.focus ? `the ${skillName(decision.focus)}` : null;
+    return `Started at level ${decision.level}${startFocus ? ` with a focus on ${startFocus}` : ''}.`;
   }
   if (decision.move === 'up') {
     return decision.why === 'clean'

@@ -8,6 +8,8 @@ import { randomUUID } from 'node:crypto';
 import { createApp } from './app.js';
 import { hint } from './hints.js';
 import { SKILLS } from '../rulebook/index.js';
+import * as realCoach from '../coach/index.js';
+import { gradeLine as realGradeLine } from '../grader/index.js';
 
 const PIN = '2468';
 const auth = { 'x-teacher-pin': PIN };
@@ -61,6 +63,7 @@ function setup(overrides = {}) {
     listen: mock.fn(async () => ({ words: [['ba']], model: 'fake-ear' })),
     gradeLine: mock.fn(() => gradeFor()),
     startProfile: mock.fn(({ level }) => ({ level })),
+    startTurn: mock.fn(profile => structuredClone(profile)),
     chooseNextSet: mock.fn(async profile => selection(profile)),
     explain: mock.fn(() => 'Keep practicing these sounds.'),
     turnFacts: mock.fn(() => ({ best: 'letter:bet', next: 'vowel:kamatz', proven: [] })),
@@ -103,6 +106,62 @@ const next = (app, turnId, elapsedMs = 1200) => request(app, '/api/next', { data
 const finish = (app, turnId, stars = 3) => request(app, '/api/finish', { data: { turnId, stars } });
 const patch = (app, id, data) => request(app, `/api/children/${id}`, { method: 'PATCH', headers: auth, data });
 const disk = dataDir => JSON.parse(fs.readFileSync(path.join(dataDir, 'store.json'), 'utf8'));
+
+test('round 2.1: six clean four-minute turns through the real app and coach all start and end by time', async () => {
+  const bank = [1, 2, 3, 4, 5, 6].flatMap(level => ['a', 'b', 'c'].map(id =>
+    ({ ...items[0], id: `${level}-${id}`, level })));
+  const { app, dataDir } = setup({ ...realCoach, items: bank, gradeLine: realGradeLine, coachModel: 'off', trace: true });
+  const child = await add(app);
+  const startReasons = [];
+  const checkpoints = [];
+  for (let turnNumber = 1; turnNumber <= 6; turnNumber++) {
+    const turn = await start(app, child.id);
+    assert.ok(turn.set.length, `turn ${turnNumber}`);
+    let set = turn.set;
+    for (const elapsedMs of [80_000, 160_000, 240_000]) {
+      for (const item of set) assert.equal((await grade(app, turn.turnId, item.id)).status, 200);
+      const picked = await next(app, turn.turnId, elapsedMs);
+      assert.equal(picked.status, 200);
+      assert.equal(picked.json.done, elapsedMs === 240_000, `turn ${turnNumber}, elapsed ${elapsedMs}`);
+      set = picked.json.set;
+    }
+    const trace = (await teacherGet(app, `/api/trace?turn=${turn.turnId}`)).json;
+    assert.match(trace.decisions.at(-1).reason, /four minutes/);
+    startReasons.push(trace.decisions[0].decision.why);
+    assert.equal((await finish(app, turn.turnId)).status, 200);
+    checkpoints.push(disk(dataDir).children[child.id].profile.checkpoints);
+  }
+  assert.equal(disk(dataDir).turns[child.id].length, 6);
+  assert.deepEqual(startReasons, Array(6).fill('start'));
+  assert.deepEqual(checkpoints, Array(6).fill(3));
+});
+
+test('round 2.1: a done answer at start falls back to a normal rule start set', async () => {
+  const { app } = setup({ ...realCoach, trace: true,
+    chooseNextSet: async profile => ({ ...selection(profile), done: true, itemIds: [] }) });
+  const child = await add(app);
+  const turn = await start(app, child.id);
+  assert.ok(turn.set.length);
+  assert.ok(turn.set.every(item => item.level === child.level && !item.source?.challenge));
+  const trace = (await teacherGet(app, `/api/trace?turn=${turn.turnId}`)).json;
+  assert.equal(trace.decisions[0].source, 'rule');
+  assert.equal(trace.decisions[0].decision.why, 'start');
+});
+
+test('round 2.8: parent line stays empty until a finished turn has sounded pairs', async () => {
+  const { app } = setup();
+  const child = await add(app);
+  const detail = async () => (await teacherGet(app, `/api/children/${child.id}/detail`)).json;
+  assert.equal((await detail()).parentLine, '');
+  const emptyTurn = await start(app, child.id);
+  await finish(app, emptyTurn.turnId);
+  assert.equal((await detail()).parentLine, '');
+  const turn = await start(app, child.id);
+  await grade(app, turn.turnId);
+  assert.equal((await detail()).parentLine, '');
+  await finish(app, turn.turnId);
+  assert.match((await detail()).parentLine, /read 1 of 1/);
+});
 
 test('children list is public; teacher check and CRUD require the PIN', async () => {
   const { app } = setup();

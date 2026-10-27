@@ -47,7 +47,7 @@ function prepare(result) {
 
 // Distance to any prefix of the pronunciation lattice, without enumerating
 // every combination of a word's accepted vowel alternatives.
-function isAttempt(tokens, readings) {
+function isAttempt(tokens, readings, complete = false) {
   if (!tokens.length || tokens.includes('?')) return false;
   return readings.some((models) => {
     let previous = Array.from({ length: tokens.length + 1 }, (_, index) => index);
@@ -63,13 +63,13 @@ function isAttempt(tokens, readings) {
               row[j - 1] + substitution(tokens[j - 1], token));
           }
           row = next;
-          best = Math.min(best, row[tokens.length]);
+          if (!complete) best = Math.min(best, row[tokens.length]);
         }
         ends.push(row);
       }
       previous = previous.map((_, j) => Math.min(...ends.map((row) => row[j])));
     }
-    return best / tokens.length <= 0.5;
+    return (complete ? previous[tokens.length] : best) / tokens.length <= 0.5;
   });
 }
 
@@ -102,12 +102,12 @@ function matchedWord(result, alignment) {
   // verdicts, even when fewer than 40 percent match the child's own preset.
   const traditionReading = pairs.every((pair) => pair.verdict === 'ok'
     || pair.verdict === 'uncertain' || pair.otherTradition);
-  const notDecoded = !traditionReading && known > 0 && alignment.ok / known < 0.4;
+  const notDecoded = !traditionReading && known >= 2 && alignment.ok / known < 0.4;
   if (notDecoded) {
     for (const [index, pair] of pairs.entries()) {
       if (sounded(alignment.models[index].pair) && pair.verdict !== 'uncertain') {
         pair.verdict = 'not_decoded';
-        pair.blame = [];
+        pair.blame = blameFor('not_decoded', pair.skills);
       }
     }
   }
@@ -157,24 +157,65 @@ export function align(heard, expected, options = {}) {
   if (!Array.isArray(heard) || !Array.isArray(expected)) {
     throw new TypeError('heard and expected must be arrays of words.');
   }
-  const heardTokens = heard.map((word) => {
+  const heardSyllables = [];
+  const heardTokens = heard.map((word, wordIndex) => {
     if (!Array.isArray(word) || !word.length || word.some((syllable) => typeof syllable !== 'string' || !syllable)) {
       throw new TypeError('Each heard word must contain sound alphabet syllables.');
     }
-    return word.flatMap(phonemes);
+    const syllables = [];
+    const tokens = word.flatMap((syllable, index) => {
+      const tokens = phonemes(syllable);
+      syllables.push(...tokens.map(() => `${wordIndex}:${index}`));
+      return tokens;
+    });
+    heardSyllables.push(syllables);
+    return tokens;
   });
   const prepared = expected.map(prepare);
   const attempts = prepared.map(readings => heardTokens.map((_, start) =>
     [1, 2, 3].map(count => start + count <= heard.length
       && isAttempt(heardTokens.slice(start, start + count).flat(), readings))));
+  const completeAttempts = prepared.map(readings => heardTokens.map((_, start) =>
+    [1, 2, 3].map(count => start + count <= heard.length
+      && isAttempt(heardTokens.slice(start, start + count).flat(), readings, true))));
+  const wordLengths = prepared.map(readings => Math.max(...readings.map(models =>
+    models.reduce((sum, model) => sum + Math.max(...model.alternatives.map(tokens => tokens.length)), 0))));
+  const lineCache = new Map();
+  function lineAttempts(i, j) {
+    const key = `${i}:${j}`;
+    if (lineCache.has(key)) return lineCache.get(key);
+    const spans = [];
+    let positions = new Set([i]);
+    for (let word = j; word < expected.length && positions.size; word++) {
+      const next = new Set();
+      for (const start of positions) {
+        for (let count = 1; count <= 3 && start + count <= heard.length; count++) {
+          const end = start + count;
+          // A cut-short word cannot contain more sounds than the full word.
+          // This keeps unrelated neighboring words out of an attempt span.
+          if (heardTokens.slice(start, end).reduce((sum, tokens) => sum + tokens.length, 0) > wordLengths[word]) continue;
+          // Every earlier word must be a complete attempt. Only the last
+          // printed word in the abandoned span may be cut short.
+          if (word > j && attempts[word][start][count - 1]) {
+            spans.push({ end, words: word - j + 1 });
+          }
+          if (completeAttempts[word][start][count - 1]) next.add(end);
+        }
+      }
+      positions = next;
+    }
+    lineCache.set(key, spans);
+    return spans;
+  }
   const cache = new Map();
   function match(i, j, count) {
     const key = `${i}:${j}:${count}`;
     if (!cache.has(key)) {
       const tokens = heardTokens.slice(i, i + count).flat();
+      const syllables = heardSyllables.slice(i, i + count).flat();
       let best;
       for (const models of prepared[j]) {
-        const candidate = alignPairs(tokens, models, options);
+        const candidate = alignPairs(tokens, models, options, syllables);
         if (!best || candidate.cost < best.cost
           || (candidate.cost === best.cost && candidate.ok > best.ok)) best = candidate;
       }
@@ -210,8 +251,22 @@ export function align(heard, expected, options = {}) {
       ), 0)));
       update(i, j + 1, cell, { type: 'word', result: skippedWord(expected[j], readings[0] ?? []) }, skipCost);
       if (i === heard.length) continue;
+      const spans = lineAttempts(i, j);
+      let lineRestarted = false;
+      let lineContinuesText = false;
+      for (const span of spans) {
+        const later = attempts[j][span.end];
+        if (!later?.some(Boolean)) continue;
+        lineRestarted = true;
+        lineContinuesText ||= later.some((attempt, count) => attempt
+          && attempts[j + span.words]?.[span.end]?.[count]);
+        update(span.end, j, cell, { type: 'restart' }, 0.05 * span.words);
+      }
+      if (lineRestarted && !lineContinuesText) continue;
       let restarted = false;
-      let continuesText = false;
+      // A span that already follows multiple printed words must remain
+      // available as separate matches, including repeated printed phrases.
+      let continuesText = spans.length > 0;
       for (let count = 1; count <= 3 && i + count < heard.length; count += 1) {
         const later = attempts[j][i + count];
         if (attempts[j][i][count - 1] && later.some(Boolean)) {

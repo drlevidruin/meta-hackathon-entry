@@ -53,6 +53,7 @@ export function hint(skill, preset) {
 }
 
 export function parentLine(name, summary, preset, next) {
+  if (!summary.pairs) return '';
   const first = `${name} read ${summary.ok} of ${summary.pairs} sounds right today.`;
   if (next) return `${first} One to practice: ${hint(next, preset)}.`;
   return `${first} Every sound was right!`;

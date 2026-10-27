@@ -6,6 +6,7 @@ import { createStore, durable } from './store.js';
 import { buildMap, recordPairs, summaryOnly, totalSummary } from './progress.js';
 import { parentLine } from './hints.js';
 import { makePacket } from './packet.js';
+import { startTurn as resetTurn, chooseNextSet as ruleChooseNextSet } from '../coach/index.js';
 
 const PRESETS = new Set(['sephardi', 'ashkenazi', 'chassidish']);
 const AVATARS = new Set(['lion', 'owl', 'fox', 'bear', 'rabbit', 'turtle', 'whale', 'bee',
@@ -142,7 +143,7 @@ function childFields(value, partial = false) {
 }
 
 export function createApp({
-  items, listen, gradeLine, chooseNextSet, startProfile, explain, turnFacts, staticDir,
+  items, listen, gradeLine, chooseNextSet, startProfile, startTurn = resetTurn, explain, turnFacts, staticDir,
   dataDir = process.env.DATA_DIR, teacherPin = process.env.TEACHER_PIN,
   trace = process.env.TRACE === '1', coachModel = process.env.COACH_MODEL, now = Date.now,
 }) {
@@ -256,8 +257,9 @@ export function createApp({
       } else if (req.method === 'POST' && pathname === '/api/start') {
         const { childId } = await jsonBody(req);
         const child = getChild(childId);
-        const profile = child.profile || startProfile({ level: child.level });
-        const next = await chooseNextSet(profile, [], items, { useModel: false });
+        const profile = startTurn(child.profile || startProfile({ level: child.level }));
+        let next = await chooseNextSet(profile, [], items, { useModel: false });
+        if (next.done) next = await ruleChooseNextSet(profile, [], items, { useModel: false });
         const set = selected(next);
         const entry = decisionEntry(next, 0);
         getChild(childId);

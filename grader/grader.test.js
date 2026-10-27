@@ -90,7 +90,8 @@ test('ha-ma-kom does not decode haolam, including its one matching final pair', 
   assert.equal(result.words[0].verdict, 'not_decoded');
   assert.deepEqual(verdicts(result.words[0]), Array(4).fill('not_decoded'));
   assert.equal(result.summary.not_decoded, 4);
-  assert.deepEqual(result.summary.missedSkills, []);
+  assert.deepEqual(result.summary.missedSkills, ['letter:ayin', 'letter:final_mem', 'letter:hei',
+    'letter:lamed', 'pattern:cholam_male', 'pattern:closed_syllable', 'vowel:cholam', 'vowel:kamatz']);
 });
 
 test('a skipped word does not shift the divine name and echad', () => {
@@ -191,8 +192,9 @@ test('mixed line summary counts sounded pairs, extras and sorted unique missed s
   assert.deepEqual(result.summary, {
     pairs: 20, ok: 11, wrong_letter: 1, wrong_vowel: 1, skipped: 1,
     extra: 2, uncertain: 2, not_decoded: 4,
-    missedSkills: ['letter:bet', 'letter:lamed', 'pattern:tzere_male',
-      'vowel:segol', 'vowel:tzere'],
+    missedSkills: ['letter:ayin', 'letter:bet', 'letter:final_mem', 'letter:hei', 'letter:lamed',
+      'pattern:cholam_male', 'pattern:closed_syllable', 'pattern:tzere_male',
+      'vowel:cholam', 'vowel:kamatz', 'vowel:segol', 'vowel:tzere'],
   });
   for (const [wordIndex, word] of result.words.entries()) {
     if (word.verdict === 'extra') continue;
