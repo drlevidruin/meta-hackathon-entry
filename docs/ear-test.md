@@ -190,6 +190,25 @@ Read these after Round 1c, syllable by syllable, with a short pause between syll
 | kamatz-card_patach-for-kamatz | בָּ דָ מָ גָ תָּ קָ | ba da ma ga ta ka | every kamatz read as patach | not graded |
 | voice-check_patach-for-kamatz | בָּ בַּ בֶּ בִּ בֹּ דָ דַ דֶ דִ דֹ מָ מַ מֶ מִ מֹ | ba ba be bi boy da da de di doy ma ma me mi moy | every kamatz read as patach | not graded |
 
+## Sheva tests
+
+Levi found that the sound alphabet writes a sheva as e, the same letter as segol, so a quick sheva and a full eh look alike. An apostrophe now marks a sheva: n'-sho-mo is a quick n with no full vowel. Each word is read three ways: with a quick sheva, with the sheva as a full segol, and with the sheva as patach. These test whether the ear and the meter can tell a sheva from a full vowel.
+
+| File name | Hebrew | Say | Planted | The ear should write |
+| --- | --- | --- | --- | --- |
+| sheva-brocho_clean | בְּרָכָה | b'-ro-cho | nothing | not graded |
+| sheva-brocho_segol-for-sheva | בְּרָכָה | be-ro-cho | sheva read as a full segol | not graded |
+| sheva-brocho_patach-for-sheva | בְּרָכָה | ba-ro-cho | sheva read as patach | not graded |
+| sheva-neshomo_clean | נְשָׁמָה | n'-sho-mo | nothing | not graded |
+| sheva-neshomo_segol-for-sheva | נְשָׁמָה | ne-sho-mo | sheva read as a full segol | not graded |
+| sheva-neshomo_patach-for-sheva | נְשָׁמָה | na-sho-mo | sheva read as patach | not graded |
+| sheva-shema_clean | שְׁמַע | sh'-ma | nothing | not graded |
+| sheva-shema_segol-for-sheva | שְׁמַע | she-ma | sheva read as a full segol | not graded |
+| sheva-shema_patach-for-sheva | שְׁמַע | sha-ma | sheva read as patach | not graded |
+| sheva-zman_clean | זְמַן | z'-man | nothing | not graded |
+| sheva-zman_segol-for-sheva | זְמַן | ze-man | sheva read as a full segol | not graded |
+| sheva-zman_patach-for-sheva | זְמַן | za-man | sheva read as patach | not graded |
+
 ## Round 2: a child's voice
 
 The adult round must pass first. Recording a child requires written parent consent. Turn Meta Model API free credits off and use a paid plan before sending children's audio. Meta's free-credit terms allow content to be used for product improvement.
