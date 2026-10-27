@@ -25,6 +25,25 @@ consecutive printed words, with a 0.05 restart cost favoring separate matches.
 These costs are deterministic heuristics since the contract does not specify
 alignment or restart penalties.
 
+Line restarts also drop an in-order attempt at two or more printed words when
+the next heard words begin again at the first word of that span. Each attempted
+word can span one to three heard words; all but the last must be complete
+attempts, and the last may be a pronunciation prefix. An attempted word cannot
+contain more phonemes than its longest accepted pronunciation. This prevents
+unrelated neighboring words from looking like a cut-short word. Abandoned line
+attempts cost 0.05 per printed word and never produce verdicts or extras. The
+later reading is graded even if it has a mistake. Separate printed repetitions
+remain available when the later sounds can begin the next printed word after
+the abandoned span. A multi-word in-order span also remains available as
+separate word matches rather than being forced into a word-level restart.
+
+Heard phonemes retain their syllable ids during pair alignment. An extra
+consonant costs 1.1 when its syllable contains a following vowel and the next
+sounded pair accepts an empty consonant, as with alef, ayin or initial shuruk.
+This favors a wrong-letter diagnosis for `da-ni` read for אֲנִי. Skipping that
+entire heard syllable retains the ordinary insertion cost, so a separate `ba`
+before `e-chod` stays extra. The existing exact-pair tie break is unchanged.
+
 Pair indices refer to `words[word].pairs`. Extra phonemes appear only in the flat
 `verdicts`, with empty `text` and the preceding pair's index, or -1 initially.
 Adjacent extra phonemes at the same position form one entry. An extra heard word
@@ -40,8 +59,8 @@ that verdict is evidence against:
 - `wrong_letter`: all `letter:*` skills, plus `pattern:vav_consonant` and
   `pattern:mappik` when present.
 - `wrong_vowel`: all `vowel:*` skills and all other `pattern:*` skills.
-- `skipped`: every skill on the pair.
-- `ok`, `extra`, `uncertain`, `not_decoded`: none.
+- `skipped`, `not_decoded`: every skill on the sounded pair.
+- `ok`, `extra`, `uncertain`: none.
 
 `summary.missedSkills` is the sorted unique union of `blame`, never all the
 skills on a wrong pair. Under Ashkenazi, `sha-vos` for שַׁבָּת blames only
@@ -50,7 +69,10 @@ skill as missed. Unblamed skills on a wrong pair provide neither miss evidence
 nor clean-read evidence; a separate ok pair can still establish a clean read.
 When a word falls below the decoding threshold, only sounded, non-uncertain
 pairs become `not_decoded`. Silent pairs remain ok and uncertain pairs stay
-uncertain, while the word itself reports `not_decoded`.
+uncertain, while the word itself reports `not_decoded`. Their blame counts even
+when another word in the line has an attributable mistake. The threshold
+applies only when at least two sounded pairs are known, excluding uncertain
+pairs. One-pair words retain specific letter and vowel diagnoses.
 
 The requested examples take precedence in three ambiguous cases:
 

@@ -44,9 +44,9 @@ test('blame: consonant patterns and vowel patterns belong to their respective er
     ['pattern:closed_syllable', 'pattern:patach_genuvah', 'vowel:patach']);
 });
 
-test('blame: ok, extra, uncertain and not_decoded entries have empty blame', () => {
+test('blame: ok, extra and uncertain entries have empty blame', () => {
   for (const result of [grade('שַׁבָּת', 'sha-bos'), grade('', 'ba'),
-    grade('אֶחָד', 'e-cho-de'), grade('שַׁבָּת', '?'), grade('הָעוֹלָם', 'ha-ma-kom')]) {
+    grade('אֶחָד', 'e-cho-de'), grade('שַׁבָּת', '?')]) {
     for (const entry of [...result.verdicts, ...result.words.flatMap(word => word.pairs)]) {
       assert.deepEqual(entry.blame, [], entry.verdict);
     }
@@ -111,13 +111,13 @@ test('review 4: similar neighboring printed words remain separate reads', () => 
 });
 
 test('review 5: not_decoded preserves silent ok pairs and uncertain pairs', () => {
-  const result = grade('אבַּבַּ', 'va-?');
+  const result = grade('אבַּבַּבַּ', 'va-va-?');
   assert.equal(result.words[0].verdict, 'not_decoded');
-  assert.deepEqual(result.words[0].pairs.map(pair => pair.verdict), ['ok', 'not_decoded', 'uncertain']);
-  assert.equal(result.summary.not_decoded, 1);
+  assert.deepEqual(result.words[0].pairs.map(pair => pair.verdict), ['ok', 'not_decoded', 'not_decoded', 'uncertain']);
+  assert.equal(result.summary.not_decoded, 2);
   assert.equal(result.summary.uncertain, 1);
   assert.equal(result.summary.ok, 0);
-  assert.deepEqual(result.summary.missedSkills, []);
+  assert.deepEqual(result.summary.missedSkills, ['letter:bet', 'vowel:patach']);
 });
 
 test('review 8: a missing tradition counterpart has no alternatives', () => {

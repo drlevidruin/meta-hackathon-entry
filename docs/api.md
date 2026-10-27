@@ -47,8 +47,11 @@ Only bank items can be returned by the coach. Challenge items have
 | `GET /api/config` | None | `{ trace: boolean }` |
 
 Start loads the child's saved profile, or calls `startProfile({ level })` for a
-new profile. It calls `chooseNextSet(profile, [], items, { useModel: false })`
-and opens a turn with a random UUID. The preset is captured on the turn.
+new profile, then calls `startTurn(profile)` to reset checkpoint and held-level
+counts while preserving learning history and demotion bookkeeping. It calls
+`chooseNextSet(profile, [], items, { useModel: false })` on that reset copy and
+opens a turn with a random UUID. If the coach answers done, start uses a normal
+rule selection from the reset profile. The preset is captured on the turn.
 
 Grade accepts an item only from the turn's current set. An unknown or expired
 turn, a finished turn, or an item outside the current set returns 404. The ear
@@ -168,8 +171,9 @@ Parent lines are templates in `server/hints.js`, based on the latest saved turn:
 
 This is followed by ` One to practice: <hint>.` using `turnFacts(profile).next`
 for the child, the same skill used by the end-of-turn sentence. When there is
-no next skill, it says ` Every sound was right!`. Before any saved turn, counts
-are zero. Hints cover every letter, vowel and pattern in rulebook `SKILLS`, with `practice <label>`
+no next skill, it says ` Every sound was right!`. `parentLine` is `''` until the
+child has a finished turn. It is also `''` when the latest finished turn's
+summary has no sounded pairs. Hints cover every letter, vowel and pattern in rulebook `SKILLS`, with `practice <label>`
 as a fallback. Kamatz says a for Sephardi and o for Ashkenazi and Chassidish;
 a tav without a dot says t for Sephardi and s for the other presets.
 
@@ -183,8 +187,12 @@ Sections, always in this order:
 
 1. `Warm up`: up to two regular items whose letter-vowel cells are all solid.
    If no cells are solid, or the request is by skill, use level 1 items.
-2. `Practice`: up to six regular items whose `focus` equals the target skill,
-   at or below the requested level. Higher eligible levels come first.
+2. `Practice`: fill up to six regular items, first with target-focus items at
+   or below the requested level (nearest level first), then remaining items at
+   or below that level whose `skills` include the target (nearest level first),
+   then items above that level whose focus or skills include it (nearest level
+   first). If no regular item teaches the skill, use the nearest-level regular
+   items to the requested level. Challenges never enter Practice.
 3. `Challenge`: one bank item with `source.challenge`, preferring the target
    focus, then the nearest level. Challenges may be above the current level.
 
@@ -207,7 +215,10 @@ items are supplied. Warm up and Practice may overlap.
 Without `TRACE=1`, this route returns 404 even with a valid PIN. With tracing
 on, the PIN is required and unknown or expired turns return 404. Checkpoint 0
 is the initial selection. Later checkpoints are numbered in order. A decision
-has `{ move, from, level, target, why, misses, challengeId }` from the coach.
+has `{ move, from, level, target, focus, recentMisses, why, misses, challengeId }`
+from the coach. `target` is the plan's skill, `focus` is the first chosen item's
+focus, and `recentMisses` counts target misses in the last six reads. Teacher
+retry and practice wording names a target only when it has a recent miss.
 Only this response includes the coach's `reason`. Reasons remain in memory,
 including after finish until expiry, and disappear on restart. This developer
 route is never linked from child or teacher screens.
@@ -243,6 +254,7 @@ serves `station/dist` and listens on `PORT` (default 8787). Configuration:
 | `TEACHER_PIN` | Teacher header secret, required to enable teacher routes |
 | `TRACE` | Exactly `1` enables the protected trace endpoint |
 | `COACH_MODEL` | Exactly `off` disables model calls at next checkpoints |
+| `COACH_REASONING_EFFORT` | Coach reasoning effort, default `minimal`; requests allow 16000 tokens and time out after 30 seconds |
 | `DATA_DIR` | Store directory, default `<repo>/data` |
 | `PORT` | HTTP port, default 8787 |
 
@@ -254,5 +266,6 @@ blocked. Unknown API routes do not fall back to station HTML.
 ## Offline checks
 
 Run `node --test server/app.test.js` and `node --test` from the repo root.
-Server route tests inject fakes for all grader, ear and coach contracts and use temporary
-DATA_DIR directories. They need no model modules, packages or network.
+Server route tests use temporary DATA_DIR directories and inject fake ear,
+grader and coach contracts, except the multi-turn regression, which uses the
+real grader and coach with the model off. They need no packages or network.

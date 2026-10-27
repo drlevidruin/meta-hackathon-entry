@@ -7,7 +7,15 @@ const byId = (a, b) => a.id.localeCompare(b.id);
 export function makePacket({ items, child, skill, level }) {
   const regular = items.filter(item => !item.source?.challenge && item.level <= level);
   const nearest = (a, b) => b.level - a.level || byId(a, b);
-  const practice = regular.filter(item => item.focus === skill).sort(nearest).slice(0, 6);
+  const teaches = item => item.focus === skill || item.skills.includes(skill);
+  const allRegular = items.filter(item => !item.source?.challenge);
+  const byDistance = (a, b) => Math.abs(a.level - level) - Math.abs(b.level - level) || byId(a, b);
+  const targeted = [
+    ...regular.filter(item => item.focus === skill).sort(nearest),
+    ...regular.filter(item => item.focus !== skill && item.skills.includes(skill)).sort(nearest),
+    ...allRegular.filter(item => item.level > level && teaches(item)).sort(byDistance),
+  ];
+  const practice = (targeted.length ? targeted : allRegular.sort(byDistance)).slice(0, 6);
   const hasSolid = child && Object.values(child.pairs).some(history => cellState(history) === 'solid');
   let warm = [];
   if (hasSolid) {

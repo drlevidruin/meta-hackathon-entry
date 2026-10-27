@@ -3,7 +3,7 @@ import { distance, equal, isVowel, phonemes } from './phonemes.js';
 export const sounded = (pair) => pair.sounds.some(Boolean);
 
 export function blameFor(verdict, skills) {
-  if (verdict === 'skipped') return [...skills];
+  if (verdict === 'skipped' || verdict === 'not_decoded') return [...skills];
   if (verdict === 'wrong_letter') return skills.filter(skill => skill.startsWith('letter:')
     || skill === 'pattern:vav_consonant' || skill === 'pattern:mappik');
   if (verdict === 'wrong_vowel') return skills.filter(skill => skill.startsWith('vowel:')
@@ -58,7 +58,7 @@ function better(candidate, current) {
 
 // Each cell is a prefix of the expected pairs and a prefix of the heard tokens.
 // Edges either assign a token span to one pair or insert an extra token.
-export function alignPairs(tokens, models, options) {
+export function alignPairs(tokens, models, options = {}, syllables = []) {
   const table = Array.from({ length: models.length + 1 }, () => Array(tokens.length + 1));
   table[0][0] = { cost: 0, ok: 0, extras: 0 };
   const update = (i, j, previous, actions, cost, ok = 0, extras = 0) => {
@@ -74,7 +74,22 @@ export function alignPairs(tokens, models, options) {
       const cell = table[i][j];
       if (!cell) continue;
       if (j < tokens.length) {
-        update(i, j + 1, cell, [{ extra: tokens[j], after: i - 1 }], 1, 0, 1);
+        const pair = models[i]?.pair;
+        const fused = pair && sounded(pair) && pair.consonants.includes('')
+          && tokens[j] !== '?' && !isVowel(tokens[j]) && syllables[j] !== undefined
+          && tokens.some((token, index) => index > j && syllables[index] === syllables[j] && isVowel(token));
+        // An onset attached to a vowel belongs to that syllable's letter.
+        // Keep independent syllables at the ordinary extra cost and retain
+        // the existing exact-pair tie break for all other insertion edges.
+        update(i, j + 1, cell, [{ extra: tokens[j], after: i - 1 }], fused ? 1.1 : 1, 0, 1);
+        if (fused) {
+          // Dropping the whole syllable leaves no vowel to attach the onset
+          // to. This alternative retains the normal cost for ba-e-chod.
+          let end = j + 1;
+          while (end < tokens.length && syllables[end] === syllables[j]) end++;
+          update(i, end, cell, tokens.slice(j, end).map(extra => ({ extra, after: i - 1 })),
+            end - j, 0, end - j);
+        }
       }
       if (i === models.length) continue;
       const model = models[i];

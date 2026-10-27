@@ -232,7 +232,8 @@ test('clean checkpoints step up once and returned decisions describe the chosen 
   assert.equal(picked.itemIds.length, 3);
   assert.ok(picked.itemIds.every(id => items.find(line => line.id === id).level === 3));
   assert.deepEqual(picked.decision, {
-    move: 'up', from: 2, level: 3, target: K, why: 'clean', misses: 0, challengeId: null,
+    move: 'up', from: 2, level: 3, target: K, focus: K, recentMisses: 0,
+    why: 'clean', misses: 0, challengeId: null,
   });
   assert.equal(original.level, 2);
   assert.equal(original.checkpoints, 0);
@@ -248,7 +249,8 @@ test('two latest misses of a skill step down once and target that skill', async 
   assert.equal(second.level, 2);
   assert.equal(second.itemIds[0], 'L2-d');
   assert.deepEqual(second.decision, {
-    move: 'down', from: 3, level: 2, target: T, why: 'missed_twice', misses: 2, challengeId: null,
+    move: 'down', from: 3, level: 2, target: T, focus: T, recentMisses: 2,
+    why: 'missed_twice', misses: 2, challengeId: null,
   });
 });
 
@@ -482,9 +484,10 @@ test('moving levels resets held history and clean evidence', async () => {
 });
 
 test('explain templates cover start, up, down and stay using only structured decisions', () => {
-  const base = { move: 'start', from: 2, level: 2, target: K, why: 'start', misses: 0, challengeId: null };
+  const base = { move: 'start', from: 2, level: 2, target: K, focus: K, recentMisses: 1,
+    why: 'start', misses: 0, challengeId: null };
   assert.equal(explain(base), 'Started at level 2 with a focus on the vowel kamatz.');
-  assert.equal(explain({ ...base, target: null }), 'Started at level 2.');
+  assert.equal(explain({ ...base, focus: null }), 'Started at level 2.');
   assert.equal(explain({ ...base, move: 'up', level: 3, why: 'clean' }),
     'Clean set at level 2; moved up to words.');
   assert.equal(explain({ ...base, move: 'down', from: 3, why: 'missed_twice', misses: 2 }),
@@ -504,7 +507,7 @@ test('valid model picks use the specified provider and produce a decision about 
     assert.equal(init.headers['Content-Type'], 'application/json');
     const body = JSON.parse(init.body);
     assert.equal(body.model, 'muse-spark-1.3');
-    assert.equal(body.max_tokens, 2000);
+    assert.equal(body.max_tokens, 16000);
     assert.equal(body.temperature, 0);
     assert.ok(init.signal instanceof AbortSignal);
     return idsAnswer(['L2-d', 'L2-a']);
@@ -515,9 +518,10 @@ test('valid model picks use the specified provider and produce a decision about 
   assert.equal(picked.profile.level, 2);
   assert.equal(picked.reason, 'Revisit the vowel contrast in shorter lines.');
   assert.deepEqual(picked.decision, {
-    move: 'down', from: 3, level: 2, target: T, why: 'mixed', misses: 0, challengeId: null,
+    move: 'down', from: 3, level: 2, target: K, focus: T, recentMisses: 0,
+    why: 'mixed', misses: 0, challengeId: null,
   });
-  assert.equal(explain(picked.decision), 'Dropped to syllables to practice the vowel tzere.');
+  assert.equal(explain(picked.decision), 'Dropped to syllables.');
   assert.equal(fetcher.mock.callCount(), 1);
 });
 
@@ -596,7 +600,7 @@ test('provider failures fall back without exposing credentials or response data'
   for (const log of logs) assert.equal(log.mock.callCount(), 0);
 });
 
-test('20 second timeout aborts and falls back even if fetch ignores the signal', async t => {
+test('30 second timeout aborts and falls back even if fetch ignores the signal', async t => {
   keyFor(t);
   const realSetTimeout = globalThis.setTimeout;
   const durations = [];
@@ -611,7 +615,7 @@ test('20 second timeout aborts and falls back even if fetch ignores the signal',
     signal = init.signal;
     return new Promise(() => {});
   });
-  assert.deepEqual(durations, [20_000]);
+  assert.deepEqual(durations, [30_000]);
   assert.equal(signal.aborted, true);
   assert.equal(picked.source, 'rule');
 });
@@ -709,7 +713,8 @@ test('every actual-bank rule selection stays within one level, contains unique i
     assert.equal(picked.itemIds.length, level >= 5 ? 2 : 3);
     assert.equal(new Set(picked.itemIds).size, picked.itemIds.length);
     assert.ok(picked.itemIds.every(id => bank.find(line => line.id === id).level === level));
-    assert.equal(picked.decision.target, bank.find(line => line.id === picked.itemIds[0]).focus);
+    assert.equal(picked.decision.focus, bank.find(line => line.id === picked.itemIds[0]).focus);
+    assert.equal(picked.decision.target, null);
     assert.equal(picked.source, 'rule');
     assert.equal(picked.done, false);
     assert.equal(picked.decision.move, 'start');
