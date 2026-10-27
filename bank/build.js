@@ -4,7 +4,7 @@ import { pathToFileURL } from 'node:url';
 import { cleanWord, expectedSounds, tagSkills } from '../rulebook/index.js';
 import { sortedUnique } from '../rulebook/skills.js';
 import { lineText, pointedWord, punctuatedPhrases, segmentWords, siddur, usableSegment } from './corpus.js';
-import { generatedDrills, nonsenseLines } from './generate.js';
+import { beginnerLines, generatedDrills, nonsenseLines } from './generate.js';
 import { mulberry32 } from './random.js';
 
 function makeItem(level, words, focus, source) {
@@ -54,7 +54,7 @@ export function cutLines(words, minimum, maximum) {
   return lines;
 }
 
-export function buildBank({ seed = 5787 } = {}) {
+export function buildBank({ seed = 5787, onShortfall = () => {} } = {}) {
   const random = mulberry32(seed);
   const drills = generatedDrills(random);
   const levels = [[], [], [], [], [], []];
@@ -94,11 +94,17 @@ export function buildBank({ seed = 5787 } = {}) {
   }
   const phraseTexts = new Set(levels[4].map(item => item.text));
   levels[5] = levels[5].filter(item => !phraseTexts.has(item.text));
+  const beginners = beginnerLines(mulberry32(seed + 1), corpusWords,
+    levels[3].flatMap(item => item.words), levels.flat().map(item => item.text));
+  for (const shortfall of beginners.shortfalls) onShortfall(shortfall);
+  for (const { level, words, focus } of beginners.lines) {
+    add(level, words, focus, { generated: true, beginner: true });
+  }
   return levels.flat();
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const items = buildBank();
+  const items = buildBank({ onShortfall: shortfall => console.warn(JSON.stringify({ shortfall })) });
   writeFileSync(new URL('./items.json', import.meta.url), JSON.stringify(items, null, 2) + '\n');
   const counts = Object.fromEntries([1, 2, 3, 4, 5, 6].map((level) => [level,
     items.filter((item) => item.level === level).length]));

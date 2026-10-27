@@ -3,6 +3,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { SKILLS } from '../rulebook/index.js';
+import { normalizeVowels } from '../rulebook/vowels.js';
 
 export const DEFAULT_DATA_DIR = fileURLToPath(new URL('../data/', import.meta.url));
 
@@ -48,9 +49,10 @@ function coachProfile(profile) {
 }
 
 function voiceProfile(value) {
-  if (!value || typeof value !== 'object' || Array.isArray(value) || value.version !== 1
+  if (!value || typeof value !== 'object' || Array.isArray(value) || value.version !== 2
     || !value.vowels || typeof value.vowels !== 'object'
-    || Array.isArray(value.vowels)) return null;
+    || Array.isArray(value.vowels)
+    || !Number.isFinite(value.spread) || value.spread < 0 || value.spread > 10) return null;
   const vowels = {};
   for (const key of ['a', 'o', 'e', 'i']) {
     const vowel = value.vowels[key];
@@ -59,7 +61,7 @@ function voiceProfile(value) {
       || !Number.isInteger(vowel.n) || vowel.n < 2 || vowel.n > 15) continue;
     vowels[key] = { f1: vowel.f1, f2: vowel.f2, n: vowel.n };
   }
-  return Object.keys(vowels).length >= 2 ? { version: 1, vowels } : null;
+  return Object.keys(vowels).length >= 1 ? { version: 2, vowels, spread: value.spread } : null;
 }
 
 function safeState(state) {
@@ -71,6 +73,10 @@ function safeState(state) {
     if (!record(child)) throw new Error('Invalid child');
     child.profile = coachProfile(child.profile);
     child.voice = voiceProfile(child.voice);
+    const vowels = normalizeVowels(child.vowels);
+    if (vowels) child.vowels = vowels;
+    else delete child.vowels;
+    if (child.voiceSkipped !== true) delete child.voiceSkipped;
   }
   for (const id of Object.keys(state.turns)) {
     if (!Array.isArray(state.turns[id])) throw new Error('Invalid turn list');

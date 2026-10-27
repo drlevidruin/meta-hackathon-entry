@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { applyMeter, buildVoiceProfile, decodeWav, measureVowel, soundIslands, VoiceCheckError } from './meter.js';
+import { applyMeter, buildVoiceProfile, decodeWav, measureVowel, meterDecision, soundIslands, VoiceCheckError } from './meter.js';
+import { hasUsablePair, USABLE_PAIRS } from './pairs.js';
+import { cardLabels } from '../rulebook/voice-card.js';
 
 import { rate, vowels, silence, tone, join, utterance, wav } from './synth-for-tests.js';
 
@@ -133,8 +135,9 @@ test('buildVoiceProfile keeps numeric Bark means and counts, skipping null label
   const labels = ['a', 'o', 'e', 'i', 'a', 'o', 'e', 'i', null];
   const data = wav(utterance(sounds));
   const result = buildVoiceProfile(data, labels);
-  assert.deepEqual(Object.keys(result), ['version', 'vowels']);
-  assert.equal(result.version, 1);
+  assert.deepEqual(Object.keys(result), ['version', 'vowels', 'spread']);
+  assert.equal(result.version, 2);
+  assert.equal(result.spread, 0);
   assert.deepEqual(Object.keys(result.vowels), ['a', 'o', 'e', 'i']);
   const { samples } = decodeWav(data);
   const islands = soundIslands(samples, rate);
@@ -162,14 +165,260 @@ test('buildVoiceProfile ignores separate white-noise islands when matching label
   assert.equal(result.vowels.o.n, 2);
 });
 
-test('buildVoiceProfile reports island counts and rejects one usable class or unvoiced audio', () => {
-  const data = wav(utterance(['a', 'a']));
-  assert.throws(() => buildVoiceProfile(data, ['a']), (error) => error instanceof VoiceCheckError
-    && error.code === 'count' && error.heard === 2);
-  assert.throws(() => buildVoiceProfile(data, ['a', 'a']), (error) => error instanceof VoiceCheckError && error.code === 'quiet');
+test('buildVoiceProfile reports island counts and rejects two-vowel cards with only one measured class', () => {
+  const data = wav(utterance(['a', 'a', 'o']));
+  assert.throws(() => buildVoiceProfile(data, ['a', 'o']), (error) => error instanceof VoiceCheckError
+    && error.code === 'count' && error.heard === 3);
+  const hum = silence(0.25).map((_, i) => 0.5 * Math.sin(2 * Math.PI * 100 * i / rate));
+  assert.equal(measureVowel(hum, rate, 0, hum.length), null);
+  const quiet = wav(join([utterance(['a', 'a']), hum, silence(0.25), hum, silence(0.25)]));
+  assert.throws(() => buildVoiceProfile(quiet, ['a', 'a', 'o', 'o']),
+    (error) => error instanceof VoiceCheckError && error.code === 'quiet');
+  assert.throws(() => buildVoiceProfile(wav(utterance(['a', 'a', 'o'])), ['a', 'a', 'o']),
+    (error) => error instanceof VoiceCheckError && error.code === 'quiet');
   const noisy = new Float64Array(4000).map((_, i) => i % 2 ? 0.5 : -0.5);
-  assert.throws(() => buildVoiceProfile(wav(noisy), ['a']), (error) => error instanceof VoiceCheckError
+  assert.throws(() => buildVoiceProfile(wav(noisy), ['a', 'o']), (error) => error instanceof VoiceCheckError
     && error.code === 'count' && error.heard === 0);
+});
+
+test('buildVoiceProfile rejects cards without a usable pair before decoding audio', () => {
+  for (const labels of [Array(6).fill('o'), ['o', 'i', null, 'o', 'i'], ['a', 'i'], ['o', 'e'], ['e'], ['i']]) {
+    assert.throws(() => buildVoiceProfile(null, labels),
+      (error) => error instanceof VoiceCheckError && error.code === 'card');
+  }
+});
+
+test('buildVoiceProfile rejects an unlabeled card before decoding audio', () => {
+  for (const labels of [[], [null, null]]) {
+    assert.throws(() => buildVoiceProfile(null, labels),
+      (error) => error instanceof VoiceCheckError && error.code === 'card');
+  }
+});
+
+test('buildVoiceProfile rejects a full card when only o and i classes measure', () => {
+  const labels = cardLabels('ashkenazi');
+  const hum = silence(0.25).map((_, i) => 0.5 * Math.sin(2 * Math.PI * 100 * i / rate));
+  const segments = labels.map(label => ['o', 'i'].includes(label) ? tone(vowels[label]) : hum);
+  const data = wav(join([silence(0.25), ...segments.flatMap(segment => [segment, silence(0.25)])]));
+  const { samples } = decodeWav(data);
+  const islands = soundIslands(samples, rate);
+  assert.equal(islands.length, labels.length);
+  const measured = islands.flatMap(({ start, end }, index) => measureVowel(samples, rate, start, end)
+    ? [labels[index]] : []);
+  assert.deepEqual(measured, ['o', 'i', 'o', 'i', 'o', 'i']);
+  assert.throws(() => buildVoiceProfile(data, labels),
+    (error) => error instanceof VoiceCheckError && error.code === 'quiet');
+});
+
+test('buildVoiceProfile pools spread from kept classes around unrounded Bark centroids', () => {
+  const labels = ['a', 'a', 'a', 'o', 'o', 'i', null, 'e', 'e'];
+  const hum = silence(0.25).map((_, i) => 0.5 * Math.sin(2 * Math.PI * 100 * i / rate));
+  const segments = [tone([700, 1100]), tone([800, 1250]), tone([900, 1400]),
+    tone([500, 950]), tone([650, 1100]), tone(vowels.i), tone(vowels.u), hum, hum];
+  const data = wav(join([silence(0.25), ...segments.flatMap(segment => [segment, silence(0.25)])]));
+  const result = buildVoiceProfile(data, labels);
+  assert.deepEqual(Object.keys(result.vowels), ['a', 'o']);
+  assert.equal(result.vowels.a.n, 3);
+  assert.equal(result.vowels.o.n, 2);
+  const { samples } = decodeWav(data);
+  const islands = soundIslands(samples, rate);
+  let squaredDeviations = 0;
+  let degreesOfFreedom = 0;
+  for (const label of ['a', 'o']) {
+    const tokens = islands.flatMap(({ start, end }, index) => labels[index] === label
+      ? [measureVowel(samples, rate, start, end)] : []);
+    for (const axis of ['f1', 'f2']) {
+      const values = tokens.map(token => bark(token[axis]));
+      const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+      squaredDeviations += values.reduce((sum, value) => sum + (value - mean) ** 2, 0);
+      degreesOfFreedom += values.length - 1;
+      assert.equal(result.vowels[label][axis], Math.round(mean * 1000) / 1000);
+    }
+  }
+  assert.ok(result.spread > 0);
+  assert.equal(result.spread, Math.round(Math.sqrt(squaredDeviations / degreesOfFreedom) * 1000) / 1000);
+});
+
+test('meterDecision equals the old rule across the full Bark grid for a well-separated four-vowel card', () => {
+  const voice = { version: 2, vowels: {
+    o: { f1: 6.10, f2: 9.04, n: 3 }, a: { f1: 6.89, f2: 9.87, n: 3 },
+    e: { f1: 6.03, f2: 11.83, n: 3 }, i: { f1: 2.10, f2: 13.90, n: 3 },
+  }, spread: 0.336 };
+  function oldRule(earVowel, point, profile, margin = 0.75) {
+    const candidates = earVowel === 'a' ? ['a', 'o', 'e'] : earVowel === 'e' ? ['e', 'i'] : [];
+    const usable = candidates.filter(v => Object.hasOwn(profile.vowels, v));
+    if (usable.length < 2) return null;
+    const distances = usable.map(v => {
+      const c = profile.vowels[v];
+      return { v, d: Math.hypot(point.f1 - c.f1, point.f2 - c.f2) };
+    }).sort((a, b) => a.d - b.d);
+    const [best, second] = distances;
+    return best.v !== earVowel && best.d / second.d < margin ? best.v : null;
+  }
+  for (let f1 = 10; f1 <= 90; f1 += 1) {
+    for (let f2 = 70; f2 <= 150; f2 += 1) {
+      const point = { f1: f1 / 10, f2: f2 / 10 };
+      for (const earVowel of ['a', 'e']) {
+        assert.equal(meterDecision(earVowel, point, voice), oldRule(earVowel, point, voice),
+          `ear ${earVowel} at ${point.f1}, ${point.f2}`);
+      }
+    }
+  }
+});
+
+test('meterDecision only returns usable pairs across the Bark grid for every subset of four classes', () => {
+  assert.deepEqual(USABLE_PAIRS, [['a', 'o'], ['a', 'e'], ['e', 'i']]);
+  assert.ok(Object.isFrozen(USABLE_PAIRS));
+  const classes = {
+    a: { f1: 7, f2: 10, n: 3 }, o: { f1: 6, f2: 9, n: 3 },
+    e: { f1: 6, f2: 12, n: 3 }, i: { f1: 2, f2: 14, n: 3 },
+  };
+  const labels = Object.keys(classes);
+  const corrections = new Set();
+  for (let mask = 0; mask < 16; mask++) {
+    const entries = Object.entries(classes).filter((_, i) => mask & (1 << i));
+    const voice = { version: 2, vowels: Object.fromEntries(entries), spread: 0.3 };
+    const present = Object.keys(voice.vowels);
+    const usable = (present.includes('a') && (present.includes('o') || present.includes('e')))
+      || (present.includes('e') && present.includes('i'));
+    assert.equal(hasUsablePair([null, ...present, null]), usable);
+    for (let f1 = 10; f1 <= 90; f1++) {
+      for (let f2 = 70; f2 <= 150; f2++) {
+        const point = { f1: f1 / 10, f2: f2 / 10 };
+        for (const earVowel of [...labels, 'u', 'oy', 'ey', '?']) {
+          const target = meterDecision(earVowel, point, voice);
+          if (target === null) continue;
+          const message = `profile ${present}, ear ${earVowel} at ${point.f1}, ${point.f2}: ${target}`;
+          assert.notEqual(target, earVowel, message);
+          assert.ok(Object.hasOwn(voice.vowels, earVowel) && Object.hasOwn(voice.vowels, target), message);
+          assert.ok(USABLE_PAIRS.some(pair => pair.includes(earVowel) && pair.includes(target)), message);
+          corrections.add(`${earVowel}:${target}`);
+        }
+      }
+    }
+  }
+  assert.deepEqual([...corrections].sort(), ['a:e', 'a:o', 'e:i']);
+});
+
+test('meterDecision with only o leaves every ear a unchanged across the Bark grid', () => {
+  const voice = { version: 2, vowels: { o: { f1: 4, f2: 8, n: 3 } }, spread: 0.3 };
+  for (let f1 = 10; f1 <= 90; f1 += 1) {
+    for (let f2 = 70; f2 <= 150; f2 += 1) {
+      const point = { f1: f1 / 10, f2: f2 / 10 };
+      assert.equal(meterDecision('a', point, voice), null, `ear a at ${point.f1}, ${point.f2}`);
+    }
+  }
+});
+
+test('meterDecision with o and a corrects a near o and beyond 0.75 Bark', () => {
+  const voice = { version: 2, vowels: {
+    o: { f1: 4, f2: 8, n: 3 }, a: { f1: 7, f2: 8, n: 3 },
+  }, spread: 0.3 };
+  assert.equal(meterDecision('a', voice.vowels.o, voice), 'o');
+  assert.equal(meterDecision('a', { f1: 4.5, f2: 8 }, voice), 'o');
+  assert.equal(meterDecision('a', { f1: 4, f2: 9 }, voice), 'o');
+});
+
+test('meterDecision with o and e leaves a unchanged when a is missing', () => {
+  const voice = { version: 2, vowels: {
+    o: { f1: 4, f2: 8, n: 3 }, e: { f1: 4, f2: 11, n: 3 },
+  }, spread: 0.3 };
+  assert.equal(meterDecision('a', voice.vowels.o, voice), null);
+  assert.equal(meterDecision('a', voice.vowels.e, voice), null);
+  assert.equal(meterDecision('a', { f1: 5, f2: 8 }, voice), null);
+  assert.equal(meterDecision('a', { f1: 4.5, f2: 8 }, voice), null);
+  assert.equal(meterDecision('a', { f1: 4, f2: 9.5 }, voice, { margin: 2 }), null);
+});
+
+test('meterDecision with o and i leaves ears a and e unchanged across the Bark grid', () => {
+  const voice = { version: 2, vowels: {
+    o: { f1: 4, f2: 8, n: 3 }, i: { f1: 2, f2: 14, n: 3 },
+  }, spread: 0.3 };
+  for (let f1 = 10; f1 <= 90; f1 += 1) {
+    for (let f2 = 70; f2 <= 150; f2 += 1) {
+      const point = { f1: f1 / 10, f2: f2 / 10 };
+      for (const earVowel of ['a', 'e']) {
+        assert.equal(meterDecision(earVowel, point, voice), null,
+          `ear ${earVowel} at ${point.f1}, ${point.f2}`);
+      }
+    }
+  }
+});
+
+test('meterDecision leaves a unchanged across the Bark grid when kamatz was read as patach', () => {
+  const voice = { version: 2, vowels: {
+    o: { f1: 4, f2: 8, n: 3 }, a: { f1: 4.2, f2: 8, n: 3 },
+  }, spread: 0.336 };
+  for (let f1 = 10; f1 <= 90; f1 += 1) {
+    for (let f2 = 70; f2 <= 150; f2 += 1) {
+      const point = { f1: f1 / 10, f2: f2 / 10 };
+      assert.equal(meterDecision('a', point, voice), null, `ear a at ${point.f1}, ${point.f2}`);
+    }
+  }
+});
+
+test('meterDecision blocks targets whose available centroids are only 0.5 Bark apart', () => {
+  const voice = { version: 2, vowels: {
+    a: { f1: 4.5, f2: 8, n: 3 }, o: { f1: 4, f2: 8, n: 3 },
+  }, spread: 0.01 };
+  assert.equal(meterDecision('a', voice.vowels.o, voice), null);
+  const closeToE = { version: 2, vowels: {
+    a: { f1: 7, f2: 8, n: 3 }, e: { f1: 4.5, f2: 8, n: 3 }, o: { f1: 4, f2: 8, n: 3 },
+  }, spread: 0.01 };
+  assert.equal(meterDecision('a', closeToE.vowels.e, closeToE), null);
+});
+
+test('meterDecision widens the separation guard with pooled spread and honors gap options', () => {
+  const voice = { version: 2, vowels: {
+    a: { f1: 5, f2: 8, n: 3 }, o: { f1: 4, f2: 8, n: 3 },
+  }, spread: 0.2 };
+  const wide = { ...voice, spread: 0.6 };
+  assert.equal(meterDecision('a', voice.vowels.o, voice), 'o');
+  assert.equal(meterDecision('a', voice.vowels.o, wide), null);
+  assert.equal(meterDecision('a', voice.vowels.o, wide, { gapFactor: 1 }), 'o');
+  assert.equal(meterDecision('a', voice.vowels.o, voice, { minGap: 1.1 }), null);
+  const boundary = { ...voice, vowels: { ...voice.vowels, a: { f1: 4, f2: 8.8, n: 3 } }, spread: 0 };
+  assert.equal(meterDecision('a', voice.vowels.o, boundary), 'o');
+});
+
+test('meterDecision checks every available centroid and each class token count', () => {
+  const voice = { version: 2, vowels: {
+    a: { f1: 3, f2: 9.4, n: 3 }, o: { f1: 4, f2: 8, n: 3 }, e: { f1: 4.5, f2: 8, n: 3 },
+  }, spread: 0.01 };
+  assert.equal(meterDecision('a', { f1: 3, f2: 8 }, voice), null);
+  const unequal = { version: 2, vowels: {
+    a: { f1: 5, f2: 8, n: 2 }, o: { f1: 4, f2: 8, n: 15 },
+  }, spread: 0.45 };
+  assert.equal(meterDecision('a', unequal.vowels.o, unequal), null);
+  const moreTokens = { ...unequal, vowels: { ...unequal.vowels, a: { ...unequal.vowels.a, n: 15 } } };
+  assert.equal(meterDecision('a', moreTokens.vowels.o, moreTokens), 'o');
+});
+
+test('meterDecision with only i leaves e unchanged when e is missing', () => {
+  const voice = { version: 2, vowels: { i: { f1: 2, f2: 14, n: 3 } }, spread: 0.3 };
+  assert.equal(meterDecision('e', voice.vowels.i, voice), null);
+  assert.equal(meterDecision('e', { f1: 2.5, f2: 14 }, voice), null);
+  assert.equal(meterDecision('e', { f1: 3.1, f2: 14 }, voice), null);
+});
+
+test('meterDecision leaves a unchanged for a Sephardi-style card with only a', () => {
+  const voice = { version: 2, vowels: { a: { f1: 5, f2: 8, n: 6 } }, spread: 0.3 };
+  for (const point of [{ f1: 5, f2: 8 }, { f1: 1, f2: 15 }]) {
+    assert.equal(meterDecision('a', point, voice), null);
+  }
+  for (const earVowel of ['o', 'i', 'u', 'oy', 'ey', '?', 'e']) {
+    assert.equal(meterDecision(earVowel, voice.vowels.a, voice), null);
+  }
+});
+
+test('meterDecision keeps candidate order for ties and rejects a zero second distance', () => {
+  const voice = { version: 2, vowels: {
+    o: { f1: 4, f2: 8, n: 3 }, e: { f1: 4, f2: 10, n: 3 }, a: { f1: 8, f2: 12, n: 3 },
+  }, spread: 0 };
+  assert.equal(meterDecision('a', { f1: 4, f2: 9 }, voice, { margin: 2 }), 'o');
+  const coincident = { ...voice, vowels: { ...voice.vowels, e: { ...voice.vowels.o } } };
+  assert.equal(meterDecision('a', coincident.vowels.o, coincident,
+    { margin: 2, minGap: 0, gapFactor: 0 }), null);
 });
 
 test('applyMeter corrects o heard as a, preserves u and never mutates its inputs', () => {
@@ -207,8 +456,11 @@ test('applyMeter falls back for count, profile and format failures with fresh ar
   const words = [['ba']];
   for (const [data, voice, reason] of [
     [wav(utterance(['a', 'o'])), voiceProfile(), 'count'],
-    [null, undefined, 'profile'], [null, { version: 2, vowels: {} }, 'profile'],
-    [null, { version: 1, vowels: null }, 'profile'], [null, { version: 1, vowels: [] }, 'profile'],
+    [null, undefined, 'profile'], [null, { version: 2, vowels: {}, spread: 0.3 }, 'profile'],
+    [null, { version: 2, vowels: null, spread: 0.3 }, 'profile'],
+    [null, { version: 2, vowels: [], spread: 0.3 }, 'profile'],
+    [null, { ...voiceProfile(), version: 1 }, 'profile'],
+    ...[undefined, -0.1, NaN, Infinity, '0.3'].map(spread => [null, { ...voiceProfile(), spread }, 'profile']),
     [Buffer.alloc(0), voiceProfile(), 'format'],
   ]) {
     const result = applyMeter(words, data, voice);
@@ -218,8 +470,8 @@ test('applyMeter falls back for count, profile and format failures with fresh ar
   }
 });
 
-test('applyMeter skips missing candidate classes and unmeasurable islands', () => {
-  assert.deepEqual(applyMeter([['ba']], wav(utterance(['o'])), { version: 1, vowels: { o: voiceProfile().vowels.o } }), {
+test('applyMeter skips classes with no possible correction and unmeasurable islands', () => {
+  assert.deepEqual(applyMeter([['ba']], wav(utterance(['o'])), { version: 2, vowels: { a: voiceProfile().vowels.a }, spread: 0.3 }), {
     words: [['ba']], changes: [], applied: true,
   });
   // Three voiced frames keep this island, but four are needed to measure it.
@@ -228,11 +480,41 @@ test('applyMeter skips missing candidate classes and unmeasurable islands', () =
   assert.deepEqual(applyMeter([['ba']], wav(unmeasurable), voiceProfile()), { words: [['ba']], changes: [], applied: true });
 });
 
+test('applyMeter accepts one-vowel profiles unchanged and forwards margin and separation options', () => {
+  const data = wav(utterance(['o']));
+  const o = voiceProfile().vowels.o;
+  const onlyO = { version: 2, vowels: { o }, spread: 0.2 };
+  const corrected = { words: [['bo']], changes: [{ index: 0, from: 'ba', to: 'bo' }], applied: true };
+  const unchanged = { words: [['ba']], changes: [], applied: true };
+  assert.deepEqual(applyMeter([['ba']], data, onlyO), unchanged);
+  const separated = { ...onlyO, vowels: { o, a: { ...o, f1: o.f1 + 2 } } };
+  assert.deepEqual(applyMeter([['ba']], data, separated), corrected);
+  assert.deepEqual(applyMeter([['ba']], data, separated, { margin: 0 }), unchanged);
+  const close = { ...onlyO, vowels: { o, a: { ...o, f1: o.f1 + 0.5 } }, spread: 0.1 };
+  assert.deepEqual(applyMeter([['ba']], data, close), unchanged);
+  assert.deepEqual(applyMeter([['ba']], data, close, { minGap: 0.4 }), corrected);
+  const wide = { ...onlyO, vowels: { o, a: { ...o, f1: o.f1 + 1 } }, spread: 0.6 };
+  assert.deepEqual(applyMeter([['ba']], data, wide), unchanged);
+  assert.deepEqual(applyMeter([['ba']], data, wide, { gapFactor: 1 }), corrected);
+});
+
+test('applyMeter leaves syllables unchanged when their ear vowel classes are missing', () => {
+  const words = [['ba'], ['be']];
+  const before = structuredClone(words);
+  const { o, i } = voiceProfile().vowels;
+  const voice = { version: 2, vowels: { o, i }, spread: 0.2 };
+  const result = applyMeter(words, wav(utterance(['o', 'i'])), voice);
+  assert.deepEqual(result.words, before);
+  assert.deepEqual(result.changes, []);
+  assert.equal(result.applied, true);
+  assert.deepEqual(words, before);
+});
+
 test('applyMeter corrects a to o when F2 is closer under Euclidean Bark distance', () => {
-  const voice = { version: 1, vowels: {
+  const voice = { version: 2, vowels: {
     a: { f1: bark(750), f2: bark(1250), n: 2 },
     o: { f1: bark(650), f2: bark(1050), n: 2 },
-  } };
+  }, spread: 0.2 };
   const data = wav(join([silence(0.25), tone([700, 1060]), silence(0.25)]));
   assert.deepEqual(applyMeter([['ba']], data, voice), {
     words: [['bo']], changes: [{ index: 0, from: 'ba', to: 'bo' }], applied: true,

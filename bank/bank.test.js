@@ -11,10 +11,56 @@ import { checkPage } from './check-page.js';
 import { lineText, pointedWord, punctuatedPhrases, segmentWords, siddur, usableSegment } from './corpus.js';
 import { LETTERS, VOWELS } from './generate.js';
 import { mulberry32 } from './random.js';
+import { fitsVowels, requiredVowels } from '../rulebook/vowels.js';
 
 const items = buildBank();
 const presets = Object.keys(PRESETS);
 const unique = (values) => [...new Set(values)].sort();
+
+test('the original non-beginner bank remains byte for byte in its original order', () => {
+  const original = items.filter(item => !item.source.beginner);
+  assert.equal(createHash('sha1').update(JSON.stringify(original)).digest('hex'),
+    '668c9e6eb64bcff149a7f1b0ed5af9d5a56e5277');
+  for (const level of [1, 2, 4]) {
+    const atLevel = items.filter(item => item.level === level);
+    const firstBeginner = atLevel.findIndex(item => item.source.beginner);
+    assert.ok(firstBeginner >= 0);
+    assert.ok(atLevel.slice(firstBeginner).every(item => item.source.beginner));
+  }
+});
+
+test('beginner single and pair groups have the exact promised counts and vowel coverage', () => {
+  const names = ['kamatz', 'patach', 'segol', 'tzere', 'chirik', 'cholam', 'shuruk', 'kubutz', 'sheva_na'];
+  const groups = names.flatMap((name, index) => [[name], ...names.slice(index + 1).map(other => [name, other])]);
+  const beginners = items.filter(item => item.source.beginner);
+  assert.deepEqual([1, 2, 4].map(level => beginners.filter(item => item.level === level).length), [180, 180, 104]);
+  assert.equal(new Set(items.map(item => item.text)).size,
+    new Set(items.filter(item => !item.source.beginner).map(item => item.text)).size + beginners.length);
+  const oldWords = new Set(items.filter(item => item.level === 4 && !item.source.beginner).flatMap(item => item.words));
+  const newWords = new Set();
+  for (const level of [1, 2, 4]) for (const group of groups) {
+    const learned = group.map(name => name === 'sheva_na' ? 'sheva' : name);
+    const matching = beginners.filter(item => item.level === level
+      && JSON.stringify(requiredVowels(item)) === JSON.stringify(learned));
+    const expected = level === 4 ? group.includes('sheva_na') ? 0 : group.length === 1 ? 6 : 2
+      : group.length === 1 ? 8 : 3;
+    assert.equal(matching.length, expected, `level ${level}: ${group.join('+')}`);
+    for (const [index, item] of matching.entries()) {
+      assert.deepEqual(item.source, { generated: true, beginner: true });
+      assert.equal(item.focus, `vowel:${group.at(-1)}`);
+      assert.ok(fitsVowels(item, learned), item.id);
+      assert.equal(item.words.length, level === 1 ? 6 : level === 2 ? 5 : index % 2 ? 2 : 3);
+      if (group.length === 2 && level < 4) for (const vowel of learned) {
+        assert.ok(item.words.filter(word => requiredVowels({ text: word, skills: tagSkills(word) }).includes(vowel)).length >= 2,
+          `${item.id}: ${vowel}`);
+      }
+      if (level === 4) for (const word of item.words) {
+        assert.ok(!oldWords.has(word) && !newWords.has(word), word);
+        newWords.add(word);
+      }
+    }
+  }
+});
 
 test('check-page CLI without a section prints usage and exits without a stack trace', () => {
   const result = spawnSync(process.execPath, [fileURLToPath(new URL('./check-page.js', import.meta.url))], {
@@ -100,7 +146,7 @@ test('prefixed Name readings include the prefix exactly once and never accept a 
 
 test('level 1 has 60 lines of five or six pairs and covers letters, variants and all target vowels', () => {
   const level = items.filter((item) => item.level === 1);
-  assert.equal(level.length, 60);
+  assert.equal(level.filter(item => !item.source.beginner).length, 60);
   const words = level.flatMap((item) => item.words);
   for (const item of level) {
     assert.ok([5, 6].includes(item.words.length));
@@ -120,7 +166,7 @@ test('level 1 has 60 lines of five or six pairs and covers letters, variants and
 
 test('level 2 has 40 lines of five one-syllable words and all drills share their focus', () => {
   const level = items.filter((item) => item.level === 2);
-  assert.equal(level.length, 40);
+  assert.equal(level.filter(item => !item.source.beginner).length, 40);
   for (const item of level) {
     assert.equal(item.words.length, 5);
     for (const word of item.words) for (const preset of presets) {
@@ -129,7 +175,7 @@ test('level 2 has 40 lines of five one-syllable words and all drills share their
   }
   for (const item of items.filter((item) => [1, 2, 3, 4].includes(item.level))) {
     assert.ok(item.focus);
-    assert.ok(item.words.every((word) => tagSkills(word).includes(item.focus)), item.id);
+    if (!item.source.beginner) assert.ok(item.words.every((word) => tagSkills(word).includes(item.focus)), item.id);
     assert.equal(new Set(item.words).size, item.words.length);
   }
 });
@@ -149,7 +195,7 @@ test('level 4 has 40 short lines and 150 single-word challenges, all excluded fr
   const corpus = new Set(siddur.sections.flatMap((section) => section.segments.flatMap(segmentWords))
     .filter((word) => pointedWord(word)).map(cleanWord));
   const level = items.filter((item) => item.level === 4);
-  assert.equal(level.filter(item => !item.source.challenge).length, 40);
+  assert.equal(level.filter(item => !item.source.challenge && !item.source.beginner).length, 40);
   assert.equal(level.filter(item => item.source.challenge).length, 150);
   for (const item of level) {
     assert.ok(item.source.challenge ? item.words.length === 1 : [2, 3].includes(item.words.length));

@@ -33,6 +33,8 @@ export const voice = ({ childId, audio }) => isMockMode() ? mock.voice({ childId
   });
 export const clearVoice = id => isMockMode() ? mock.clearVoice(id) :
   request(`children/${encodeURIComponent(id)}/voice`, { teacher: true, method: 'DELETE' });
+export const skipVoice = id => isMockMode() ? mock.skipVoice(id) :
+  request(`children/${encodeURIComponent(id)}/voice`, { teacher: true, method: 'PUT', data: { skipped: true } });
 export const next = data => isMockMode() ? mock.next(data) : post('next', {
   turnId: data.turnId, elapsedMs: data.elapsedMs, checkpoint: data.checkpoint,
 });

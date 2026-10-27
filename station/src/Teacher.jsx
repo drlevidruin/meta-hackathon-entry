@@ -4,9 +4,14 @@ import { Avatar, AVATARS } from './Avatar.jsx';
 import { loadPin, savePin, PRESETS } from './storage.js';
 import { skillLabel } from './messages.js';
 import { Brand, Resource, useResource } from './ui.jsx';
+import { isFullSet, VOWEL_IDS } from '../../rulebook/vowels.js';
 
 const encode = encodeURIComponent;
 const dateLabel = date => new Date(date).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+const vowelMarks = { kamatz: 'בָ', patach: 'בַ', segol: 'בֶ', tzere: 'בֵ', chirik: 'בִ', cholam: 'בֹ',
+  shuruk: 'בוּ', kubutz: 'בֻ', sheva: 'בְ', chataf: 'בֲ' };
+const vowelName = id => id[0].toUpperCase() + id.slice(1);
+const voiceActions = { done: 'Redo voice check', needed: 'Skip voice check', skipped: 'Use voice check' };
 
 export function PinPad({ onUnlock }) {
   const [pin, setPin] = useState('');
@@ -155,7 +160,7 @@ export function Packet({ childId, skillId, level }) {
   </>}</Resource></section>;
 }
 
-const blankChild = () => ({ name: '', avatar: 'lion', preset: 'sephardi' });
+const blankChild = () => ({ name: '', avatar: 'lion', preset: 'sephardi', vowels: [...VOWEL_IDS] });
 export function Roster() {
   const resource = useResource(api.children);
   const [editing, setEditing] = useState(null);
@@ -171,7 +176,7 @@ export function Roster() {
   }, [confirming]);
   function reset() { setEditing(null); setForm(blankChild()); setError(''); }
   function edit(child) {
-    setEditing(child.id); setForm({ name: child.name, avatar: child.avatar, preset: child.preset, level: child.level });
+    setEditing(child.id); setForm({ name: child.name, avatar: child.avatar, preset: child.preset, level: child.level, vowels: [...child.vowels] });
     setError(''); editor.current?.focus(); editor.current?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
   }
   async function mutate(action) {
@@ -187,14 +192,16 @@ export function Roster() {
     event.preventDefault();
     const name = form.name.trim();
     if (!name || /\s/.test(name)) { setError('First name only'); return; }
-    const data = { ...form, name };
+    if (!form.vowels.length) { setError('Choose a vowel'); return; }
+    const data = { ...form, name, vowels: VOWEL_IDS.filter(id => form.vowels.includes(id)) };
     void mutate(() => editing ? api.editChild(editing, data) : api.addChild(data));
   }
   return <section className="page roster-page"><h1>Roster</h1><div className="roster-layout">
     <div><Resource resource={resource}>{children => <div className="roster-list">{children.map(child =>
-      <article className="roster-row" key={child.id}><Avatar name={child.avatar} small /><div><h2>{child.name}</h2><span>Level {child.level}</span></div>
+      <article className="roster-row" key={child.id}><Avatar name={child.avatar} small /><div><h2>{child.name}</h2><span>Level {child.level}{!isFullSet(child.vowels) && ` · ${VOWEL_IDS.filter(id => child.vowels.includes(id)).map(vowelName).join(', ')}`}</span></div>
         <div className="roster-actions"><button className="primary" disabled={busy} onClick={() => edit(child)}>Edit <span className="sr-only">{child.name}</span></button>
-          {child.voiceCheck && <button className="secondary roster-voice" disabled={busy} onClick={() => void mutate(() => api.clearVoice(child.id))}>Redo voice check <span className="sr-only">{child.name}</span></button>}
+          {voiceActions[child.voiceStatus] && <button className="secondary roster-voice" disabled={busy} onClick={() => void mutate(() =>
+            child.voiceStatus === 'needed' ? api.skipVoice(child.id) : api.clearVoice(child.id))}>{voiceActions[child.voiceStatus]} <span className="sr-only">{child.name}</span></button>}
           <button className="roster-delete" disabled={busy} onClick={event => { deleteTrigger.current = event.currentTarget; setError(''); setConfirming(child); }}>Delete <span className="sr-only">{child.name}</span></button></div>
       </article>)}</div>}</Resource></div>
     <form className="roster-form" onSubmit={submit}><h2>{editing ? 'Edit child' : 'Add child'}</h2>
@@ -202,6 +209,14 @@ export function Roster() {
       <fieldset><legend>Avatar</legend><div className="avatar-picker">{AVATARS.map(avatar => <button type="button" key={avatar} aria-label={avatar} aria-pressed={form.avatar === avatar}
         onClick={() => setForm({ ...form, avatar })}><Avatar name={avatar} small /></button>)}</div></fieldset>
       <label>Preset<select value={form.preset} onChange={event => setForm({ ...form, preset: event.target.value })}>{PRESETS.map(preset => <option key={preset} value={preset}>{preset[0].toUpperCase() + preset.slice(1)}</option>)}</select></label>
+      <fieldset><legend>Vowels</legend>
+        <button className="vowel-all" type="button" aria-pressed={isFullSet(form.vowels)} onClick={() =>
+          setForm({ ...form, vowels: isFullSet(form.vowels) ? [] : [...VOWEL_IDS] })}>All</button>
+        <div className="vowel-picker">{VOWEL_IDS.map(id => <button type="button" key={id} aria-label={vowelName(id)} aria-pressed={form.vowels.includes(id)}
+          onClick={() => setForm({ ...form, vowels: VOWEL_IDS.filter(vowel => vowel === id ? !form.vowels.includes(id) : form.vowels.includes(vowel)) })}>
+          <span lang="he" dir="rtl">{vowelMarks[id]}</span><span>{vowelName(id)}</span>
+        </button>)}</div>
+      </fieldset>
       {editing && <label>Level<select value={form.level} onChange={event => setForm({ ...form, level: Number(event.target.value) })}>{[1, 2, 3, 4, 5, 6].map(level => <option key={level}>{level}</option>)}</select></label>}
       {error && !confirming && <p role="alert">{error}</p>}
       <div className="form-actions"><button className="primary" disabled={busy}>{editing ? 'Save' : 'Add child'}</button>{editing && <button className="secondary" type="button" onClick={reset} disabled={busy}>Cancel</button>}</div>

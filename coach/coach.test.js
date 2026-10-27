@@ -319,7 +319,7 @@ test('selection ranks target focus, then weak skill coverage, then id', () => {
 
 test('sparse banks return available unique lines rather than inventing or repeating ids', () => {
   assert.deepEqual(ruleNextSet(startProfile(), [item('only', 1)]).itemIds, ['only']);
-  assert.deepEqual(ruleNextSet(startProfile(), []).itemIds, []);
+  assert.throws(() => ruleNextSet(startProfile(), []), RangeError);
 });
 
 test('turnFacts gives most clean reads, weakest recent skill, sorted proven and deterministic ties', () => {

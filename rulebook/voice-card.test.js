@@ -2,6 +2,62 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 import { cardLabels, VOICE_CARD } from './voice-card.js';
+import * as cards from './voice-card.js';
+
+test('subset voice cards use learned columns, enough rows, and the original Unicode syllables', () => {
+  const columns = ['kamatz', 'patach', 'segol', 'chirik', 'cholam'];
+  assert.deepEqual(cards.CARD_VOWELS, columns);
+  for (let mask = 0; mask < 32; mask++) {
+    const shown = columns.filter((_, i) => mask & (1 << i));
+    const card = cards.voiceCard(shown);
+    const rows = shown.length <= 2 ? 6 : 3;
+    assert.equal(card.length, shown.length * rows);
+    for (let row = 0; row < Math.min(3, rows); row++) {
+      for (const [col, vowel] of shown.entries()) {
+        assert.equal(card[row * shown.length + col], VOICE_CARD[row * 5 + columns.indexOf(vowel)]);
+      }
+    }
+    if (shown.length > 0 && shown.length <= 2) {
+      const marks = { kamatz: 'ָ', patach: 'ַ', segol: 'ֶ', chirik: 'ִ', cholam: 'ֹ' };
+      assert.deepEqual(card.slice(3 * shown.length), ['ג', 'תּ', 'ק'].flatMap(letter =>
+        shown.map(vowel => (letter + marks[vowel]).normalize('NFD'))));
+    }
+  }
+  assert.deepEqual(cards.voiceCard(), VOICE_CARD);
+  assert.deepEqual(cards.voiceCard(null), VOICE_CARD);
+  assert.notEqual(cards.voiceCard(columns), VOICE_CARD);
+  assert.deepEqual(cards.voiceCard(['tzere', 'sheva']), []);
+  assert.deepEqual(cardLabels('ashkenazi', cards.voiceCard(['kamatz'])), Array(6).fill('o'));
+  assert.deepEqual(cards.voiceCardFor(['cholam'], 'ashkenazi'), []);
+  assert.deepEqual(cards.voiceCardFor(['kamatz'], 'chassidish'), []);
+  assert.deepEqual(cards.voiceCardFor(['cholam'], 'sephardi'), []);
+});
+
+test('voice cards require a usable pair for the preset', () => {
+  const cases = [
+    ['ashkenazi', ['kamatz'], 0, ['o']],
+    ['ashkenazi', ['kamatz', 'patach'], 12, ['o', 'a']],
+    ['ashkenazi', ['patach', 'segol'], 12, ['a', 'e']],
+    ['ashkenazi', ['segol', 'chirik'], 12, ['e', 'i']],
+    ['ashkenazi', ['kamatz', 'chirik'], 0, ['o', 'i']],
+    ['ashkenazi', ['kamatz', 'cholam'], 0, ['o', null]],
+    ['ashkenazi', ['kamatz', 'patach', 'chirik'], 9, ['o', 'a', 'i']],
+    ['ashkenazi', cards.CARD_VOWELS, 15, ['o', 'a', 'e', 'i', null]],
+    ['sephardi', ['kamatz', 'patach'], 0, ['a']],
+    ['sephardi', ['kamatz', 'segol'], 12, ['a', 'e']],
+    ['chassidish', ['kamatz', 'patach'], 0, [null, 'a']],
+    ['chassidish', ['patach', 'segol'], 12, ['a', 'e']],
+  ];
+  for (const [preset, vowels, length, labels] of cases) {
+    const message = `${preset}: ${vowels.join(', ')}`;
+    const card = cards.voiceCard(vowels);
+    assert.deepEqual([...new Set(cardLabels(preset, card))], labels, message);
+    const actual = cards.voiceCardFor(vowels, preset);
+    assert.equal(actual.length, length, message);
+    assert.deepEqual(actual, length ? card : [], message);
+  }
+  assert.deepEqual(cards.voiceCardFor(cards.CARD_VOWELS, 'ashkenazi'), VOICE_CARD);
+});
 
 test('voice card is frozen and has three rows of five syllables', () => {
   assert.equal(Object.isFrozen(VOICE_CARD), true);

@@ -22,7 +22,7 @@ function ChildHome({ child, engine }) {
   return <section className="child-home"><div className="child-portrait"><Avatar name={child.avatar} /><h1>{child.name}</h1></div>
     <div className="child-welcome"><div className="level-badge">Level {child.level}</div>
       <dl className="child-totals"><div><dt>Lifetime stars</dt><dd><Star filled />{child.stars}</dd></div><div><dt>Best turn</dt><dd><Star filled />{child.best}</dd></div></dl>
-      <button className="primary start-button" disabled={engine.starting} onClick={() => child.voiceCheck === false ? navigate(`/child/${encodeURIComponent(child.id)}/voice`) : void engine.start(child)}>{engine.starting ? 'Starting…' : engine.startError ? 'Try again' : 'Start'}</button>
+      <button className="primary start-button" disabled={engine.starting} onClick={() => child.voiceStatus === 'needed' ? navigate(`/child/${encodeURIComponent(child.id)}/voice`) : void engine.start(child)}>{engine.starting ? 'Starting…' : engine.startError ? 'Try again' : 'Start'}</button>
     </div>
   </section>;
 }
