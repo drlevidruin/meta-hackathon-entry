@@ -2,6 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { SKILLS } from '../rulebook/index.js';
+import { cardLabels } from '../rulebook/voice-card.js';
+import { applyMeter, buildVoiceProfile, VoiceCheckError } from '../ear/meter.js';
 import { createStore, durable } from './store.js';
 import { buildMap, recordPairs, summaryOnly, totalSummary } from './progress.js';
 import { parentLine } from './hints.js';
@@ -114,7 +116,8 @@ async function staticFile(req, res, staticDir) {
   }
 }
 
-const childView = ({ id, name, avatar, preset, level, stars, best }) => ({ id, name, avatar, preset, level, stars, best });
+const childView = ({ id, name, avatar, preset, level, stars, best, voice }) =>
+  ({ id, name, avatar, preset, level, stars, best, voiceCheck: Boolean(voice) });
 const factsView = facts => ({ best: facts.best, next: facts.next, proven: facts.proven });
 
 function validateId(id) {
@@ -234,7 +237,7 @@ export function createApp({
       }
       const url = new URL(req.url, 'http://localhost');
       const pathname = url.pathname;
-      const childRoute = pathname.match(/^\/api\/children\/([^/]+)(\/detail)?$/u);
+      const childRoute = pathname.match(/^\/api\/children\/([^/]+)(\/(?:detail|voice))?$/u);
       if (pathname === '/api/trace' && !traceEnabled) throw new RequestError(404, 'Not found');
       if (pathname.startsWith('/api/teacher/') || childRoute || ['/api/class', '/api/packet', '/api/trace'].includes(pathname)
         || (pathname === '/api/children' && req.method !== 'GET')) teacher(req);
@@ -260,10 +263,18 @@ export function createApp({
           if (levelChanged) {
             current.profile = startProfile({ level: fields.level });
           }
+          if (Object.hasOwn(fields, 'preset') && fields.preset !== current.preset) current.voice = null;
           Object.assign(current, fields);
           return { child: current, levelChanged };
         });
         if (levelChanged) invalidateLiveTurns(id);
+        json(res, 200, childView(child));
+      } else if (req.method === 'DELETE' && childRoute?.[2] === '/voice') {
+        const child = await store.update(state => {
+          const current = childIn(state, childRoute[1]);
+          current.voice = null;
+          return current;
+        });
         json(res, 200, childView(child));
       } else if (req.method === 'DELETE' && childRoute && !childRoute[2]) {
         const id = childRoute[1];
@@ -276,6 +287,26 @@ export function createApp({
         starts.delete(id);
         for (const [turnId, turn] of turns) if (turn.childId === id) turns.delete(turnId);
         json(res, 200, { ok: true });
+      } else if (req.method === 'POST' && pathname === '/api/voice') {
+        const id = url.searchParams.get('child');
+        getChild(id);
+        if (contentType(req) !== 'audio/wav') throw new RequestError(415, 'Use audio/wav');
+        let data = await body(req, AUDIO_LIMIT);
+        if (!data.length) throw new RequestError(400, 'Empty audio');
+        try {
+          await store.update(state => {
+            const child = childIn(state, id);
+            child.voice = buildVoiceProfile(data, cardLabels(child.preset));
+          });
+          json(res, 200, { voiceCheck: true });
+        } catch (error) {
+          if (!(error instanceof VoiceCheckError)) throw error;
+          if (error.code === 'count') json(res, 422, { error: 'count', heard: error.heard, expected: 15 });
+          else if (error.code === 'quiet') json(res, 422, { error: 'quiet' });
+          else throw new RequestError(415, 'Use 16 kHz mono WAV');
+        } finally {
+          data = null;
+        }
       } else if (req.method === 'POST' && pathname === '/api/start') {
         const { childId } = await jsonBody(req);
         // A teacher edit or finish may still be committing its new profile.
@@ -303,15 +334,21 @@ export function createApp({
           if (contentType(req) !== 'audio/wav') throw new RequestError(415, 'Use audio/wav');
           let data = await body(req, AUDIO_LIMIT);
           if (!data.length) throw new RequestError(400, 'Empty audio');
-          let heard;
+          let words;
           try {
             // The ear receives audio alone, with no text, child, or preset.
-            heard = await listen({ data, format: 'wav' });
+            const heard = await listen({ data, format: 'wav' });
+            words = heard.words;
+            try {
+              words = applyMeter(words, data, getChild(turn.childId).voice).words;
+            } catch {
+              // A meter failure leaves the ear's words available for grading.
+            }
           } finally {
             data = null;
           }
           checkTurn(turn);
-          const grade = await gradeLine({ heard: heard.words, text: item.text, preset: turn.preset });
+          const grade = await gradeLine({ heard: words, text: item.text, preset: turn.preset });
           const result = { itemId: item.id, summary: summaryOnly(grade.summary), verdicts: grade.verdicts };
           const earnedStars = lineStars(grade, item.source?.challenge === true);
           await store.update(state => {
@@ -410,7 +447,7 @@ export function createApp({
           };
         });
         json(res, 200, { children, groups: [...groups.values()].sort((a, b) => b.childIds.length - a.childIds.length || a.label.localeCompare(b.label)) });
-      } else if (req.method === 'GET' && childRoute?.[2]) {
+      } else if (req.method === 'GET' && childRoute?.[2] === '/detail') {
         const state = store.read();
         const child = childIn(state, childRoute[1]);
         const history = state.turns[child.id] || [];

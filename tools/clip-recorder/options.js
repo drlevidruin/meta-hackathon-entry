@@ -2,7 +2,8 @@ import { checkSet } from './clips.js';
 import { PRESETS } from '../../rulebook/index.js';
 
 export function defaultEarModel(env = process.env) {
-  return env.BASETEN_API_KEY?.trim() ? 'primary' : 'fallback';
+  if (env.META_API_KEY?.trim()) return 'primary';
+  return env.BASETEN_API_KEY?.trim() ? 'fallback' : 'primary';
 }
 
 export function parseOptions(argv, command) {

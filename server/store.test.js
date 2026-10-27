@@ -5,6 +5,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { createStore } from './store.js';
 import { startProfile } from '../coach/index.js';
+import { buildVoiceProfile } from '../ear/meter.js';
+import { utterance, wav } from '../ear/synth-for-tests.js';
 
 function fixture(t) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'kriah-store-test-'));
@@ -69,4 +71,46 @@ test('the store retains the last sixty turns separately for each child', async t
   assert.equal(saved.turns.sprout[0].id, 'turn-65');
   assert.equal(saved.turns.sprout.at(-1).id, 'turn-6');
   assert.deepEqual(saved.turns.pebble, [{ id: 'other-turn' }]);
+});
+
+test('voice persistence keeps only supported numeric vowel fields on update and reload', async t => {
+  const { directory, store } = fixture(t);
+  const labels = ['a', 'a', 'o', 'o', 'e', 'e', 'i', 'i'];
+  const profile = buildVoiceProfile(wav(utterance(labels)), labels);
+  const polluted = structuredClone(profile);
+  polluted.audio = 'PRIVATE_AUDIO';
+  polluted.transcript = 'PRIVATE_TEXT';
+  polluted.vowels.u = { f1: 4, f2: 8, n: 2 };
+  polluted.vowels.a.heard = 'PRIVATE_SOUND';
+  await store.update(state => { state.children.sprout = { voice: polluted }; });
+  assert.deepEqual(store.read().children.sprout.voice, profile);
+  const file = path.join(directory, 'store.json');
+  assert.doesNotMatch(fs.readFileSync(file, 'utf8'), /PRIVATE|audio|transcript|heard/);
+  const saved = store.read();
+  saved.children.sprout.voice = polluted;
+  fs.writeFileSync(file, JSON.stringify(saved));
+  assert.deepEqual(createStore(directory).read().children.sprout.voice, profile);
+});
+
+test('voice sanitizer drops invalid vowels and requires at least two surviving classes', async t => {
+  const { store } = fixture(t);
+  const valid = { f1: 0, f2: 25, n: 2 };
+  const save = async voice => {
+    await store.update(state => { state.children.sprout = { voice }; });
+    return store.read().children.sprout.voice;
+  };
+  assert.deepEqual(await save({ version: 1, vowels: { a: valid, o: { ...valid, n: 15 }, u: valid } }),
+    { version: 1, vowels: { a: valid, o: { ...valid, n: 15 } } });
+  for (const invalid of [null, [], {}, { ...valid, f1: NaN }, { ...valid, f2: Infinity },
+    { ...valid, f1: -0.01 }, { ...valid, f2: 25.01 }, { ...valid, f1: '3' },
+    { ...valid, n: 1 }, { ...valid, n: 16 }, { ...valid, n: 2.5 }, { ...valid, n: '2' }]) {
+    assert.equal(await save({ version: 1, vowels: { a: valid, o: invalid } }), null);
+    assert.deepEqual(await save({ version: 1, vowels: { a: valid, o: valid, e: invalid } }),
+      { version: 1, vowels: { a: valid, o: valid } });
+  }
+  for (const invalid of [undefined, null, [], {}, { version: 2, vowels: { a: valid, o: valid } },
+    { version: '1', vowels: { a: valid, o: valid } }, { version: 1, vowels: [] },
+    { version: 1, vowels: { u: valid, oy: valid } }]) {
+    assert.equal(await save(invalid), null);
+  }
 });

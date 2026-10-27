@@ -43,3 +43,32 @@ it('keeps the short server error and status', async () => {
   fetch.mockResolvedValueOnce({ ok: false, status: 403, json: async () => ({ error: 'Teacher PIN not set' }) });
   await expect(api.checkPin('1234')).rejects.toMatchObject({ status: 403, message: 'Teacher PIN not set' });
 });
+
+it('posts raw voice WAV without a PIN and clears voice with the teacher PIN', async () => {
+  savePin('2468');
+  const audio = new Blob(['synthetic wav'], { type: 'audio/wav' });
+  await api.voice({ childId: 'c /1', audio });
+  await api.clearVoice('c /1');
+  const [[voicePath, voiceOptions], [clearPath, clearOptions]] = fetch.mock.calls;
+  expect(voicePath).toBe('/api/voice?child=c%20%2F1');
+  expect(voiceOptions.method).toBe('POST');
+  expect(voiceOptions.headers).toEqual({ 'Content-Type': 'audio/wav' });
+  expect(voiceOptions.body).toBe(audio);
+  expect(clearPath).toBe('/api/children/c%20%2F1/voice');
+  expect(clearOptions.method).toBe('DELETE');
+  expect(clearOptions.headers['X-Teacher-Pin']).toBe('2468');
+});
+
+it('preserves count error fields from a 422 voice response', async () => {
+  fetch.mockResolvedValueOnce({ ok: false, status: 422,
+    json: async () => ({ error: 'count', heard: 9, expected: 15 }) });
+  await expect(api.voice({ childId: 'c1', audio: new Blob() })).rejects
+    .toMatchObject({ status: 422, message: 'count', heard: 9, expected: 15 });
+});
+
+it('uses mock voice functions without fetching', async () => {
+  window.history.replaceState(null, '', '/?mock');
+  await expect(api.voice({ childId: 'pippa', audio: null })).resolves.toEqual({ voiceCheck: true });
+  await expect(api.clearVoice('pippa')).resolves.toMatchObject({ id: 'pippa', voiceCheck: false });
+  expect(fetch).not.toHaveBeenCalled();
+});

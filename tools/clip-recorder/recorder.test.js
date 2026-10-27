@@ -530,11 +530,12 @@ test('CLI flags have safe defaults and reject invalid sets, models, presets, por
   }
 });
 
-test('ear model default uses the fallback unless a nonempty Baseten key is set', () => {
-  assert.equal(defaultEarModel({}), 'fallback');
-  assert.equal(defaultEarModel({ META_API_KEY: 'test-meta-key' }), 'fallback');
-  assert.equal(defaultEarModel({ BASETEN_API_KEY: '  ' }), 'fallback');
-  assert.equal(defaultEarModel({ BASETEN_API_KEY: 'test-baseten-key' }), 'primary');
+test('ear model default prefers Meta, then Baseten, and otherwise primary', () => {
+  assert.equal(defaultEarModel({}), 'primary');
+  assert.equal(defaultEarModel({ META_API_KEY: 'test-meta-key' }), 'primary');
+  assert.equal(defaultEarModel({ META_API_KEY: '  ', BASETEN_API_KEY: '  ' }), 'primary');
+  assert.equal(defaultEarModel({ BASETEN_API_KEY: 'test-baseten-key' }), 'fallback');
+  assert.equal(defaultEarModel({ META_API_KEY: 'test-meta-key', BASETEN_API_KEY: 'test-baseten-key' }), 'primary');
 });
 
 test('ear runner and CLI select and print the default model and honor explicit overrides', async (t) => {
@@ -553,12 +554,16 @@ test('ear runner and CLI select and print the default model and honor explicit o
   const directory = await fixtureDirectory(t);
   const clips = (await loadClips()).filter((clip) => clip.kind === 'reading');
   await recordingStore(clips, directory).save(clips[0].name, wav);
-  for (const [key, model, id] of [
-    [undefined, 'fallback', 'muse-wonder-1.0'],
-    ['test-baseten-key', 'primary', 'meta-models/muse-spark-open-1026'],
+  for (const [metaKey, basetenKey, model, id] of [
+    ['test-meta-key', undefined, 'primary', 'muse-wonder-1.0'],
+    [undefined, 'test-baseten-key', 'fallback', 'meta-models/muse-spark-open-1026'],
+    ['test-meta-key', 'test-baseten-key', 'primary', 'muse-wonder-1.0'],
+    [undefined, undefined, 'primary', 'muse-wonder-1.0'],
   ]) {
-    if (key === undefined) delete process.env.BASETEN_API_KEY;
-    else process.env.BASETEN_API_KEY = key;
+    if (metaKey === undefined) delete process.env.META_API_KEY;
+    else process.env.META_API_KEY = metaKey;
+    if (basetenKey === undefined) delete process.env.BASETEN_API_KEY;
+    else process.env.BASETEN_API_KEY = basetenKey;
     assert.equal(parseOptions([], 'ear').model, model);
     const output = [];
     const result = await runEar({ directory, log: line => output.push(line), ear: async (_audio, options) => {

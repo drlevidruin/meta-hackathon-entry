@@ -47,6 +47,21 @@ function coachProfile(profile) {
   return safe;
 }
 
+function voiceProfile(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value) || value.version !== 1
+    || !value.vowels || typeof value.vowels !== 'object'
+    || Array.isArray(value.vowels)) return null;
+  const vowels = {};
+  for (const key of ['a', 'o', 'e', 'i']) {
+    const vowel = value.vowels[key];
+    if (!vowel || Array.isArray(vowel)
+      || ![vowel.f1, vowel.f2].every(number => Number.isFinite(number) && number >= 0 && number <= 25)
+      || !Number.isInteger(vowel.n) || vowel.n < 2 || vowel.n > 15) continue;
+    vowels[key] = { f1: vowel.f1, f2: vowel.f2, n: vowel.n };
+  }
+  return Object.keys(vowels).length >= 2 ? { version: 1, vowels } : null;
+}
+
 function safeState(state) {
   const record = value => value !== null && typeof value === 'object' && !Array.isArray(value);
   if (!record(state) || state.version !== 1 || !record(state.children) || !record(state.turns)) {
@@ -55,6 +70,7 @@ function safeState(state) {
   for (const child of Object.values(state.children)) {
     if (!record(child)) throw new Error('Invalid child');
     child.profile = coachProfile(child.profile);
+    child.voice = voiceProfile(child.voice);
   }
   for (const id of Object.keys(state.turns)) {
     if (!Array.isArray(state.turns[id])) throw new Error('Invalid turn list');

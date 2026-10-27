@@ -31,7 +31,7 @@ export function GradedLine({ attempt }) {
   </div>;
 }
 
-function MicrophoneIcon() {
+export function MicrophoneIcon() {
   return <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="18" y="5" width="12" height="25" rx="6" /><path d="M12 23v2a12 12 0 0 0 24 0v-2M24 37v7M17 44h14" /></svg>;
 }
 

@@ -194,6 +194,7 @@ export function Roster() {
     <div><Resource resource={resource}>{children => <div className="roster-list">{children.map(child =>
       <article className="roster-row" key={child.id}><Avatar name={child.avatar} small /><div><h2>{child.name}</h2><span>Level {child.level}</span></div>
         <div className="roster-actions"><button className="primary" disabled={busy} onClick={() => edit(child)}>Edit <span className="sr-only">{child.name}</span></button>
+          {child.voiceCheck && <button className="secondary roster-voice" disabled={busy} onClick={() => void mutate(() => api.clearVoice(child.id))}>Redo voice check <span className="sr-only">{child.name}</span></button>}
           <button className="roster-delete" disabled={busy} onClick={event => { deleteTrigger.current = event.currentTarget; setError(''); setConfirming(child); }}>Delete <span className="sr-only">{child.name}</span></button></div>
       </article>)}</div>}</Resource></div>
     <form className="roster-form" onSubmit={submit}><h2>{editing ? 'Edit child' : 'Add child'}</h2>

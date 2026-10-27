@@ -7,6 +7,10 @@ import * as api from './api.js';
 import { items } from './api.mock.js';
 import { savePin, TURN_KEY } from './storage.js';
 import { lineStars, useTurn } from './useTurn.js';
+import { VoiceCheck } from './VoiceCheck.jsx';
+import { VOICE_CARD } from '../../rulebook/voice-card.js';
+import * as recorder from './useRecorder.js';
+import * as wav from './wav.js';
 
 const child = { id: 'bim', name: 'Bim', avatar: 'lion', preset: 'sephardi', level: 1, stars: 0, best: 0 };
 const turn = overrides => ({ turnId: 'test-turn', child, level: 1, set: items.slice(0, 2), lineIndex: 0,
@@ -20,6 +24,131 @@ beforeEach(() => {
   window.history.replaceState(null, '', '/?mock#/read');
 });
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals(); document.querySelector('#station-test-styles')?.remove(); });
+
+it('sends Start to the voice card for an unchecked child and back returns to that child', async () => {
+  window.history.replaceState(null, '', '/?mock#/child/pippa');
+  const start = vi.spyOn(api, 'start');
+  render(React.createElement(App));
+  fireEvent.click(await screen.findByRole('button', { name: 'Start' }));
+  expect(await screen.findByRole('heading', { name: 'Read these sounds', level: 1 })).toBeTruthy();
+  expect(window.location.hash).toBe('#/child/pippa/voice');
+  expect(document.title).toBe('Read these sounds | Kriah Listener');
+  expect(start).not.toHaveBeenCalled();
+  await act(async () => {
+    const back = new Promise(resolve => window.addEventListener('popstate', resolve, { once: true }));
+    window.history.back();
+    await back;
+  });
+  expect(await screen.findByRole('button', { name: 'Start' })).toBeTruthy();
+  expect(window.location.hash).toBe('#/child/pippa');
+});
+
+it('starts a checked child directly', async () => {
+  window.history.replaceState(null, '', '/?mock#/child/bim');
+  const start = vi.spyOn(api, 'start');
+  render(React.createElement(App));
+  fireEvent.click(await screen.findByRole('button', { name: 'Start' }));
+  expect(await screen.findByText(items[0].text, { selector: '.current-line' })).toBeTruthy();
+  expect(start).toHaveBeenCalledExactlyOnceWith({ childId: 'bim' });
+  expect(window.location.hash).toBe('#/read');
+});
+
+it('reloads the voice bookmark with the shared Hebrew card and no helper text', async () => {
+  window.history.replaceState(null, '', '/?mock#/child/pippa/voice');
+  const start = vi.spyOn(api, 'start');
+  const first = render(React.createElement(App));
+  await screen.findByRole('heading', { name: 'Read these sounds' });
+  first.unmount();
+  render(React.createElement(App));
+  await screen.findByRole('heading', { name: 'Read these sounds' });
+  const card = document.querySelector('.voice-card');
+  expect(card.getAttribute('dir')).toBe('rtl');
+  expect(card.getAttribute('lang')).toBe('he');
+  expect([...card.children].map(element => element.textContent)).toEqual(VOICE_CARD);
+  expect(document.querySelector('.voice-identity .avatar')).toBeTruthy();
+  expect(screen.getByRole('heading', { name: 'Pippa' })).toBeTruthy();
+  expect(document.querySelectorAll('.voice-check p')).toHaveLength(0);
+  expect(screen.getByRole('button', { name: 'Record' }).disabled).toBe(false);
+  expect(start).not.toHaveBeenCalled();
+});
+
+it('records a successful mock voice check and starts the reading turn without an extra refresh', async () => {
+  window.history.replaceState(null, '', '/?mock#/child/pippa/voice');
+  const voice = vi.spyOn(api, 'voice');
+  const start = vi.spyOn(api, 'start');
+  const children = vi.spyOn(api, 'children');
+  const fetch = vi.spyOn(globalThis, 'fetch');
+  render(React.createElement(App));
+  fireEvent.click(await screen.findByRole('button', { name: 'Record' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Stop recording' }));
+  expect(await screen.findByText(items[0].text, { selector: '.current-line' })).toBeTruthy();
+  expect(voice).toHaveBeenCalledExactlyOnceWith({ childId: 'pippa', audio: null });
+  expect(start).toHaveBeenCalledExactlyOnceWith({ childId: 'pippa' });
+  expect(children).toHaveBeenCalledTimes(2);
+  expect(JSON.parse(sessionStorage.getItem(TURN_KEY)).child.voiceCheck).toBe(true);
+  expect(window.location.hash).toBe('#/read');
+  expect(fetch).not.toHaveBeenCalled();
+});
+
+it('converts a recording to WAV and disables recording until the voice upload completes', async () => {
+  window.history.replaceState(null, '', '/#/child/bim/voice');
+  let onStop, finish;
+  const blob = new Blob(['synthetic recording']);
+  const audio = new Blob(['synthetic WAV'], { type: 'audio/wav' });
+  vi.spyOn(recorder, 'useRecorder').mockImplementation(callback => {
+    onStop = callback;
+    return { status: 'ready', toggle: vi.fn() };
+  });
+  const convert = vi.spyOn(wav, 'recordingToWav').mockResolvedValue(audio);
+  const voice = vi.spyOn(api, 'voice').mockReturnValue(new Promise(resolve => { finish = resolve; }));
+  const engine = { start: vi.fn(async () => {}), starting: false };
+  render(React.createElement(VoiceCheck, { child, engine }));
+  let upload;
+  await act(async () => { upload = onStop(blob); });
+  expect(convert).toHaveBeenCalledExactlyOnceWith(blob);
+  expect(voice).toHaveBeenCalledExactlyOnceWith({ childId: child.id, audio });
+  expect(screen.getByRole('button', { name: 'Record' }).disabled).toBe(true);
+  expect(engine.start).not.toHaveBeenCalled();
+  await act(async () => { finish({ voiceCheck: true }); await upload; });
+  expect(engine.start).toHaveBeenCalledExactlyOnceWith({ ...child, voiceCheck: true });
+});
+
+it('shows the count error and lets the child record again before starting', async () => {
+  window.history.replaceState(null, '', '/?mock#/child/pippa/voice');
+  const start = vi.spyOn(api, 'start');
+  vi.spyOn(api, 'voice').mockRejectedValueOnce(Object.assign(new Error('count'), { status: 422, heard: 9, expected: 15 }));
+  render(React.createElement(App));
+  fireEvent.click(await screen.findByRole('button', { name: 'Record' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Stop recording' }));
+  expect((await screen.findByRole('alert')).textContent).toBe('Heard 9 of 15. Try again.');
+  expect(start).not.toHaveBeenCalled();
+  expect(window.location.hash).toBe('#/child/pippa/voice');
+  fireEvent.click(screen.getByRole('button', { name: 'Record' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Stop recording' }));
+  expect(await screen.findByText(items[0].text, { selector: '.current-line' })).toBeTruthy();
+});
+
+it.each([[422, 'quiet'], [415, 'Use 16 kHz mono WAV'], [500, 'Request failed']])
+  ('shows only Try again for a voice failure %i %s', async (status, message) => {
+    vi.spyOn(api, 'voice').mockRejectedValue(Object.assign(new Error(message), { status }));
+    const engine = { start: vi.fn() };
+    render(React.createElement(VoiceCheck, { child, engine }));
+    fireEvent.click(screen.getByRole('button', { name: 'Record' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Stop recording' }));
+    expect((await screen.findByRole('alert')).textContent).toBe('Try again');
+    expect(engine.start).not.toHaveBeenCalled();
+  });
+
+it('matches the reading microphone-off state on the voice screen', async () => {
+  window.history.replaceState(null, '', '/#/child/bim/voice');
+  const getUserMedia = vi.fn().mockRejectedValue(new DOMException('Denied', 'NotAllowedError'));
+  vi.stubGlobal('navigator', { mediaDevices: { getUserMedia } });
+  render(React.createElement(VoiceCheck, { child, engine: { start: vi.fn() } }));
+  fireEvent.click(screen.getByRole('button', { name: 'Record' }));
+  expect(await screen.findByRole('heading', { name: 'Microphone is off' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+  await waitFor(() => expect(getUserMedia).toHaveBeenCalledTimes(2));
+});
 
 it.each(['/', '/read', '/done', '/teacher'])('shows a gray Demo pill only in mock mode on %s', async route => {
   vi.spyOn(api, 'children').mockResolvedValue([child]);

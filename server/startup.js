@@ -31,7 +31,7 @@ export function tlsOptions(env = process.env, readFile = readFileSync) {
 export function startupMessages({ basetenApiKey, metaApiKey, hasStation, host, port, tls = false }) {
   return [
     ...(!basetenApiKey?.trim() && !metaApiKey?.trim()
-      ? ['BASETEN_API_KEY and META_API_KEY are missing; the ear cannot hear and lines show gray.'] : []),
+      ? ['META_API_KEY (primary ear) and BASETEN_API_KEY (fallback ear) are missing; the ear cannot hear and lines show gray.'] : []),
     ...(!hasStation ? ['station/dist is missing; run npm run build.'] : []),
     `Kriah Listener: ${tls ? 'https' : 'http'}://${host.includes(':') ? `[${host}]` : host}:${port}`,
   ];

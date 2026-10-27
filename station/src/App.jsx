@@ -5,6 +5,7 @@ import { useTurn } from './useTurn.js';
 import { Avatar } from './Avatar.jsx';
 import { Brand, ErrorView, Loading, Resource, Star, useResource } from './ui.jsx';
 import { DoneScreen, ReadScreen, Stats } from './Game.jsx';
+import { VoiceCheck } from './VoiceCheck.jsx';
 import { ChildDetail, ClassView, Packet, Roster, TeacherGate, Trace } from './Teacher.jsx';
 export { GradedLine, ReadScreen, LevelUp, DoneScreen } from './Game.jsx';
 export { Star } from './ui.jsx';
@@ -21,7 +22,7 @@ function ChildHome({ child, engine }) {
   return <section className="child-home"><div className="child-portrait"><Avatar name={child.avatar} /><h1>{child.name}</h1></div>
     <div className="child-welcome"><div className="level-badge">Level {child.level}</div>
       <dl className="child-totals"><div><dt>Lifetime stars</dt><dd><Star filled />{child.stars}</dd></div><div><dt>Best turn</dt><dd><Star filled />{child.best}</dd></div></dl>
-      <button className="primary start-button" disabled={engine.starting} onClick={() => void engine.start(child)}>{engine.starting ? 'Starting…' : engine.startError ? 'Try again' : 'Start'}</button>
+      <button className="primary start-button" disabled={engine.starting} onClick={() => child.voiceCheck === false ? navigate(`/child/${encodeURIComponent(child.id)}/voice`) : void engine.start(child)}>{engine.starting ? 'Starting…' : engine.startError ? 'Try again' : 'Start'}</button>
     </div>
   </section>;
 }
@@ -44,7 +45,7 @@ export default function App() {
     if (route.screen === 'trace' && configuration.data?.trace === false) navigate('/', { replace: true });
   }, [route.screen, engine.turn, engine.starting, engine.startError, roster.data, configuration.data, mock]);
   useEffect(() => {
-    const names = { home: 'Who’s reading?', child: 'Let’s read', read: 'Read', done: 'Well done', teacher: 'Class', detail: 'Reading map', roster: 'Roster', packet: 'Practice packet', trace: 'Coach trace' };
+    const names = { home: 'Who’s reading?', child: 'Let’s read', voice: 'Read these sounds', read: 'Read', done: 'Well done', teacher: 'Class', detail: 'Reading map', roster: 'Roster', packet: 'Practice packet', trace: 'Coach trace' };
     document.title = `${names[route.screen]} | Kriah Listener`;
     document.querySelector('main')?.focus();
   }, [route.path]);
@@ -70,6 +71,7 @@ export default function App() {
     <main tabIndex={-1}>
       {route.screen === 'home' && <Resource resource={roster}>{children => <Home children={children} />}</Resource>}
       {route.screen === 'child' && <Resource resource={roster}>{children => <ChildHome child={children.find(child => child.id === route.childId)} engine={engine} />}</Resource>}
+      {route.screen === 'voice' && <Resource resource={roster}>{children => <VoiceCheck key={route.childId} child={children.find(child => child.id === route.childId)} engine={engine} />}</Resource>}
       {reading && <ReadScreen key={engine.turn.turnId} turn={engine.turn} onRecord={engine.record} onRetryNext={engine.retryNext} />}
       {route.screen === 'read' && !reading && (engine.startError || roster.error ?
         <ErrorView retry={() => roster.error ? roster.retry() : engine.start(roster.data?.[0], { replace: true })} /> : <Loading />)}

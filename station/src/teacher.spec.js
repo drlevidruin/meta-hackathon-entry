@@ -32,9 +32,9 @@ it('renders groups before children and opens a skill packet', async () => {
   expect(groups.compareDocumentPosition(screen.getByRole('heading', { name: 'Children' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(within(groups.parentElement).getByRole('link', { name: /Sheva/ }).getAttribute('href')).toBe('#/teacher/packet/skill/vowel%3Asheva_na/1');
   expect(document.querySelectorAll('.group-card')).toHaveLength(5);
-  expect(document.querySelectorAll('.child-row')).toHaveLength(12);
+  expect(document.querySelectorAll('.child-row')).toHaveLength(13);
   expect(screen.getAllByText('18 of 20 sounds')).toHaveLength(1);
-  expect(screen.getByText('No turns yet')).toBeTruthy();
+  expect(screen.getAllByText('No turns yet')).toHaveLength(2);
   expect(screen.getByRole('img', { name: 'Bim' })).toBeTruthy();
 });
 
@@ -89,6 +89,20 @@ it('adds and edits the child avatar, preset, and level', async () => {
   fireEvent.change(screen.getByLabelText('Level'), { target: { value: '3' } });
   fireEvent.click(screen.getByRole('button', { name: 'Save' }));
   await waitFor(async () => expect((await api.children()).find(child => child.name === 'Mippo')).toMatchObject({ avatar: 'whale', preset: 'ashkenazi', level: 3 }));
+});
+
+it('offers Redo voice check only for checked children and refreshes the roster after clearing', async () => {
+  const clear = vi.spyOn(api, 'clearVoice');
+  const children = vi.spyOn(api, 'children');
+  render(React.createElement(Roster));
+  const redo = await screen.findByRole('button', { name: 'Redo voice check Bim' });
+  expect(screen.queryByRole('button', { name: 'Redo voice check Pippa' })).toBeNull();
+  expect(screen.getAllByRole('button', { name: /Redo voice check/ })).toHaveLength(12);
+  fireEvent.click(redo);
+  await waitFor(() => expect(screen.queryByRole('button', { name: 'Redo voice check Bim' })).toBeNull());
+  expect(clear).toHaveBeenCalledExactlyOnceWith('bim');
+  expect(children).toHaveBeenCalledTimes(2);
+  expect((await api.children()).find(child => child.id === 'bim').voiceCheck).toBe(false);
 });
 
 it.each(['#/teacher/child/bim', '#/teacher/roster', '#/teacher/packet/child/bim', '#/teacher/packet/skill/vowel%3Asheva_na/1', '#/trace/mock-turn'])

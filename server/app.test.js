@@ -11,6 +11,8 @@ import { hint } from './hints.js';
 import { SKILLS } from '../rulebook/index.js';
 import * as realCoach from '../coach/index.js';
 import { gradeLine as realGradeLine } from '../grader/index.js';
+import { cardLabels } from '../rulebook/voice-card.js';
+import { join, silence, utterance, wav } from '../ear/synth-for-tests.js';
 
 const PIN = '2468';
 const auth = { 'x-teacher-pin': PIN };
@@ -120,6 +122,148 @@ const finish = (app, turnId, stars = 3) => request(app, '/api/finish', { data: {
 const patch = (app, id, data) => request(app, `/api/children/${id}`, { method: 'PATCH', headers: auth, data });
 const disk = dataDir => JSON.parse(fs.readFileSync(path.join(dataDir, 'store.json'), 'utf8'));
 
+const voiceAudio = preset => wav(utterance(cardLabels(preset).map(label => label || 'o')));
+const voice = (app, child, options = {}) => request(app, `/api/voice?child=${child.id}`,
+  { type: 'audio/wav', data: voiceAudio(child.preset), ...options });
+
+test('voice check saves only version and numeric vowels, with a public boolean child view', async () => {
+  const { app, dataDir, listen } = setup();
+  const child = await add(app);
+  assert.equal(child.voiceCheck, false);
+  const response = await voice(app, child);
+  assert.equal(response.status, 200);
+  assert.deepEqual(response.json, { voiceCheck: true });
+  assert.equal(listen.mock.callCount(), 0);
+  const saved = disk(dataDir);
+  const profile = saved.children[child.id].voice;
+  assert.deepEqual(Object.keys(profile), ['version', 'vowels']);
+  assert.equal(profile.version, 1);
+  assert.deepEqual(Object.keys(profile.vowels), ['a', 'o', 'e', 'i']);
+  for (const value of Object.values(profile.vowels)) {
+    assert.deepEqual(Object.keys(value), ['f1', 'f2', 'n']);
+    assert.ok(Object.values(value).every(Number.isFinite));
+    assert.ok(value.n >= 2 && value.n <= 15);
+  }
+  assert.doesNotMatch(JSON.stringify(saved), /audio|RIFF|transcript|heard|base64/i);
+  assert.deepEqual(fs.readdirSync(dataDir), ['store.json']);
+  assert.deepEqual((await get(app, '/api/children')).json, [{ ...child, voiceCheck: true }]);
+  assert.deepEqual((await teacherGet(app, `/api/children/${child.id}/detail`)).json.child,
+    { ...child, voiceCheck: true });
+});
+
+test('voice check uses the child preset for labels', async () => {
+  const { app, dataDir } = setup();
+  const child = await add(app, { preset: 'ashkenazi' });
+  assert.equal((await voice(app, child)).status, 200);
+  const vowels = disk(dataDir).children[child.id].voice.vowels;
+  assert.equal(vowels.a.n, 3);
+  assert.equal(vowels.o.n, 3);
+  assert.ok(vowels.a.f1 > vowels.o.f1);
+});
+
+test('voice count mismatch returns heard and expected without saving audio or a profile', async () => {
+  const { app, dataDir } = setup();
+  const child = await add(app);
+  const response = await voice(app, child, { data: wav(utterance(['a', 'o'])) });
+  assert.equal(response.status, 422);
+  assert.deepEqual(response.json, { error: 'count', heard: 2, expected: 15 });
+  assert.equal(disk(dataDir).children[child.id].voice, null);
+});
+
+test('voice check rejects quiet and malformed WAV, wrong content type, empty and oversized audio', async () => {
+  const { app } = setup();
+  const child = await add(app);
+  const noise = new Float64Array(4000).map((_, i) => i % 2 ? 0.5 : -0.5);
+  const quiet = wav(join([silence(0.25), ...Array.from({ length: 15 }, () => [noise, silence(0.25)]).flat()]));
+  const wrongRate = voiceAudio(child.preset);
+  wrongRate.writeUInt32LE(44100, 24);
+  for (const [options, status, error] of [
+    [{ data: quiet }, 422, 'quiet'],
+    [{ data: Buffer.from('invalid WAV') }, 415, 'Use 16 kHz mono WAV'],
+    [{ data: wrongRate }, 415, 'Use 16 kHz mono WAV'],
+    [{ type: 'audio/webm' }, 415, 'Use audio/wav'],
+    [{ data: Buffer.alloc(0) }, 400, 'Empty audio'],
+    [{ headers: { 'content-length': String(25 * 1024 * 1024 + 1) } }, 413, 'Body too large'],
+  ]) {
+    const response = await voice(app, child, options);
+    assert.equal(response.status, status);
+    assert.deepEqual(response.json, { error });
+  }
+});
+
+test('voice check and teacher voice deletion reject unknown children', async () => {
+  const { app } = setup();
+  const child = { id: randomUUID(), preset: 'sephardi' };
+  assert.equal((await voice(app, child)).status, 404);
+  assert.equal((await request(app, `/api/children/${child.id}/voice`, { method: 'DELETE', headers: auth })).status, 404);
+});
+
+test('grading uses the current voice profile, and falls back to ear words without one or usable WAV', async () => {
+  const item = { ...items[0], id: 'baruch', text: 'בָּרוּךְ', words: ['בָּרוּךְ'] };
+  const earWords = [['ba', 'ruch']];
+  const listen = mock.fn(async audio => {
+    assert.deepEqual(Object.keys(audio), ['data', 'format']);
+    assert.equal(audio.format, 'wav');
+    assert.ok(Buffer.isBuffer(audio.data));
+    return { words: earWords };
+  });
+  const gradeLine = mock.fn(realGradeLine);
+  const { app } = setup({ items: [item], listen, gradeLine,
+    chooseNextSet: async profile => selection(profile, { itemIds: [item.id] }) });
+  const child = await add(app, { preset: 'ashkenazi' });
+  const turn = await start(app, child.id);
+  const data = wav(utterance(['o', 'u']));
+  const before = await grade(app, turn.turnId, item.id, { data });
+  assert.equal(before.status, 200);
+  assert.equal(before.json.summary.wrong_vowel, 1);
+  assert.deepEqual(gradeLine.mock.calls.at(-1).arguments[0].heard, earWords);
+  assert.equal((await voice(app, child)).status, 200);
+  const metered = await grade(app, turn.turnId, item.id, { data });
+  assert.equal(metered.status, 200);
+  assert.equal(metered.json.summary.wrong_vowel, 0);
+  assert.deepEqual(gradeLine.mock.calls.at(-1).arguments[0].heard, [['bo', 'ruch']]);
+  const invalid = await grade(app, turn.turnId, item.id);
+  assert.equal(invalid.status, 200);
+  assert.equal(invalid.json.summary.wrong_vowel, 1);
+  assert.deepEqual(earWords, [['ba', 'ruch']]);
+  await request(app, `/api/children/${child.id}/voice`, { method: 'DELETE', headers: auth });
+  assert.equal((await grade(app, turn.turnId, item.id, { data })).json.summary.wrong_vowel, 1);
+});
+
+test('a throwing meter still grades the ear words', async () => {
+  const words = [null];
+  const { app, gradeLine } = setup({ listen: async () => ({ words }) });
+  const child = await add(app);
+  const turn = await start(app, child.id);
+  const response = await grade(app, turn.turnId, 'kamatz-0', { data: wav(utterance(['a'])) });
+  assert.equal(response.status, 200);
+  assert.equal(gradeLine.mock.calls[0].arguments[0].heard, words);
+});
+
+test('changing a preset clears voice, while same-preset and other edits retain it', async () => {
+  const { app, dataDir } = setup();
+  const child = await add(app);
+  await voice(app, child);
+  assert.equal((await patch(app, child.id, { preset: child.preset, avatar: 'fox', level: 2 })).json.voiceCheck, true);
+  const changed = await patch(app, child.id, { preset: 'ashkenazi' });
+  assert.equal(changed.json.voiceCheck, false);
+  assert.equal(disk(dataDir).children[child.id].voice, null);
+});
+
+test('deleting voice needs the teacher PIN and returns only the child view', async () => {
+  const { app, dataDir } = setup();
+  const child = await add(app);
+  await voice(app, child);
+  for (const headers of [{}, { 'x-teacher-pin': '9999' }]) {
+    assert.equal((await request(app, `/api/children/${child.id}/voice`, { method: 'DELETE', headers })).status, 403);
+    assert.ok(disk(dataDir).children[child.id].voice);
+  }
+  const response = await request(app, `/api/children/${child.id}/voice`, { method: 'DELETE', headers: auth });
+  assert.equal(response.status, 200);
+  assert.deepEqual(response.json, child);
+  assert.equal(disk(dataDir).children[child.id].voice, null);
+});
+
 test('round 2.1: six clean four-minute turns through the real app and coach all start and end by time', async () => {
   const bank = [1, 2, 3, 4, 5, 6].flatMap(level => ['a', 'b', 'c'].map(id =>
     ({ ...items[0], id: `${level}-${id}`, level })));
@@ -186,7 +330,7 @@ test('children list is public; teacher check and CRUD require the PIN', async ()
   assert.deepEqual((await request(app, '/api/teacher/check', { headers: auth })).json, { ok: true });
   const child = await add(app);
   assert.match(child.id, /^[a-f0-9-]{36}$/);
-  assert.deepEqual(child, { id: child.id, name: 'Sprout', avatar: 'owl', preset: 'sephardi', level: 1, stars: 0, best: 0 });
+  assert.deepEqual(child, { id: child.id, name: 'Sprout', avatar: 'owl', preset: 'sephardi', level: 1, stars: 0, best: 0, voiceCheck: false });
   assert.deepEqual((await get(app, '/api/children')).json, [child]);
   const updated = await patch(app, child.id, { name: 'Pebble', avatar: 'fox', preset: 'chassidish', level: 3 });
   assert.deepEqual(updated.json, { ...child, name: 'Pebble', avatar: 'fox', preset: 'chassidish', level: 3 });
@@ -201,7 +345,7 @@ test('all teacher routes deny access when the teacher PIN is unset', async () =>
   const id = randomUUID();
   for (const [method, url] of [
     ['POST', '/api/teacher/check'], ['POST', '/api/children'], ['PATCH', `/api/children/${id}`],
-    ['DELETE', `/api/children/${id}`], ['GET', '/api/class'], ['GET', `/api/children/${id}/detail`], ['GET', '/api/packet?skill=vowel:kamatz&level=1'],
+    ['DELETE', `/api/children/${id}`], ['DELETE', `/api/children/${id}/voice`], ['GET', '/api/class'], ['GET', `/api/children/${id}/detail`], ['GET', '/api/packet?skill=vowel:kamatz&level=1'],
   ]) {
     const response = await request(app, url, { method, headers: auth });
     assert.equal(response.status, 403);

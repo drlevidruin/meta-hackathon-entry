@@ -47,6 +47,14 @@ main { flex: 1; min-width: 0; width: 100%; }
 .child-portrait .avatar { width: 192px; height: 192px; }
 .child-portrait h1 { margin-top: 24px; margin-bottom: 0; }
 .child-welcome { display: flex; flex-direction: column; align-items: center; gap: 26px; }
+.voice-check { width: 100%; padding: 28px 22px 40px; display: grid; gap: 24px; text-align: center; }
+.voice-identity .avatar { width: 112px; height: 112px; }
+.voice-identity h2 { margin: 12px 0 20px; }
+.voice-identity h1 { margin: 0; }
+.voice-reading { min-width: 0; }
+.voice-card { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; padding: 8px; border-radius: 24px; background: var(--light); font: 700 clamp(40px, 11vw, 48px)/1.9 'Frank Ruhl Libre', serif; }
+.voice-card > span { min-width: 0; }
+.voice-reading > [role="alert"] { margin: 16px 0 0; }
 .level-badge { color: var(--green); background: #edf5ef; font-size: 16px; font-weight: 800; padding: 14px 22px; border-radius: 30px; display: inline-block; white-space: nowrap; }
 .level-badge.demo-badge { color: #65717b; background: #f0f2f3; font-size: 13px; padding: 10px 15px; }
 .child-totals { display: flex; gap: 38px; margin: 0; }
@@ -171,6 +179,7 @@ table { border-collapse: separate; border-spacing: 0; width: 100%; }
 .roster-row h2 { margin: 0 0 7px; }
 .roster-row > div > span { font-size: 13px; }
 .roster-actions { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(90px, 1fr) auto; align-items: center; gap: 12px; }
+.roster-voice { grid-column: 1 / -1; grid-row: 2; padding-inline: 14px; font-size: 14px; }
 .roster-delete { justify-self: end; min-height: 44px; padding: 10px 6px; border: 0; border-radius: 10px; background: transparent; color: var(--gray); font-size: 12px; font-weight: 600; }
 .roster-delete:hover { color: var(--ink); background: var(--light); }
 .roster-form { padding: 24px; border-radius: 24px; background: #f6f8f5; align-self: start; display: flex; flex-direction: column; gap: 24px; }
@@ -213,6 +222,11 @@ legend { font-weight: 700; font-size: 14px; margin-bottom: 14px; }
   .child-home { min-height: calc(100svh - 110px); padding: 60px 8%; flex-direction: row; justify-content: space-evenly; gap: 80px; }
   .child-portrait .avatar { width: 280px; height: 280px; }
   .child-welcome { min-width: 360px; gap: 40px; }
+  .voice-check { min-height: calc(100svh - 110px); grid-template-columns: minmax(260px, .8fr) minmax(0, 1.5fr); align-items: center; gap: clamp(40px, 5vw, 80px); padding: 44px clamp(32px, 5vw, 80px) 60px; }
+  .voice-identity .avatar { width: 240px; height: 240px; }
+  .voice-identity h2 { font-size: 32px; margin: 24px 0 32px; }
+  .voice-card { padding: 20px; gap: 16px; border-radius: 32px; font-size: clamp(72px, 6vw, 96px); line-height: 1.65; }
+  .voice-reading .record-area { padding-top: 32px; min-height: 184px; }
   .child-totals { gap: 64px; }
   .screen-read { flex-direction: row; }
   .screen-read:has(> .child-header) { flex-direction: column; }

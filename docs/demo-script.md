@@ -8,7 +8,7 @@ The live shots use the real server. The terminal shots use typed sounds to check
 
 Use Node 22.12 or newer and the installed station dependencies. Use a desktop view at 1440 pixels wide and a phone view at 390 pixels wide. Keep both on the computer running the server, at localhost, so the microphone works.
 
-Keep `.env` and PIN entry out of frame. In the root `.env`, set `META_API_KEY` and a `TEACHER_PIN` of 4 to 12 digits. Leave the ear model and reasoning settings at their `.env.example` defaults. Use a terminal with no exported key, PIN or model overrides. The blank Baseten key in the command below selects the Meta fallback ear. Missing or invalid PINs stop startup. Without a Meta key, this demo command cannot hear; failed lines stay gray.
+Keep `.env` and PIN entry out of frame. In the root `.env`, set `META_API_KEY` and a `TEACHER_PIN` of 4 to 12 digits. Leave the ear model and reasoning settings at their `.env.example` defaults. Use a terminal with no exported key, PIN or model overrides. The blank Baseten key in the command below turns off the fallback ear, so every line in the film is heard by Muse Wonder 1.0. Missing or invalid PINs stop startup. Without a Meta key, this demo command cannot hear; failed lines stay gray.
 
 Copy this one block from the repo root. It builds the station and starts the server with an empty temporary data folder:
 
@@ -56,7 +56,7 @@ For class history only, open a separate tab at `http://localhost:8787/?mock#/tea
 
 **Screen:** Real station at 390 wide. Keep the adult's planted reading audible. Hold on the first line's marks while the next line is below it. Keep the first grade's wait at normal speed.
 
-**Path:** Nubo → Start. For each of the three lines, tap the microphone, read the whole line without a long pause, then stay quiet. It stops by itself. Never tap again after it stops. Wait for each grade. Save the end-of-set footage for the checkpoint shot.
+**Path:** Nubo → Start. A new reader gets the voice check card first. Tap the microphone and read its fifteen sounds right to left, row by row, in Ashkenazi pronunciation, with a short pause after each sound. Keep each pause under a second, then stay quiet. The first line follows. For each of the three lines, tap the microphone, read the whole line without a long pause, then stay quiet. It stops by itself. Never tap again after it stops. Wait for each grade. Save the end-of-set footage for the checkpoint shot.
 
 **Voiceover:** “This is an adult reading on an invented profile. I read the b as v. These are the marks returned through the real server.”
 

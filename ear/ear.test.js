@@ -10,14 +10,14 @@ import { loadEnv } from './env.js';
 import { hear, listen } from './hear.js';
 import { looksLikeProse, parseEarOutput } from './parse.js';
 
-const PRIMARY = 'meta-models/muse-spark-open-1026';
-const FALLBACK = 'muse-wonder-1.0';
+const PRIMARY = 'muse-wonder-1.0';
+const FALLBACK = 'meta-models/muse-spark-open-1026';
 const primaryKey = 'offline-primary-placeholder';
 const fallbackKey = 'offline-fallback-placeholder';
 const audio = { data: Buffer.from('offline audio fixture'), format: 'wav' };
 
 function setKeys(t, primary = primaryKey, fallback = fallbackKey) {
-  const values = { BASETEN_API_KEY: primary, META_API_KEY: fallback };
+  const values = { META_API_KEY: primary, BASETEN_API_KEY: fallback };
   for (const [name, value] of Object.entries(values)) {
     const previous = process.env[name];
     t.after(() => {
@@ -194,7 +194,7 @@ test('listen sends the exact primary request and returns only content as the ans
   } });
   assert.equal(calls.length, 1);
   const [{ url, init }] = calls;
-  assert.equal(url, 'https://inference.baseten.co/v1/chat/completions');
+  assert.equal(url, 'https://api.meta.ai/v1/chat/completions');
   assert.equal(init.method, 'POST');
   assert.deepEqual(init.headers, {
     'Content-Type': 'application/json', Authorization: `Bearer ${primaryKey}`,
@@ -205,10 +205,11 @@ test('listen sends the exact primary request and returns only content as the ans
     model: PRIMARY,
     messages: [{ role: 'user', content: [
       { type: 'text', text: prompt },
-      { type: 'audio_url', audio_url: { url: `data:audio/wav;base64,${audio.data.toString('base64')}` } },
+      { type: 'input_audio', input_audio: { data: audio.data.toString('base64'), format: 'wav' } },
     ] }],
     max_tokens: 8192,
     temperature: 0,
+    reasoning_effort: 'minimal',
   });
   assert.deepEqual(result, {
     words: [['sha', 'bos'], ['ba', 'ruch']],
@@ -223,7 +224,7 @@ test('listen uses the MIME type for each supported buffer format', async (t) => 
   for (const [format, mime] of Object.entries({
     wav: 'wav', mp3: 'mpeg', flac: 'flac', ogg: 'ogg', m4a: 'mp4',
   })) {
-    await listen({ data: audio.data, format }, { fetch: async (_url, init) => {
+    await listen({ data: audio.data, format }, { model: 'fallback', fetch: async (_url, init) => {
       const part = JSON.parse(init.body).messages[0].content[1];
       assert.equal(part.audio_url.url, `data:audio/${mime};base64,${audio.data.toString('base64')}`);
       return answer();
@@ -236,7 +237,7 @@ test('listen accepts a file path and detects its format case insensitively', asy
   const directory = await fixtureDirectory(t);
   const path = join(directory, 'clip.MP3');
   await writeFile(path, audio.data);
-  await listen({ path }, { fetch: async (_url, init) => {
+  await listen({ path }, { model: 'fallback', fetch: async (_url, init) => {
     const part = JSON.parse(init.body).messages[0].content[1];
     assert.equal(part.audio_url.url, `data:audio/mpeg;base64,${audio.data.toString('base64')}`);
     return answer();
@@ -283,7 +284,7 @@ test('listen sanitizes file read errors', async (t) => {
 
 test('listen goes directly to fallback when the primary key is missing', async (t) => {
   setKeys(t, undefined);
-  delete process.env.BASETEN_API_KEY;
+  delete process.env.META_API_KEY;
   const calls = [];
   const result = await listen(audio, { fetch: async (url, init) => {
     calls.push({ url, init });
@@ -291,7 +292,7 @@ test('listen goes directly to fallback when the primary key is missing', async (
   } });
   assert.equal(result.model, FALLBACK);
   assert.equal(calls.length, 1);
-  assert.equal(calls[0].url, 'https://api.meta.ai/v1/chat/completions');
+  assert.equal(calls[0].url, 'https://inference.baseten.co/v1/chat/completions');
   assert.equal(JSON.parse(calls[0].init.body).model, FALLBACK);
   assert.equal(calls[0].init.headers.Authorization, `Bearer ${fallbackKey}`);
 });
@@ -338,8 +339,8 @@ test('listen throws a credential-safe error when both providers fail', async (t)
 
 test('listen does not fetch when both keys are missing', async (t) => {
   setKeys(t);
-  delete process.env.BASETEN_API_KEY;
   delete process.env.META_API_KEY;
+  delete process.env.BASETEN_API_KEY;
   let calls = 0;
   await assert.rejects(listen(audio, { fetch: async () => { calls += 1; return answer(); } }), safeError);
   assert.equal(calls, 0);
@@ -367,7 +368,7 @@ test('listen honors each forced model without trying the other provider', async 
 
 test('a forced model with a missing key fails without using the other key', async (t) => {
   setKeys(t);
-  delete process.env.BASETEN_API_KEY;
+  delete process.env.META_API_KEY;
   let calls = 0;
   await assert.rejects(listen(audio, { model: 'primary', fetch: async () => {
     calls += 1;
@@ -498,21 +499,21 @@ test('CLI reports invalid arguments, missing inputs, and JSON write failures', a
   assert.ok(errors.includes('Could not write the JSON output.'));
 });
 
-test('the Meta fallback sends input_audio, Baseten sends audio_url', async (t) => {
+test('the Meta primary sends input_audio, Baseten fallback sends audio_url', async (t) => {
   const audio = { data: Buffer.from('RIFF'), format: 'wav' };
   const parts = {};
   const fakeFetch = async (url, init) => {
-    parts[url.includes('baseten') ? 'primary' : 'fallback'] = JSON.parse(init.body).messages[0].content[1];
+    parts[url.includes('baseten') ? 'fallback' : 'primary'] = JSON.parse(init.body).messages[0].content[1];
     return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: 'sha-bos' } }] }) };
   };
-  process.env.BASETEN_API_KEY = 'test-primary';
-  process.env.META_API_KEY = 'test-fallback';
+  process.env.BASETEN_API_KEY = 'test-fallback';
+  process.env.META_API_KEY = 'test-primary';
   t.after(() => { delete process.env.BASETEN_API_KEY; delete process.env.META_API_KEY; });
   await listen(audio, { fetch: fakeFetch, model: 'primary' });
   await listen(audio, { fetch: fakeFetch, model: 'fallback' });
-  assert.equal(parts.primary.type, 'audio_url');
-  assert.match(parts.primary.audio_url.url, /^data:audio\/wav;base64,/);
-  assert.deepEqual(parts.fallback, { type: 'input_audio', input_audio: { data: audio.data.toString('base64'), format: 'wav' } });
+  assert.equal(parts.fallback.type, 'audio_url');
+  assert.match(parts.fallback.audio_url.url, /^data:audio\/wav;base64,/);
+  assert.deepEqual(parts.primary, { type: 'input_audio', input_audio: { data: audio.data.toString('base64'), format: 'wav' } });
 });
 
 test('a prose refusal is a failed call and is retried', async (t) => {
@@ -523,9 +524,9 @@ test('a prose refusal is a failed call and is retried', async (t) => {
   ];
   let calls = 0;
   const fakeFetch = async () => ({ ok: true, status: 200, json: async () => ({ choices: [{ message: { content: answers[calls++] } }] }) });
-  process.env.META_API_KEY = 'test-fallback';
+  process.env.META_API_KEY = 'test-primary';
   t.after(() => { delete process.env.META_API_KEY; });
-  const result = await listen(audio, { fetch: fakeFetch, model: 'fallback' });
+  const result = await listen(audio, { fetch: fakeFetch, model: 'primary' });
   assert.equal(calls, 2);
   assert.deepEqual(result.words, [['sha', 'vos']]);
 });
@@ -540,8 +541,8 @@ test('looksLikeProse leaves real sound lines alone', async () => {
   assert.equal(looksLikeProse('please\nupload\nthe\naudio\nfile\nagain\nnow'), true);
 });
 
-test('the fallback asks Wonder for minimal reasoning, and EAR_REASONING_EFFORT overrides it', async (t) => {
-  setKeys(t, '');
+test('the primary asks Wonder for minimal reasoning, and EAR_REASONING_EFFORT overrides it', async (t) => {
+  setKeys(t);
   const previous = process.env.EAR_REASONING_EFFORT;
   t.after(() => {
     if (previous === undefined) delete process.env.EAR_REASONING_EFFORT;
@@ -556,10 +557,10 @@ test('the fallback asks Wonder for minimal reasoning, and EAR_REASONING_EFFORT o
   assert.deepEqual(efforts, ['minimal', 'low']);
 });
 
-test('the primary request carries no reasoning_effort', async (t) => {
+test('the fallback request carries no reasoning_effort', async (t) => {
   setKeys(t);
   const bodies = [];
-  await listen(audio, { model: 'primary', fetch: async (_url, init) => { bodies.push(JSON.parse(init.body)); return answer(); } });
+  await listen(audio, { model: 'fallback', fetch: async (_url, init) => { bodies.push(JSON.parse(init.body)); return answer(); } });
   assert.equal('reasoning_effort' in bodies[0], false);
 });
 

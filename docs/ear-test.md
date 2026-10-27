@@ -40,7 +40,7 @@ With those made-up examples, the notes report two runs per model:
 | Muse Spark 1.2 | 2 and 2 | 3 and 2 prose answers; 4 `?` clips per run. |
 | Muse Spark 1.3 | 1 and 4 | 7 and 4 `?` clips; 0 and 1 empty answers. |
 
-These are the notes' counts, not a complete per-clip record. Wonder was chosen as the fallback. Muse Spark Open on Baseten is wired as the primary ear. It first ran on October 27, on the adult clips.
+These are the notes' counts, not a complete per-clip record. Wonder is the primary ear. Muse Spark Open on Baseten is wired as the fallback ear. It first ran on October 27, on the adult clips.
 
 ### Speed: reasoning effort
 
@@ -110,7 +110,7 @@ Two more runs on the committed prompt, one at minimal and one at low reasoning, 
 
 Two prompt changes were tried in a scratch copy and not committed: a sentence telling the ear never to change vowels to Israeli or any other pronunciation, and an added `aw` vowel. Neither changed the vowels.
 
-Muse Spark Open, the primary ear, then heard the same 12 clips once through Baseten. It was the first time it had run. It did worse than Wonder: the grader marked 6 of the 10 planted mistakes, the strict check passed 2 of 12, and there were 23 false marks. It wrote the same Israeli vowels, including a-do-nay where Levi said a-do-noy. It often split syllables with spaces instead of hyphens, which the parser reads as separate words. On the Shema line Levi skipped אֱלֹהֵינוּ, and Spark Open wrote e-lo-hey-nu anyway: without seeing the text, it filled in the verse from memory.
+Muse Spark Open, the fallback ear, then heard the same 12 clips once through Baseten. It was the first time it had run. It did worse than Wonder: the grader marked 6 of the 10 planted mistakes, the strict check passed 2 of 12, and there were 23 false marks. It wrote the same Israeli vowels, including a-do-nay where Levi said a-do-noy. It often split syllables with spaces instead of hyphens, which the parser reads as separate words. On the Shema line Levi skipped אֱלֹהֵינוּ, and Spark Open wrote e-lo-hey-nu anyway: without seeing the text, it filled in the verse from memory.
 
 Round 1 does not pass for Ashkenazi vowels with either ear. Sephardi readings have not been tested.
 
@@ -126,4 +126,4 @@ Each planted mistake must come back as the sound that was said. Clean controls c
 
 `npm run ear-test` compares the returned sounds with the table's `Say` column. It ignores case and spaces within each word. Syllable boundaries, word boundaries, order and word count must match. It prints `PASS` or `MISS` for each recorded clip. It does not call the grader or check letter-level verdicts.
 
-The runner defaults to the Baseten primary when `BASETEN_API_KEY` is nonempty. Otherwise it uses the Meta fallback. It prints the selected role and model id. `--model primary` or `--model fallback` overrides that choice.
+The runner defaults to the Meta primary when `META_API_KEY` is nonempty, then the Baseten fallback when only `BASETEN_API_KEY` is nonempty, otherwise the Meta primary. It prints the selected role and model id. `--model primary` or `--model fallback` overrides that choice.

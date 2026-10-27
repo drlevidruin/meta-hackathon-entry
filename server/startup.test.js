@@ -24,7 +24,7 @@ test('startup PIN check rejects missing, non-digit, short and long PINs without 
 test('startup lines describe a missing ear key, missing station build and actual listen address', async () => {
   const { startupMessages } = await startup();
   assert.deepEqual(startupMessages({ metaApiKey: '', hasStation: false, host: '127.0.0.1', port: 8787 }), [
-    'BASETEN_API_KEY and META_API_KEY are missing; the ear cannot hear and lines show gray.',
+    'META_API_KEY (primary ear) and BASETEN_API_KEY (fallback ear) are missing; the ear cannot hear and lines show gray.',
     'station/dist is missing; run npm run build.',
     'Kriah Listener: http://127.0.0.1:8787',
   ]);
@@ -35,13 +35,13 @@ test('startup lines describe a missing ear key, missing station build and actual
 
 test('startup warns about the ear only when both provider keys are blank', async () => {
   const { startupMessages } = await startup();
-  for (const keys of [{ basetenApiKey: 'offline-primary' }, { metaApiKey: 'offline-fallback' },
-    { basetenApiKey: 'offline-primary', metaApiKey: 'offline-fallback' }]) {
+  for (const keys of [{ basetenApiKey: 'offline-fallback' }, { metaApiKey: 'offline-primary' },
+    { basetenApiKey: 'offline-fallback', metaApiKey: 'offline-primary' }]) {
     assert.deepEqual(startupMessages({ ...keys, hasStation: true, host: 'localhost', port: 8787 }),
       ['Kriah Listener: http://localhost:8787']);
   }
   assert.match(startupMessages({ basetenApiKey: ' ', metaApiKey: '\t', hasStation: true, host: 'localhost', port: 8787 })[0],
-    /BASETEN_API_KEY and META_API_KEY are missing/);
+    /META_API_KEY \(primary ear\) and BASETEN_API_KEY \(fallback ear\) are missing/);
 });
 
 test('listen options default to loopback and let HOST and PORT override it', async () => {
@@ -99,7 +99,7 @@ test('startup address uses HTTPS when TLS is enabled, including IPv6', async () 
   const { startupMessages } = await startup();
   for (const [host, address] of [['0.0.0.0', '0.0.0.0'], ['::1', '[::1]']]) {
     assert.deepEqual(startupMessages({
-      metaApiKey: 'offline-fallback', hasStation: true, host, port: 9000, tls: true,
+      metaApiKey: 'offline-primary', hasStation: true, host, port: 9000, tls: true,
     }), [`Kriah Listener: https://${address}:9000`]);
   }
 });

@@ -5,6 +5,7 @@ export function routeForHash(hash) {
   const exact = { '/': 'home', '/read': 'read', '/done': 'done', '/teacher': 'teacher', '/teacher/roster': 'roster' };
   if (exact[path]) return { screen: exact[path], path };
   const routes = [
+    [/^\/child\/([^/]+)\/voice$/, 'voice', ['childId']],
     [/^\/child\/([^/]+)$/, 'child', ['childId']],
     [/^\/teacher\/child\/([^/]+)$/, 'detail', ['childId']],
     [/^\/teacher\/packet\/child\/([^/]+)$/, 'packet', ['childId']],

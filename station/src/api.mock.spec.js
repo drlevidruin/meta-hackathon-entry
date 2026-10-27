@@ -48,12 +48,12 @@ it('places at most one challenge at the end of every mock set', async () => {
   }
 });
 
-it('seeds twelve distinct avatars, four levels, all presets and five varied practice groups', async () => {
+it('seeds thirteen distinct avatars, four levels, all presets and five varied practice groups', async () => {
   const roster = await mock.children();
-  expect(roster).toHaveLength(12);
-  expect(new Set(roster.map(child => child.id)).size).toBe(12);
-  expect(new Set(roster.map(child => child.name)).size).toBe(12);
-  expect(new Set(roster.map(child => child.avatar)).size).toBe(12);
+  expect(roster).toHaveLength(13);
+  expect(new Set(roster.map(child => child.id)).size).toBe(13);
+  expect(new Set(roster.map(child => child.name)).size).toBe(13);
+  expect(new Set(roster.map(child => child.avatar)).size).toBe(13);
   expect([...new Set(roster.map(child => child.level))].sort()).toEqual([1, 2, 3, 4]);
   expect([...new Set(roster.map(child => child.preset))].sort()).toEqual([...PRESETS].sort());
   const { children, groups } = await mock.classView();
@@ -97,4 +97,22 @@ it('gives saved and sample turns ids for teacher trace links', async () => {
   await mock.finish({ turnId, stars: 0 });
   const detail = await mock.childDetail('bim');
   expect(detail.turns.map(turn => turn.id)).toEqual([turnId, 'mock-history-bim']);
+});
+
+it('seeds one child needing a voice check, and saves voice and clearVoice changes', async () => {
+  const children = await mock.children();
+  expect(children.filter(child => child.voiceCheck)).toHaveLength(12);
+  expect(children.filter(child => child.voiceCheck === false).map(child => child.id)).toEqual(['pippa']);
+  expect(await mock.voice({ childId: 'pippa' })).toEqual({ voiceCheck: true });
+  expect((await mock.children()).find(child => child.id === 'pippa').voiceCheck).toBe(true);
+  expect(await mock.clearVoice('pippa')).toMatchObject({ id: 'pippa', voiceCheck: false });
+  expect((await mock.children()).find(child => child.id === 'pippa').voiceCheck).toBe(false);
+});
+
+it('requires a voice check for new children and clears it only when a preset changes', async () => {
+  const child = await mock.addChild({ name: 'Mippo', avatar: 'whale', preset: 'sephardi' });
+  expect(child.voiceCheck).toBe(false);
+  await mock.voice({ childId: child.id });
+  expect(await mock.editChild(child.id, { preset: 'sephardi', level: 2 })).toMatchObject({ voiceCheck: true });
+  expect(await mock.editChild(child.id, { preset: 'ashkenazi' })).toMatchObject({ voiceCheck: false });
 });

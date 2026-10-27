@@ -5,7 +5,7 @@ import { navigate, routeForHash, screenForHash, useRoute } from './router.js';
 afterEach(() => { cleanup(); window.history.replaceState(null, '', '/'); });
 
 it.each([
-  ['#/', 'home'], ['#/child/bim', 'child'], ['#/read', 'read'], ['#/done', 'done'],
+  ['#/', 'home'], ['#/child/bim', 'child'], ['#/child/bim/voice', 'voice'], ['#/read', 'read'], ['#/done', 'done'],
   ['#/teacher', 'teacher'], ['#/teacher/child/bim', 'detail'], ['#/teacher/roster', 'roster'],
   ['#/teacher/packet/child/bim', 'packet'], ['#/teacher/packet/skill/vowel%3Asheva_na/2', 'packet'],
   ['#/trace/turn-1', 'trace'], ['#/settings', 'home'], ['', 'home'], ['#/missing', 'home'],
@@ -15,6 +15,7 @@ it.each([
 it('decodes parameters and numeric levels', () => {
   expect(routeForHash('#/teacher/packet/skill/vowel%3Asheva_na/2')).toMatchObject({ skillId: 'vowel:sheva_na', level: 2 });
   expect(routeForHash('#/child/mock%20child').childId).toBe('mock child');
+  expect(routeForHash('#/child/mock%20child/voice')).toMatchObject({ screen: 'voice', childId: 'mock child' });
   expect(routeForHash('#/trace/turn-1').turnId).toBe('turn-1');
 });
 

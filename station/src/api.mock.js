@@ -1,7 +1,7 @@
 import { readSession, writeSession } from './storage.js';
 import { skillLabel } from './messages.js';
 
-const KEY = 'kriah.mock.v3';
+const KEY = 'kriah.mock.v4';
 const initialChildren = [
   { id: 'bim', name: 'Bim', avatar: 'lion', preset: 'sephardi', level: 1, stars: 12, best: 5, next: 'vowel:sheva_na' },
   { id: 'nubo', name: 'Nubo', avatar: 'owl', preset: 'ashkenazi', level: 2, stars: 24, best: 7, next: 'vowel:chirik' },
@@ -15,7 +15,8 @@ const initialChildren = [
   { id: 'voppo', name: 'Voppo', avatar: 'dog', preset: 'sephardi', level: 2, stars: 22, best: 6, next: 'vowel:chirik' },
   { id: 'fuzzle', name: 'Fuzzle', avatar: 'frog', preset: 'ashkenazi', level: 3, stars: 43, best: 8, next: 'pattern:closed_syllable' },
   { id: 'dibbo', name: 'Dibbo', avatar: 'panda', preset: 'chassidish', level: 1, stars: 0, best: 0, next: null },
-];
+  { id: 'pippa', name: 'Pippa', avatar: 'koala', preset: 'sephardi', level: 1, stars: 0, best: 0, next: null },
+].map(child => ({ ...child, voiceCheck: child.id !== 'pippa' }));
 const lines = ['בָּ בַּ בֵּ', 'מָ מַ מִ', 'לָ לַ לִ', 'בִּ בֵּ בֻּ', 'שָׁ שַׁ שִׁ', 'נָ נַ נִ'];
 export const items = lines.map((text, index) => ({
   id: `mock-${index}`, level: 1, text, words: text.split(' '),
@@ -36,6 +37,19 @@ export async function config() { return { trace: true }; }
 export async function checkPin(pin) {
   if (!/^\d{4,12}$/.test(pin)) throw new Error('Enter PIN');
   return { ok: true };
+}
+export async function voice({ childId }) {
+  const db = database();
+  findChild(db, childId).voiceCheck = true;
+  save(db);
+  return { voiceCheck: true };
+}
+export async function clearVoice(id) {
+  const db = database();
+  const child = findChild(db, id);
+  child.voiceCheck = false;
+  save(db);
+  return clone(child);
 }
 export async function start({ childId }) {
   const db = database();
@@ -143,12 +157,13 @@ export async function childDetail(id) {
 }
 export async function addChild(data) {
   const db = database();
-  const child = { ...data, id: `mock-child-${crypto.randomUUID()}`, level: 1, stars: 0, best: 0 };
+  const child = { ...data, id: `mock-child-${crypto.randomUUID()}`, level: 1, stars: 0, best: 0, voiceCheck: false };
   db.children.push(child); save(db); return clone(child);
 }
 export async function editChild(id, data) {
   const db = database();
   const child = findChild(db, id);
+  if (data.preset !== undefined && data.preset !== child.preset) child.voiceCheck = false;
   Object.assign(child, data); save(db); return clone(child);
 }
 export async function deleteChild(id) {

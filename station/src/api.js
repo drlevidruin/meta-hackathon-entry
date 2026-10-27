@@ -13,6 +13,7 @@ async function request(path, { teacher = false, pin = loadPin(), data, ...option
   if (!response.ok) {
     const error = new Error(body.error || 'Request failed');
     error.status = response.status;
+    if (response.status === 422) Object.assign(error, { heard: body.heard, expected: body.expected });
     throw error;
   }
   return body;
@@ -26,6 +27,12 @@ export const grade = ({ turnId, itemId, audio }) => isMockMode() ? mock.grade({ 
   request(`grade?turn=${encodeURIComponent(turnId)}&item=${encodeURIComponent(itemId)}`, {
     method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: audio,
   });
+export const voice = ({ childId, audio }) => isMockMode() ? mock.voice({ childId }) :
+  request(`voice?child=${encodeURIComponent(childId)}`, {
+    method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: audio,
+  });
+export const clearVoice = id => isMockMode() ? mock.clearVoice(id) :
+  request(`children/${encodeURIComponent(id)}/voice`, { teacher: true, method: 'DELETE' });
 export const next = data => isMockMode() ? mock.next(data) : post('next', {
   turnId: data.turnId, elapsedMs: data.elapsedMs, checkpoint: data.checkpoint,
 });

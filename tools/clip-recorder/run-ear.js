@@ -27,8 +27,8 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), keep = 
     const readings = recorded.filter((clip) => clip.kind === 'reading');
     const voice = recorded.find((clip) => clip.kind === 'voice');
     const modelId = model === 'primary'
-      ? process.env.EAR_PRIMARY_MODEL || 'meta-models/muse-spark-open-1026'
-      : process.env.EAR_FALLBACK_MODEL || 'muse-wonder-1.0';
+      ? process.env.EAR_PRIMARY_MODEL || 'muse-wonder-1.0'
+      : process.env.EAR_FALLBACK_MODEL || 'meta-models/muse-spark-open-1026';
     log(`Ear model: ${model} (${modelId})`);
     let profile;
     let meterStatus;
