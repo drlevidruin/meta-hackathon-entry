@@ -62,7 +62,7 @@ The prose check removes outer wrappers, list markers and a known heading such as
 
 ## Round 1: an adult voice
 
-Read each clip once, at a normal pace, in Ashkenazi pronunciation. One clip per recording. Any phone voice memo works.
+Read each clip once, at a normal pace, in Ashkenazi pronunciation. One clip per recording, with the [local clip recorder](../tools/clip-recorder/README.md).
 
 | File name | Hebrew | Say | Planted | The ear should write |
 | --- | --- | --- | --- | --- |

@@ -19,4 +19,4 @@
 
 [Recording instructions](../recordings/README.md) and the [local recorder](../tools/clip-recorder/README.md) describe test audio storage and deletion. The [main README](../README.md) covers setup, model status and privacy.
 
-Offline checks: 553 root tests and 88 station tests pass. The station production build also passes.
+Offline checks: 560 root tests and 88 station tests pass. The station production build also passes.

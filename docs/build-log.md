@@ -1,12 +1,12 @@
 # Build history
 
-Rabbi Dr. Levi Druin built Kriah Listener with Claude Code and Codex as coding assistants. The history below follows `git log --reverse --format='%h %ad %s' --date=iso` and the merge commits. Every commit in the available history is dated October 26, 2026, the first day of the event.
+Rabbi Dr. Levi Druin designed Kriah Listener and directed the build. Claude Code and Codex wrote the code to his brief. The history below follows `git log --reverse --format='%h %ad %s' --date=iso` and the merge commits. Every commit was made during the event, starting the evening of October 26, 2026.
 
 Work ran on several branches side by side that day. The merge order is not a strict build order. The grader, coach, station and server were built against synthetic voices so the go or no-go test can run when real clips exist. The real-voice test has not run.
 
 ## Rulebook and bank
 
-`3fbef66` added the working brief. `aa6f18d` added the Metsudah Siddur source text. The rulebook and bank specifications followed in `b4f2ee3`.
+`3fbef66` added Levi's project brief. `aa6f18d` added the Metsudah Siddur source text. The rulebook and bank specifications followed in `b4f2ee3`.
 
 `05972be` implemented expected sounds, pronunciation presets and skill tags. `f9c5e48` added the item bank. `c6f1b7f` added challenge words, generated spelling restrictions and merged cholam handling. Later fixes covered final kaf, word endings, silent-ending sheva, prefixed divine names, kamatz before final sheva and unpointed short words. The bank branch merged in `144b826`.
 
@@ -16,7 +16,7 @@ AI reviewers checked every distinct siddur word in all three traditions. A secon
 
 `010d6ff` added the prompt. `5304391` added provider calls, parsing, a CLI and offline tests. Subsequent commits fixed the Meta audio payload and the prose heuristic. The ear branch merged in `eb670e7`.
 
-`489c17d` added the synthetic clip script. `660e482` recorded the first test notes. `dd3e3cd` corrected the recorded counts. `ca9b59b` set minimal reasoning effort for the fallback ear.
+`489c17d` added the synthetic clip script. `660e482` recorded the first test notes. `dd3e3cd` corrected the recorded counts. Levi asked whether Muse Voice Transcribe 1.0 had been tried. That trial ruled it out and showed that minimal reasoning cut Muse Wonder 1.0 from about 15 seconds a clip to 2.4, so `ca9b59b` set minimal reasoning effort for the fallback ear.
 
 The script defines 13 clips: 7 planted mistakes and 6 clean controls. The notes report that Muse Wonder 1.0 wrote the plant on 5 of the 7 plants in each of two runs. Complete per-run output is not in the repository. Wonder was chosen after trials of Muse Spark 1.2, Muse Spark 1.3 and Muse Voice Transcribe 1.0. Muse Spark Open through Baseten is wired and has never run. [Ear test](ear-test.md).
 
@@ -49,5 +49,9 @@ The server keeps model keys outside the browser. Station audio is processed in m
 `118fba9`, merged in `163ca41`, fixed skill attribution, restart behavior, silent-pair handling, repeated demotions and coach answer parsing. It also fixed parent-line skill selection and server test discovery. [Regression record](reviews/2026-10-26-core-fix-round.md).
 
 `68fe0e2`, merged in `4df3600`, improved the station's mock roster and completion display. `0bf6b09` hid extra heard syllables in the display and removed parent feedback before a first turn. `ca2bf91` tested the mock grouping behavior.
+
+Fix round 2 merged in `95a163f`: turn resets, alignment, packet selection and coach requests. [Record](reviews/2026-10-26-core-fix-round-2.md). The server round merged in `8fd6dff`: stars, retries, startup checks and saved history. [Record](reviews/2026-10-26-server-fix-round.md).
+
+`8fb9c22` and `ea2739e` fixed what a full review of the repo and its docs found. [Record](reviews/2026-10-26-review-fixes.md). `7582c7b` recorded a dress rehearsal of the [demo script](demo-script.md) on the real server. `6598d59` added optional https, because browsers allow the microphone only on https or localhost.
 
 The current offline root and station test suites pass. Their synthetic inputs and model substitutes support implementation checks. They do not replace an adult round, a consented child round or a human kriah teacher's review.

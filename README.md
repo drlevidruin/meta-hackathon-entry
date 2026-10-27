@@ -60,7 +60,7 @@ Meta may train on content sent in contributor mode, so only standard tier is use
 - **Rulebook.** AI reviewers checked every distinct siddur word in all three traditions. A second AI review confirmed each finding. Fixes have regression tests and a before and after comparison of every word. No human kriah teacher has reviewed it yet. [Review](docs/check/rulebook-review.md) and [Shema page for the hand check](docs/check/shema.md).
 - **Synthetic ear test.** The script defines 13 clips: 7 planted mistakes and 6 clean controls. Wonder reported 5 of the 7 plants in each of two recorded runs. The saved notes do not support a complete grader accuracy rate. [Results and limits](docs/ear-test.md).
 - **Live server run.** Synthetic speech completed 25 of 25 lines. The coach answered 7 of 7 checkpoints with valid picks. This checks the full path through the server, not accuracy on real voices. [Run record](docs/live-run.md).
-- **Offline tests.** 553 root tests and 88 station tests pass. They cover sheva na and nach, kamatz katan, dagesh, silent letters, the divine names, restarts and rereads in the alignment, and all three traditions. They also check server retries, saved progress, packet selection and station screens. Synthetic inputs and model substitutes do not establish accuracy on real voices.
+- **Offline tests.** 560 root tests and 88 station tests pass. They cover sheva na and nach, kamatz katan, dagesh, silent letters, the divine names, restarts and rereads in the alignment, and all three traditions. They also check server retries, saved progress, packet selection and station screens. Synthetic inputs and model substitutes do not establish accuracy on real voices.
 - **Real voices.** Neither the adult nor child round has run. The real-voice test is still the go or no-go.
 
 ### Before the child round
@@ -181,7 +181,12 @@ Other tools, also from the repo root:
 
 ## Credits
 
-Built by Rabbi Dr. Levi Druin for the Meta Global AI Developer Hackathon, October 26 to November 4, 2026, Indie track. Claude Code and Codex were used as coding assistants; every commit in this repo was made during the event.
+Rabbi Dr. Levi Druin, a Jewish day school principal, designed Kriah Listener and directed its build for the Meta Global AI Developer Hackathon, October 26 to November 4, 2026, Indie track. Every commit in this repo was made during the event.
+
+- **Design.** His plan and project brief, [CLAUDE.md](CLAUDE.md), set the design before the first commit: an ear that never sees the page, a rulebook that serves as the answer key, traditions as sets of accepted sounds, a grader that marks each letter and vowel, a coach that picks from the bank and never writes Hebrew, and no leaderboard.
+- **Direction.** His question about Muse Voice Transcribe 1.0 started the trial that ruled it out as the ear. The same test found that minimal reasoning brought Muse Wonder 1.0 from about 15 seconds a clip to 2.4.
+- **Real voices.** He reads the adult round. The child round runs only with written parent consent.
+- **Code.** Claude Code and Codex wrote the code and tests to the brief. The review rounds are in [docs/reviews](docs/reviews).
 
 Levels 3, 5 and 6 use Hebrew text from *The Metsudah Siddur (1981)*, via [Sefaria](https://www.sefaria.org/Siddur_Ashkenaz), licensed [CC-BY](https://creativecommons.org/licenses/by/). The text was cut into lines and filtered to exclude unpointed segments. Section references and source links are in `bank/data/siddur.json`.
 
