@@ -139,10 +139,53 @@ async function request(provider, audio, fetcher, reference) {
   }
 }
 
+export function defaultVotes(env = process.env) {
+  const votes = Number(env.EAR_VOTES);
+  return Number.isInteger(votes) && votes >= 1 && votes <= 5 ? votes : 3;
+}
+
+function mostCommon(values, key = value => value) {
+  const counts = new Map();
+  for (const value of values) {
+    const id = key(value);
+    if (counts.has(id)) counts.get(id).count += 1;
+    else counts.set(id, { value, count: 1 });
+  }
+  let winner;
+  let highest = 0;
+  for (const { value, count } of counts.values()) {
+    if (count > highest) {
+      winner = value;
+      highest = count;
+    }
+  }
+  return winner;
+}
+
+export function combineAnswers(answers) {
+  const readings = answers.map(answer => answer.words ?? answer);
+  const wordCount = mostCommon(readings.map(words => words.length));
+  const matching = readings.filter(words => words.length === wordCount);
+  return matching[0]?.map((_, index) => mostCommon(
+    matching.map(words => words[index]), word => word.join('-'),
+  )) ?? [];
+}
+
+function combineUsage(answers) {
+  if (answers.length === 1) return answers[0].usage;
+  const counts = ['prompt_tokens', 'completion_tokens', 'total_tokens'];
+  if (!answers.every(({ usage }) => counts.every(name => typeof usage?.[name] === 'number'))) return null;
+  return Object.fromEntries(counts.map(name => [name, answers.reduce((sum, answer) => sum + answer.usage[name], 0)]));
+}
+
 export async function listen(audio, options = {}) {
   if (!options || typeof options !== 'object'
     || (options.model !== undefined && !['primary', 'fallback'].includes(options.model))) {
     throw new Error('Model must be primary or fallback.');
+  }
+  const votes = options.votes === undefined ? defaultVotes() : options.votes;
+  if (!Number.isInteger(votes) || votes < 1 || votes > 5) {
+    throw new Error('Votes must be a whole number from 1 to 5.');
   }
   const fetcher = options.fetch ?? globalThis.fetch;
   if (typeof fetcher !== 'function') throw new Error('A fetch function is required.');
@@ -153,15 +196,32 @@ export async function listen(audio, options = {}) {
   const failures = [];
   const tries = options.tries ?? 2;
   for (const name of models) {
-    for (let attempt = 1; attempt <= tries; attempt += 1) {
-      try {
-        return await request(PROVIDERS[name], audioData, fetcher, name === 'primary' ? reference : undefined);
-      } catch (error) {
-        failures.push(`${name}: ${error instanceof EarFailure ? error.message : 'failed'}`);
-        // Only a prose answer is worth a second try; anything else goes to the next model.
-        if (!(error instanceof EarFailure && error.message === 'answered in prose')) break;
+    const asked = name === 'primary' ? votes : 1;
+    // Promise.all preserves request order, including when a slot needs a retry.
+    const results = await Promise.all(Array.from({ length: asked }, async () => {
+      const failures = [];
+      for (let attempt = 1; attempt <= tries; attempt += 1) {
+        try {
+          const answer = await request(PROVIDERS[name], audioData, fetcher, name === 'primary' ? reference : undefined);
+          return { answer, failures };
+        } catch (error) {
+          failures.push(`${name}: ${error instanceof EarFailure ? error.message : 'failed'}`);
+          // Only a prose answer is worth another try within this slot.
+          if (!(error instanceof EarFailure && error.message === 'answered in prose')) break;
+        }
       }
+      return { failures };
+    }));
+    const answers = results.flatMap(result => result.answer ? [result.answer] : []);
+    if (answers.length) {
+      return {
+        ...answers[0],
+        words: combineAnswers(answers),
+        usage: combineUsage(answers),
+        votes: { asked, answered: answers.length },
+      };
     }
+    failures.push(...results.flatMap(result => result.failures));
   }
   throw new Error(`No ear model returned an answer (${failures.join('; ')}).`);
 }
