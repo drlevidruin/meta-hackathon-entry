@@ -543,6 +543,25 @@ test('ear runner uses listen and logs every vote, including excluded word counts
   assert.ok(output.every(line => !line.includes('private provider failure')));
 });
 
+test('votes survive a meter failure after the ear has answered', async t => {
+  const directory = await fixtureDirectory(t);
+  const store = recordingStore(await loadClips(), directory);
+  await store.save('voice-check', syntheticWav(cardLabels('ashkenazi')));
+  await store.save('kal_clean', syntheticWav(['a']));
+  const output = [];
+  const result = await runEar({ directory, log: line => output.push(line), ear: async () => {
+    // The card has been measured; fail the meter's reading decode after the
+    // ear returns, without adding a test-only hook to the runner.
+    t.mock.method(Buffer.prototype, 'readInt16LE', () => { throw new Error('Synthetic meter failure'); });
+    return { ...earAnswer([['kal']], [[['kal']], [['kol']]]), votes: { asked: 3, answered: 2 } };
+  } });
+  assert.equal(result.code, 1);
+  assert.deepEqual(result.rows, [{ clip: 'kal_clean', said: 'kal', heard: 'ERROR', result: 'MISS',
+    ear: 'kal', metered: 'ERROR', votes: 'kal | kol | ERROR' }]);
+  assert.equal(output[7], 'kal_clean\tkal\tERROR\tMISS\tkal\tERROR\tkal | kol | ERROR');
+  assert.ok(output.every(line => !line.includes('Synthetic meter failure')));
+});
+
 test('voice-only runs inspect the first recorded voice clip in list order for either set', async t => {
   for (const set of ['adult', 'child']) {
     const directory = await fixtureDirectory(t);
@@ -807,6 +826,51 @@ test('a plain run with an unrecorded sitting card grades that sitting with all c
   assert.deepEqual(result.rows, [{ clip: 'gal_clean', said: 'gal', heard: 'gal', result: 'PASS',
     ear: 'gal', metered: 'gal', votes: 'gal' }]);
   assert.equal(output.length, 8);
+});
+
+test('a plain child run requires every sitting card before any service or deletion, unless kept', async t => {
+  const directory = await fixtureDirectory(t);
+  const store = recordingStore(await loadClips('child'), directory);
+  const voice = syntheticWav(cardLabels('ashkenazi'));
+  await store.save('child_voice-check', voice);
+  for (const name of ['child_omein_clean', 'child_gal_clean', 'child_sal_clean']) await store.save(name, wav);
+  for (const name of ['child_old.wav', 'adult.wav']) await writeFile(join(directory, name), wav);
+  const files = (await readdir(directory)).sort();
+  let earCalls = 0;
+  let phonemeCalls = 0;
+  const answers = [[['o', 'meyn']], [['gal']], [['sal']]];
+  const services = {
+    ear: async () => earAnswer(answers[earCalls++]),
+    phonemes: async () => { phonemeCalls++; return null; },
+  };
+  for (const flags of [[], ['--no-meter', '--no-card', '--no-referee']]) {
+    await assert.rejects(runEar({ ...parseOptions(['--set', 'child', ...flags], 'ear'), directory, ...services,
+      log: () => {} }), error => {
+      assert.equal(error.constructor.name, 'SelectionError');
+      assert.equal(error.message, 'Voice card is not recorded: child_voice-check-2 (section: Round 1f).');
+      return true;
+    });
+    assert.equal(earCalls, 0);
+    assert.equal(phonemeCalls, 0);
+    assert.deepEqual((await readdir(directory)).sort(), files);
+    for (const name of files) {
+      assert.deepEqual(await readFile(join(directory, name)), name === 'child_voice-check.wav' ? voice : wav);
+    }
+  }
+  const output = [];
+  const result = await runEar({ ...parseOptions(['--set', 'child', '--keep'], 'ear'), directory, ...services,
+    log: line => output.push(line) });
+  assert.equal(earCalls, 3);
+  assert.equal(phonemeCalls, 2);
+  assert.equal(result.code, 0);
+  assert.deepEqual(result.rows.map(row => [row.clip, row.heard, row.result]), [
+    ['child_omein_clean', 'o-meyn', 'PASS'], ['child_gal_clean', 'gal', 'PASS'], ['child_sal_clean', 'sal', 'PASS'],
+  ]);
+  assert.ok(output.includes('Voice card: child_voice-check-2 (not recorded)'));
+  assert.deepEqual((await readdir(directory)).sort(), files);
+  for (const name of files) {
+    assert.deepEqual(await readFile(join(directory, name)), name === 'child_voice-check.wav' ? voice : wav);
+  }
 });
 
 test('child selection errors leave all recordings untouched before any service call', async t => {
@@ -1134,8 +1198,10 @@ test('child runner deletes voice checks after success, ear failure and voice-onl
 
 test('child runner prints then deletes each clip before the next call, including failures', async (t) => {
   const directory = await fixtureDirectory(t);
-  const clips = (await loadClips('child')).filter((clip) => clip.kind === 'reading');
-  const store = recordingStore(clips, directory);
+  const allClips = await loadClips('child');
+  const clips = allClips.filter((clip) => clip.kind === 'reading');
+  const store = recordingStore(allClips, directory);
+  await store.save('child_voice-check', wav);
   for (const clip of clips.slice(0, 2)) await store.save(clip.name, wav);
   await writeFile(join(directory, 'baruch_clean.wav'), wav);
   await writeFile(join(directory, 'child_old.wav'), wav);
@@ -1362,6 +1428,34 @@ for (const [label, heard, result] of [['a', 'ga-mal', 'MISS'], ['o', 'go-mol', '
     assert.equal(answer.code, result === 'PASS' ? 0 : 1);
   });
 }
+
+test('--no-meter keeps the card on but prevents the referee from correcting kol with meter points', async t => {
+  const directory = await fixtureDirectory(t);
+  const store = recordingStore(await loadClips(), directory);
+  const voice = syntheticWav(cardLabels('ashkenazi'));
+  const reading = syntheticWav(['a']);
+  await store.save('voice-check', voice);
+  await store.save('kal_clean', reading);
+  for (const [flags, heard, verdict, code] of [[[], 'kal', 'PASS', 0], [['--no-meter'], 'kol', 'MISS', 1]]) {
+    const output = [];
+    const calls = [];
+    const result = await runEar({ ...parseOptions(['--model', 'primary', ...flags], 'ear'), directory,
+      ear: async (audio, options) => {
+        assert.deepEqual(audio, { data: reading, format: 'wav' });
+        assert.deepEqual(options, { model: 'primary', votes: defaultVotes(), reference: { data: voice, format: 'wav' } });
+        return earAnswer([['kol']]);
+      }, phonemes: async audio => {
+        calls.push(audio);
+        return audio.equals(voice) ? phonemeCard() : [phonemeVowel(0.84)];
+      }, log: line => output.push(line) });
+    assert.equal(result.code, code);
+    assert.deepEqual(result.rows, [{ clip: 'kal_clean', said: 'kal', heard, result: verdict,
+      ear: 'kol', metered: 'kol', votes: 'kol' }]);
+    assert.deepEqual(calls, [voice, reading]);
+    assert.equal(output[3], flags.length ? 'Vowel meter: off (--no-meter)' : 'Vowel meter: on (ashkenazi voice check)');
+    assert.equal(output[4], 'Voice card to the ear: on');
+  }
+});
 
 test('runner counts an aligned reading as checked and leaves a syllable at a gap alone', async t => {
   const directory = await fixtureDirectory(t);

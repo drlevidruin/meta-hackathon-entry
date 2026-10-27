@@ -90,15 +90,15 @@ function phonemeClass(token) {
 
 function bestPaths(choices) {
   return choices.reduce((best, choice) => {
-    if (choice.score > best.score || (choice.score === best.score && choice.gaps < best.gaps)) return choice;
-    if (choice.score === best.score && choice.gaps === best.gaps) {
-      return { ...best, count: best.count + choice.count };
+    if (choice.score > best.score) return choice;
+    if (choice.score === best.score) {
+      return { ...(choice.gaps < best.gaps ? choice : best), count: best.count + choice.count };
     }
     return best;
   });
 }
 
-function alignVowels(syllables, vowels) {
+export function alignVowels(syllables, vowels) {
   const difference = Math.abs(syllables.length - vowels.length);
   if (difference * 3 > Math.max(syllables.length, vowels.length)) return null;
   const ears = syllables.map(({ sound }) => earClasses[sound]);
@@ -119,7 +119,8 @@ function alignVowels(syllables, vowels) {
       const diagonal = forward[i - 1][j - 1];
       const ear = forward[i - 1][j];
       const phone = forward[i][j - 1];
-      // At equal scores prefer fewer gaps, then a match, an ear gap, a phone gap.
+      // Count all score ties; for traceback prefer fewer gaps, then a match,
+      // an ear gap, a phone gap.
       forward[i][j] = bestPaths([
         { score: diagonal.score + matchScore(i - 1, j - 1), gaps: diagonal.gaps, count: diagonal.count, move: 'match' },
         { score: ear.score - 1, gaps: ear.gaps + 1, count: ear.count, move: 'ear' },
@@ -162,7 +163,7 @@ function alignVowels(syllables, vowels) {
     const after = backward[i + 1][j + 1];
     // Keep an edge only when its best prefixes and suffixes cover every best path.
     return before.score + matchScore(i, j) + after.score === best.score
-      && before.gaps + after.gaps === best.gaps && before.count * after.count === best.count;
+      && before.count * after.count === best.count;
   });
 }
 

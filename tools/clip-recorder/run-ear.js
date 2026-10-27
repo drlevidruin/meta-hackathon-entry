@@ -67,7 +67,7 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), votes =
   for (const clip of readings) {
     const name = override?.name ?? clip.card;
     const voice = recorded.find(clip => clip.kind === 'voice' && clip.name === name);
-    if (round !== undefined && !voice) {
+    if ((round !== undefined || (set === 'child' && !keep)) && !voice) {
       throw new SelectionError(`Voice card is not recorded: ${name} (section: ${clip.section}).`);
     }
     voices.set(name, voice);
@@ -162,7 +162,7 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), votes =
             const tokens = await phonemesWithRetry(audio, phonemes);
             if (tokens == null) status = null;
             else {
-              const options = profile ? { points: syllablePoints(words, audio), profile } : undefined;
+              const options = meter && profile ? { points: syllablePoints(words, audio), profile } : undefined;
               const answer = applyReferee(words, tokens, calibration, options);
               words = answer.words;
               status = answer.status;
@@ -177,7 +177,6 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), votes =
         result = matchesSay(words, clip.say) ? 'PASS' : 'MISS';
       } catch {
         failed = true;
-        voteSounds = 'ERROR';
       }
       try {
         const row = { clip: clip.name, said: clip.say, heard, result, ear: earSounds, metered, votes: voteSounds };

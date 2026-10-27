@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { cardLabels } from '../rulebook/voice-card.js';
-import { applyReferee, backScore, cardCalibration, nucleus, refereeSettings, vowelClass } from './referee.js';
+import { alignVowels, applyReferee, backScore, cardCalibration, nucleus, refereeSettings, vowelClass } from './referee.js';
 
 const calibration = { version: 1, a: 0.43, o: 0.91, n: { a: 3, o: 3 } };
 const vowel = (score, token = score >= 0.5 ? 'ɑ' : 'a') => ({
@@ -341,7 +341,69 @@ test('alignment ties leave repeated vowel pairs unchanged when best paths disagr
   const words = [['ka', 'tan', 'ma']];
   const expected = { words, changes: [], status: 'aligned' };
   assert.deepEqual(applyReferee(words, [vowel(0.9), vowel(0.07)], calibration), expected);
-  assert.deepEqual(applyReferee(words, [vowel(0.9), vowel(0.07)], calibration), expected);
+  assert.deepEqual(applyReferee(words, [vowel(0.07), vowel(0.9)], calibration), expected);
+});
+
+test('alignment ties with more gaps can veto a vowel correction', () => {
+  const words = [['ka', 'te']];
+  assert.deepEqual(applyReferee(words, [phoneme('e'), phoneme('i'), vowel(0.9)], calibration),
+    { words, changes: [], status: 'aligned' });
+});
+
+test('alignment corrections use only pairs shared by every maximum-score path in 400 seeded cases', () => {
+  // Class numbers are independent fixture labels: open, mid, high front,
+  // high back, oy, ay, and an unrecognized phoneme class.
+  const earTypes = [['a', 0], ['o', 0], ['e', 1], ['ey', 1], ['i', 2], ['u', 3], ['oy', 4], ['ay', 5]];
+  const phoneTypes = [['a', 0], ['ɑ', 0], ['e', 1], ['i', 2], ['u', 3], ['oɪ', 4], ['aɪ', 5], ['y', 6]];
+  let seed = 0xc0ffee;
+  const random = limit => {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    return Math.floor(seed / 2 ** 32 * limit);
+  };
+  let changes = 0;
+  let gapTies = 0;
+  for (let trial = 0; trial < 400; trial++) {
+    let m, n;
+    do {
+      m = 1 + random(5);
+      n = 1 + random(5);
+    } while (m === n || Math.abs(m - n) * 3 > Math.max(m, n));
+    const ears = Array.from({ length: m }, () => earTypes[random(earTypes.length)]);
+    const phones = Array.from({ length: n }, () => phoneTypes[random(phoneTypes.length)]);
+    const paths = [];
+    function enumerate(i, j, score, pairs) {
+      if (i === m && j === n) {
+        paths.push({ score, pairs });
+        return;
+      }
+      if (i < m && j < n) {
+        const left = ears[i][1], right = phones[j][1];
+        const step = left === right ? 2 : left + right === 1 ? 0 : -1;
+        enumerate(i + 1, j + 1, score + step, [...pairs, [i, j]]);
+      }
+      if (i < m) enumerate(i + 1, j, score - 1, pairs);
+      if (j < n) enumerate(i, j + 1, score - 1, pairs);
+    }
+    enumerate(0, 0, 0, []);
+    const score = Math.max(...paths.map(path => path.score));
+    const best = paths.filter(path => path.score === score);
+    if (new Set(best.map(path => m + n - 2 * path.pairs.length)).size > 1) gapTies++;
+    const common = best[0].pairs.filter(([i, j]) => best.every(path =>
+      path.pairs.some(([ear, phone]) => ear === i && phone === j)));
+    const tokens = phones.map(([token]) => vowel(token === 'a' ? 0.07 : 0.9, token));
+    const matches = alignVowels(ears.map(([sound]) => ({ sound })), tokens);
+    const context = JSON.stringify({ trial, ears, phones });
+    if (matches !== null) assert.deepEqual(matches, common, context);
+    const result = applyReferee([ears.map(([sound]) => `k${sound}`)], tokens, calibration);
+    assert.equal(result.status, matches === null ? 'count' : 'aligned', context);
+    for (const change of result.changes) {
+      const pair = matches?.find(([ear]) => ear === change.syllable);
+      assert.ok(pair && common.some(([ear, phone]) => ear === pair[0] && phone === pair[1]), context);
+      changes++;
+    }
+  }
+  assert.ok(changes > 0, 'the generated cases must exercise corrections');
+  assert.ok(gapTies > 0, 'the generated cases must include equal scores with different gap counts');
 });
 
 test('alignment refuses excessive gaps or a count difference above one third in either direction', () => {
