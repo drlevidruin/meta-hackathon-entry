@@ -84,7 +84,7 @@ function phonemeClass(token) {
   if (/^[aæɐɑɔoɒʌ]$/.test(sound) || openDiphthong.test(sound)) return 'open';
   if (/^(e|ɛ|ə|eɪ)$/.test(sound)) return 'mid';
   if (/^[iɪ]$/.test(sound)) return 'high-front';
-  if (/^[uʊ]$/.test(sound)) return 'high-back';
+  if (/^[uʊʉ]$/.test(sound)) return 'high-back';
   return null;
 }
 

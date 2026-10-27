@@ -371,6 +371,20 @@ test('alignment skips an extra phoneme vowel without shifting the following syll
   });
 });
 
+test('unequal-count alignment and corrections agree for u and ʉ', () => {
+  const words = [['ke', 'toy', 'mu', 'ka']];
+  const syllables = words.flat().map(from => ({ sound: nucleus(from) }));
+  const expected = {
+    words: [['ke', 'toy', 'mu', 'ko']],
+    changes: [{ word: 0, syllable: 3, from: 'ka', to: 'ko', rule: 'phoneme' }], status: 'aligned',
+  };
+  for (const token of ['u', 'ʉ']) {
+    const tokens = [phoneme('e'), phoneme('i'), phoneme('i'), vowel(0.07), phoneme(token), vowel(0.9)];
+    assert.deepEqual(alignVowels(syllables, tokens), [[0, 0], [2, 4], [3, 5]], token);
+    assert.deepEqual(applyReferee(words, tokens, calibration), expected, token);
+  }
+});
+
 test('alignment ties leave repeated vowel pairs unchanged when best paths disagree', () => {
   const words = [['ka', 'tan', 'ma']];
   const expected = { words, changes: [], status: 'aligned' };

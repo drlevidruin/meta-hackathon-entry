@@ -149,11 +149,28 @@ meter, the reading's phonemes and the child's calibration, never the printed
 text. Its line is `max(0.5, a + 0.05)`, rounded to three places, and the card's o
 must be at least `line + 0.1` to enable it. A token's back score is its top
 back-vowel probability divided by its combined front- and back-vowel
-probabilities. With matching vowel counts, a front or back token scoring at
-least the line changes a syllable's a, o or e to o. A score below 0.15 changes
-only o to a. An e never becomes a, and nothing becomes e. Other vowels and
-diphthongs stay unchanged. A changed or cleared calibration, a count mismatch,
-or any phoneme failure leaves the metered answer.
+probabilities. The ear's syllables are paired with the phoneme vowels in order.
+When the counts differ, the referee lines them up and acts only on the pairs
+every best line-up shares. Its rules, in order:
+
+- An o paired with a rounded vowel (u, ʊ, ʉ, y, ʏ, ø or œ) becomes u, unless
+  the meter measures that syllable as a.
+- On the last syllable of a word of two or more syllables, when it ends in
+  its a or o, a score below the line never lowers an o. Where the ear wrote a
+  there, or the score is below 0.15, the meter chooses a or o.
+- Elsewhere a score below 0.15 changes o to a.
+- Before a final l, and for an o scoring from 0.15 up to the line, the meter
+  decides: an a it measures as o becomes o, and an o it measures as a
+  becomes a.
+- Otherwise a score of at least the line changes a, o or e to o.
+
+The meter is asked only when the voice profile keeps a and o apart. A
+syllable it measures but cannot place becomes `?` on a word's last open
+syllable, and so does an o before a final l or in the middle band. The grader
+marks `?` uncertain. An e never becomes a, and nothing becomes e.
+Other vowels and diphthongs stay unchanged. A changed or cleared calibration,
+vowel counts too far apart to line up, or any phoneme failure leaves the
+metered answer.
 
 The grader receives `{ heard: words, text: item.text, preset: turn.preset }`,
 where `words` is the final answer after the meter and referee when enabled.
