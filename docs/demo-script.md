@@ -32,13 +32,15 @@ In Roster, tap Edit for Nubo, choose Level 2, then Save. Leave all three unread 
 2. `בֻּץ בִּיךְ בִּן בֵּין בִּיל`. Read as printed.
 3. `דָן אָץ דָךְ רָן לָם`. Read as printed.
 
+Read every other sound in Ashkenazi pronunciation, the preset Nubo uses. A sound read another way gets its own amber mark. In a rehearsal with an Israeli synthetic voice, line 1 showed three extra amber marks for that reason.
+
 Allow microphone access before capture. For each line, tap the microphone, read the whole line without a long pause, then stay quiet. Recording stops by itself about a second after speech ends, with a 20 second maximum. Never tap again after it stops. Wait for the marks before reading the next line.
 
-Tap Start only when ready. A set left open for four minutes ends the turn at its next checkpoint, if it has a graded line, before the model can pick another set. This includes time spent waiting for grades. Film the whole turn and its trace within 30 minutes of Start. The server expires the turn then. Do not restart the server or start another Nubo turn before capturing its trace.
+A full turn is eight sets, about 25 lines, and ends on its own after the eighth checkpoint. In the rehearsal each line took about 4 seconds to grade, and the whole turn took under five minutes of reading. Tap Start only when ready. A set left open for four minutes ends the turn at its next checkpoint, if it has a graded line, before the model can pick another set. This includes time spent waiting for grades. Film the whole turn and its trace within 30 minutes of Start. The server expires the turn then. Do not restart the server or start another Nubo turn before capturing its trace.
 
 The marks on the reading screen are the live shot. Keep the actual result. If the bet is not amber, describe the marks that appear. This adult demo is not the planned real-voice test round.
 
-Finish the full turn before filming the trace and saved teacher log. After the done screen, tap Next friend, Teacher, Class, Nubo, then look under Turns. Tap Coach trace on the newest turn. Checkpoint 0 comes from rules. For the model shot, choose a later row whose Source is `model`. If all rows say `rule`, the coach used its fallback. Describe that result instead of claiming a model answer. If the trace is no longer available, record a new full turn and use its saved link.
+Finish the full turn before filming the trace and saved teacher log. After the done screen, tap Next friend, Teacher, Class, Nubo, then look under Turns. Tap Coach trace on the newest turn. Checkpoint 0 comes from rules. For the model shot, choose a middle row whose Source is `model`. The last row is the stop rule. If all rows say `rule`, the coach used its fallback. Describe that result instead of claiming a model answer. If the trace is no longer available, record a new full turn and use its saved link.
 
 For class history only, open a separate tab at `http://localhost:8787/?mock#/teacher`. Any PIN of 4 to 12 digits opens it. Keep its header and gray Demo pill in frame, including during the cut between class and map.
 
