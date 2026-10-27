@@ -49,7 +49,7 @@
     { "word": "מוֹדֶה", "sephardi": ["mo", "de"], "ashkenazi": ["mo|moy|mey", "de"], "chassidish": ["mo|moy|mey", "de"], "flags": [] },
     { "word": "אֲנִי", "sephardi": ["a", "ni"], "ashkenazi": ["a", "ni"], "chassidish": ["a", "ni"], "flags": [] },
     { "word": "לְפָנֶיךָ", "sephardi": ["le", "fa", "ne", "cha"], "ashkenazi": ["le", "fo", "ne", "cho"], "chassidish": ["le", "fo|fu", "ne", "cho|chu"], "flags": [] },
-    { "word": "נִשְׁמָתִי", "sephardi": ["ni", "sh", "ma", "ti"], "ashkenazi": ["ni", "sh", "mo", "ti"], "chassidish": ["ni", "sh", "mo|mu", "ti"], "flags": [] }
+    { "word": "נִשְׁמָתִי", "sephardi": ["ni", "sh", "ma", "ti"], "ashkenazi": ["ni", "sh", "mo", "si"], "chassidish": ["ni", "sh", "mo|mu", "si"], "flags": [] }
   ],
   "flagOnly": [
     { "word": "יחיד", "flags": ["unpointed"] }
