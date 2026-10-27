@@ -527,6 +527,33 @@ test('merged vowels omit the voice card with the meter on or off', async t => {
   }
 });
 
+test('a usable Chassidish voice check omits the card while the same audio is a reference for Ashkenazi', async t => {
+  const directory = await fixtureDirectory(t);
+  const store = recordingStore(await loadClips(), directory);
+  const voice = syntheticWav(cardLabels('ashkenazi'));
+  const reading = syntheticWav(['o', 'u']);
+  await store.save('voice-check', voice);
+  await store.save('baruch_clean', reading);
+  for (const preset of ['chassidish', 'ashkenazi']) {
+    const output = [];
+    let calls = 0;
+    const result = await runEar({ ...parseOptions(['--preset', preset], 'ear'), directory,
+      log: line => output.push(line), ear: async (audio, options) => {
+        calls += 1;
+        assert.deepEqual(audio, { data: reading, format: 'wav' });
+        const expected = { model: defaultEarModel() };
+        if (preset === 'ashkenazi') expected.reference = { data: voice, format: 'wav' };
+        assert.deepEqual(options, expected);
+        return [['bo', 'ruch']];
+      } });
+    assert.equal(calls, 1);
+    assert.equal(result.code, 0);
+    assert.equal(output[1], `Vowel meter: on (${preset} voice check)`);
+    assert.equal(output[2], `Voice card to the ear: ${preset === 'chassidish'
+      ? 'off (kamatz not checked on the card)' : 'on'}`);
+  }
+});
+
 test('--no-card omits the reference while leaving the vowel meter enabled', async t => {
   const directory = await fixtureDirectory(t);
   const store = recordingStore(await loadClips(), directory);

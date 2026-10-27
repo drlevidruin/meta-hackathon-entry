@@ -104,17 +104,21 @@ clears `voiceSkipped` and keeps the card recording on the server at
 The recording stays until the voice check is cleared, skipped, made stale by
 a learned-vowel or preset change, or the child is removed. Each reading then
 goes to the ear together with that recording only when the saved profile keeps
-each usable vowel pair apart by the meter's separation rule. Otherwise the ear
-hears only the reading. Grading also uses the saved profile for the vowel meter
-when present and the ear alone when there is none,
-including after a skip. A failed voice check leaves any earlier profile and
-recording unchanged.
+each usable vowel pair apart by the meter's separation rule. When the card shows
+kamatz and the preset gives it any sound other than `a`, the profile must also
+have the reader's kamatz and patach measured apart as `o` and `a`. This excludes
+Chassidish, where kamatz can be `o` or `u` and is not measured, and a card with
+kamatz but no patach. Otherwise the ear hears only the reading.
+Grading also uses the saved profile for the vowel meter when present and the ear
+alone when there is none, including after a skip. A failed voice check leaves
+any earlier profile and recording unchanged.
 
 Grade accepts an item only from the turn's current set. An unknown or expired
 turn, a finished turn, or an item outside the current set returns 404. The ear
-receives audio alone, never the item text, name or preset. With a saved voice
-profile that keeps each usable vowel pair apart by the meter's separation rule
-and a readable card file, it receives `{ data, format: 'wav' }` with
+receives audio alone, never the item text, name or preset. With a readable card
+file and a saved voice profile that keeps each usable vowel pair apart by the
+meter's separation rule and passes the kamatz check above, it receives
+`{ data, format: 'wav' }` with
 `{ reference: { data: card, format: 'wav' } }`. Otherwise it receives only the
 reading. The primary ear uses the card; the fallback receives only the reading.
 The grader receives `{ heard: ear.words, text: item.text, preset: turn.preset }`.

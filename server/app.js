@@ -4,7 +4,8 @@ import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { SKILLS } from '../rulebook/index.js';
 import { cardLabels, voiceCardFor } from '../rulebook/voice-card.js';
 import { itemsForVowels, normalizeVowels, VOWEL_IDS } from '../rulebook/vowels.js';
-import { applyMeter, buildVoiceProfile, pairsApart, VoiceCheckError } from '../ear/meter.js';
+import { applyMeter, buildVoiceProfile, VoiceCheckError } from '../ear/meter.js';
+import { voiceCardToEar } from '../ear/card-gate.js';
 import { createStore, DEFAULT_DATA_DIR, durable } from './store.js';
 import { buildMap, recordPairs, summaryOnly, totalSummary } from './progress.js';
 import { parentLine } from './hints.js';
@@ -436,7 +437,7 @@ export function createApp({
           try {
             let card;
             const child = getChild(turn.childId);
-            const file = child.voice && pairsApart(child.voice) ? voiceFile(turn.childId) : null;
+            const file = voiceCardToEar(child.voice, child.vowels, child.preset) ? voiceFile(turn.childId) : null;
             if (file) {
               try {
                 card = await fs.promises.readFile(file);

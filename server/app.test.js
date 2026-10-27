@@ -13,7 +13,7 @@ import * as realCoach from '../coach/index.js';
 import { gradeLine as realGradeLine } from '../grader/index.js';
 import { cardLabels } from '../rulebook/voice-card.js';
 import { join, silence, utterance, wav } from '../ear/synth-for-tests.js';
-import { measureVowel, soundIslands } from '../ear/meter.js';
+import { measureVowel, pairsApart, soundIslands } from '../ear/meter.js';
 import { VOWEL_IDS, fitsVowels } from '../rulebook/vowels.js';
 import { voiceCardFor } from '../rulebook/voice-card.js';
 
@@ -516,6 +516,27 @@ for (const apart of [true, false]) {
     assert.deepEqual(reloaded.listen.mock.calls.at(-1).arguments, expected);
     assert.equal(read.mock.callCount(), apart ? 1 : 0);
     if (apart) assert.deepEqual(read.mock.calls[0].arguments, [path.join(dataDir, 'voice', `${child.id}.wav`)]);
+  });
+}
+
+for (const [name, fields] of [
+  ['Chassidish card with unmeasured kamatz', { preset: 'chassidish' }],
+  ['Ashkenazi card without patach', { preset: 'ashkenazi', vowels: ['kamatz', 'segol', 'chirik'] }],
+]) {
+  test(`grading omits a separated ${name} without reading it`, async t => {
+    const { app, dataDir, listen } = setup();
+    const child = await add(app, fields);
+    const card = voiceCardFor(child.vowels, child.preset);
+    const cardData = wav(utterance(cardLabels(child.preset, card).map(label => label || 'o')));
+    assert.equal((await voice(app, child, { data: cardData })).status, 200);
+    assert.equal(pairsApart(disk(dataDir).children[child.id].voice), true);
+    assert.deepEqual(fs.readFileSync(path.join(dataDir, 'voice', `${child.id}.wav`)), cardData);
+    const turn = await start(app, child.id);
+    const read = t.mock.method(fs.promises, 'readFile');
+    const data = Buffer.from('reading fixture');
+    assert.equal((await grade(app, turn.turnId, 'kamatz-0', { data })).status, 200);
+    assert.deepEqual(listen.mock.calls.at(-1).arguments, [{ data, format: 'wav' }]);
+    assert.equal(read.mock.callCount(), 0);
   });
 }
 

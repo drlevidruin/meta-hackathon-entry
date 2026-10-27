@@ -1,6 +1,7 @@
 import '../../ear/env.js';
 import { hear } from '../../ear/hear.js';
 import { applyMeter, buildVoiceProfile, pairsApart, VoiceCheckError } from '../../ear/meter.js';
+import { voiceCardToEar } from '../../ear/card-gate.js';
 import { cardLabels } from '../../rulebook/voice-card.js';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -49,7 +50,8 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), keep = 
     const cardStatus = !card ? 'off (--no-card)'
       : !voice ? 'off (no voice check recorded)'
       : !profile ? 'off (voice check unusable)'
-      : !pairsApart(profile) ? 'off (vowels merged on the card)' : 'on';
+      : !pairsApart(profile) ? 'off (vowels merged on the card)'
+      : !voiceCardToEar(profile, null, preset) ? 'off (kamatz not checked on the card)' : 'on';
     const reference = cardStatus === 'on' ? { data: voiceAudio, format: 'wav' } : undefined;
     log(`Vowel meter: ${meterStatus}`);
     log(`Voice card to the ear: ${cardStatus}`);
