@@ -4,34 +4,66 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Readable } from 'node:stream';
+import { randomUUID } from 'node:crypto';
 import { createApp } from './app.js';
+import { hint } from './hints.js';
+import { SKILLS } from '../rulebook/index.js';
 
-const items = ['בָּ בַּ', 'מִי מָה', 'לוֹ לִי'].map((text, index) => ({
-  id: `test-${index}`, level: 1, text, words: text.split(' '),
-  skills: ['vowel:kamatz'], focus: null, flags: [], source: { generated: true },
-}));
-const summary = { pairs: 2, ok: 2, wrong_letter: 0, wrong_vowel: 0, skipped: 0, extra: 0, uncertain: 0, not_decoded: 0, missedSkills: [] };
-const grade = { words: [{ text: 'בָּ', verdict: null, pairs: [{ text: 'בָּ', verdict: 'ok', heard: 'ba', expected: ['ba'], skills: [] }] }], verdicts: [{ verdict: 'ok' }], summary };
-let staticDir;
+const PIN = '2468';
+const auth = { 'x-teacher-pin': PIN };
+const privateReason = 'PRIVATE_MODEL_REASON';
+const privateHeard = 'PRIVATE_HEARD_SOUND';
+const betKamatz = 'letter:bet|vowel:kamatz';
+const betPatach = 'letter:bet|vowel:patach';
+const items = [
+  ...Array.from({ length: 6 }, (_, i) => ({ id: `kamatz-${i}`, level: i < 3 ? 1 : 2,
+    text: 'בָּ', words: ['בָּ'], skills: ['letter:bet', 'vowel:kamatz'], focus: 'vowel:kamatz', flags: [], source: { generated: true } })),
+  ...Array.from({ length: 6 }, (_, i) => ({ id: `patach-${i}`, level: i < 3 ? 1 : 2,
+    text: 'בַּ', words: ['בַּ'], skills: ['letter:bet', 'vowel:patach'], focus: 'vowel:patach', flags: [], source: { generated: true } })),
+  { id: 'vet', level: 1, text: 'בָ', words: ['בָ'], skills: ['letter:vet', 'vowel:kamatz'], focus: 'letter:vet', flags: [], source: { generated: true } },
+  { id: 'higher', level: 3, text: 'מִי', words: ['מִי'], skills: ['letter:mem', 'vowel:chirik', 'pattern:chirik_male'], focus: 'vowel:chirik', flags: [], source: { generated: true } },
+  { id: 'challenge', level: 4, text: 'בָּבַּ', words: ['בָּבַּ'], skills: ['letter:bet', 'vowel:kamatz', 'vowel:patach'], focus: 'vowel:kamatz', flags: [], source: { generated: true, challenge: true } },
+];
 
+function gradeFor(verdict = 'ok', skills = ['letter:bet', 'vowel:kamatz']) {
+  const summary = { pairs: 1, ok: 0, wrong_letter: 0, wrong_vowel: 0, skipped: 0, extra: 0, uncertain: 0, not_decoded: 0, missedSkills: [] };
+  summary[verdict] = 1;
+  if (verdict !== 'ok') summary.missedSkills = [skills.find(skill => skill.startsWith('vowel:')) || skills[0]];
+  return {
+    words: [{ text: 'בָּ', pairs: [{ text: 'בָּ', verdict, heard: privateHeard, expected: ['ba'], skills }] }],
+    verdicts: [{ word: 0, pair: 0, text: 'בָּ', verdict, heard: privateHeard, expected: ['ba'], skills }], summary,
+  };
+}
+
+function selection(profile, changes = {}) {
+  return {
+    itemIds: ['kamatz-0', 'kamatz-1'], level: profile.level, profile: { ...profile, checkpoints: (profile.checkpoints || 0) + 1 },
+    decision: { move: 'hold', from: profile.level, level: profile.level, target: 'vowel:kamatz', why: 'practice', misses: [], challengeId: null },
+    done: false, reason: privateReason, source: 'rule', ...changes,
+  };
+}
+
+let root, staticDir;
 before(() => {
-  staticDir = fs.mkdtempSync(path.join(fileURLToPath(new URL('.', import.meta.url)), '.test-'));
+  root = fs.mkdtempSync(path.join(fileURLToPath(new URL('.', import.meta.url)), '.test-api-'));
+  staticDir = path.join(root, 'static');
+  fs.mkdirSync(staticDir);
   fs.writeFileSync(path.join(staticDir, 'index.html'), '<main>Station</main>');
   fs.writeFileSync(path.join(staticDir, 'app.js'), 'window.station = true;');
   fs.symlinkSync(fileURLToPath(import.meta.url), path.join(staticDir, 'outside.js'));
 });
-after(() => fs.rmSync(staticDir, { recursive: true, force: true }));
+after(() => fs.rmSync(root, { recursive: true, force: true }));
 
 function setup(overrides = {}) {
   const dependencies = {
-    items, staticDir,
-    listen: mock.fn(async () => ({ words: [['ba', 'ba']], model: 'fake-ear' })),
-    gradeLine: mock.fn(() => grade),
-    startProfile: mock.fn(({ level }) => ({ level, turns: 0 })),
-    chooseNextSet: mock.fn(async profile => ({
-      itemIds: items.slice(0, 2).map(item => item.id), level: profile.level,
-      profile: { ...profile, turns: profile.turns + 1 }, reason: 'PRIVATE_REASON', source: 'rule',
-    })),
+    items, staticDir, teacherPin: PIN, trace: false, coachModel: undefined,
+    dataDir: overrides.dataDir || fs.mkdtempSync(path.join(root, 'data-')),
+    listen: mock.fn(async () => ({ words: [['ba']], model: 'fake-ear' })),
+    gradeLine: mock.fn(() => gradeFor()),
+    startProfile: mock.fn(({ level }) => ({ level })),
+    chooseNextSet: mock.fn(async profile => selection(profile)),
+    explain: mock.fn(() => 'Keep practicing these sounds.'),
+    turnFacts: mock.fn(() => ({ best: 'letter:bet', next: 'vowel:kamatz', proven: [] })),
     ...overrides,
   };
   return { app: createApp(dependencies), ...dependencies };
@@ -41,7 +73,7 @@ async function request(app, url, { method = 'POST', data, type = 'application/js
   const bytes = Buffer.isBuffer(data) ? data : Buffer.from(data === undefined ? '' : JSON.stringify(data));
   const req = Readable.from([bytes]);
   Object.assign(req, { method, url, headers: { 'content-type': type, ...headers } });
-  const response = { headersSent: false };
+  const response = {};
   const res = {
     headersSent: false,
     writeHead(status, values) { response.status = status; response.headers = values; this.headersSent = true; },
@@ -52,105 +84,565 @@ async function request(app, url, { method = 'POST', data, type = 'application/js
   return response;
 }
 
-test('grade passes audio alone to the ear and returns the grade with item and model', async () => {
-  const { app, listen, gradeLine } = setup();
-  const data = Buffer.from('test wav bytes');
-  const response = await request(app, '/api/grade?item=test-0&preset=sephardi', { data, type: 'audio/wav' });
-  assert.equal(response.status, 200);
-  assert.deepEqual(response.json, { itemId: 'test-0', model: 'fake-ear', ...grade });
-  assert.deepEqual(listen.mock.calls[0].arguments, [{ data, format: 'wav' }]);
-  assert.deepEqual(gradeLine.mock.calls[0].arguments, [{ heard: [['ba', 'ba']], text: items[0].text, preset: 'sephardi' }]);
-  assert.equal(response.headers['Cache-Control'], 'no-store');
+const get = (app, url, headers = {}) => request(app, url, { method: 'GET', headers });
+const teacherGet = (app, url) => get(app, url, auth);
+async function add(app, fields = {}) {
+  const response = await request(app, '/api/children', { headers: auth,
+    data: { name: 'Sprout', avatar: 'owl', preset: 'sephardi', ...fields } });
+  assert.equal(response.status, 200, response.body);
+  return response.json;
+}
+async function start(app, childId) {
+  const response = await request(app, '/api/start', { data: { childId } });
+  assert.equal(response.status, 200, response.body);
+  return response.json;
+}
+const grade = (app, turnId, item = 'kamatz-0', options = {}) => request(app, `/api/grade?turn=${turnId}&item=${item}`,
+  { type: 'audio/wav', data: Buffer.from('FAKE_AUDIO_BYTES'), ...options });
+const next = (app, turnId, elapsedMs = 1200) => request(app, '/api/next', { data: { turnId, elapsedMs } });
+const finish = (app, turnId, stars = 3) => request(app, '/api/finish', { data: { turnId, stars } });
+const patch = (app, id, data) => request(app, `/api/children/${id}`, { method: 'PATCH', headers: auth, data });
+const disk = dataDir => JSON.parse(fs.readFileSync(path.join(dataDir, 'store.json'), 'utf8'));
+
+test('children list is public; teacher check and CRUD require the PIN', async () => {
+  const { app } = setup();
+  assert.deepEqual((await get(app, '/api/children')).json, []);
+  for (const headers of [{}, { 'x-teacher-pin': '9999' }, { 'x-teacher-pin': 'x' }]) {
+    assert.equal((await request(app, '/api/teacher/check', { headers })).status, 403);
+    assert.equal((await request(app, '/api/children', { headers, data: {} })).status, 403);
+  }
+  assert.deepEqual((await request(app, '/api/teacher/check', { headers: auth })).json, { ok: true });
+  const child = await add(app);
+  assert.match(child.id, /^[a-f0-9-]{36}$/);
+  assert.deepEqual(child, { id: child.id, name: 'Sprout', avatar: 'owl', preset: 'sephardi', level: 1, stars: 0, best: 0 });
+  assert.deepEqual((await get(app, '/api/children')).json, [child]);
+  const updated = await patch(app, child.id, { name: 'Pebble', avatar: 'fox', preset: 'chassidish', level: 3 });
+  assert.deepEqual(updated.json, { ...child, name: 'Pebble', avatar: 'fox', preset: 'chassidish', level: 3 });
+  for (const method of ['PATCH', 'DELETE']) {
+    assert.equal((await request(app, `/api/children/${child.id}`, { method, data: {} })).status, 403);
+    assert.equal((await request(app, `/api/children/${child.id}`, { method, headers: { 'x-teacher-pin': '9999' }, data: {} })).status, 403);
+  }
 });
 
-test('grade rejects unknown items, invalid presets, oversized audio, and other formats', async () => {
-  const { app, listen } = setup();
-  for (const [url, options, status] of [
-    ['/api/grade?item=missing&preset=sephardi', { type: 'audio/wav' }, 404],
-    ['/api/grade?item=test-0&preset=other', { type: 'audio/wav' }, 400],
-    ['/api/grade?item=test-0&preset=sephardi', { type: 'audio/wav', data: Buffer.alloc(25 * 1024 * 1024 + 1) }, 413],
-    ['/api/grade?item=test-0&preset=sephardi', { type: 'audio/webm' }, 415],
-    ['/api/grade?item=test-0&preset=sephardi', { type: 'audio/wav', headers: { 'content-length': 25 * 1024 * 1024 + 1 } }, 413],
+test('all teacher routes deny access when the teacher PIN is unset', async () => {
+  const { app } = setup({ teacherPin: '' });
+  const id = randomUUID();
+  for (const [method, url] of [
+    ['POST', '/api/teacher/check'], ['POST', '/api/children'], ['PATCH', `/api/children/${id}`],
+    ['DELETE', `/api/children/${id}`], ['GET', '/api/class'], ['GET', `/api/children/${id}/detail`], ['GET', '/api/packet?skill=vowel:kamatz&level=1'],
   ]) {
-    const response = await request(app, url, options);
+    const response = await request(app, url, { method, headers: auth });
+    assert.equal(response.status, 403);
+    assert.deepEqual(response.json, { error: 'Teacher PIN not set' });
+  }
+  const traced = setup({ teacherPin: '', trace: true });
+  assert.equal((await get(traced.app, '/api/trace?turn=missing')).status, 403);
+  assert.equal((await get(app, '/api/config')).status, 200);
+  assert.equal((await get(app, '/api/children')).status, 200);
+});
+
+test('teacher views reject a missing or wrong PIN', async () => {
+  const { app } = setup({ trace: true });
+  const child = await add(app);
+  for (const url of ['/api/class', `/api/children/${child.id}/detail`, `/api/packet?child=${child.id}`, '/api/trace?turn=missing']) {
+    assert.equal((await get(app, url)).status, 403);
+    assert.equal((await get(app, url, { 'x-teacher-pin': '9999' })).status, 403);
+  }
+});
+
+test('child fields, ids and levels are validated without accepting internal fields', async () => {
+  const { app } = setup();
+  for (const fields of [{ name: 'Two Names' }, { name: '' }, { name: 'A'.repeat(41) }, { avatar: 'dragon' }, { preset: 'other' }, { level: 2 }, { stars: 9 }, { profile: {} }]) {
+    assert.equal((await request(app, '/api/children', { headers: auth,
+      data: { name: 'Cloud', avatar: 'cat', preset: 'sephardi', ...fields } })).status, 400);
+  }
+  const child = await add(app);
+  for (const fields of [{}, { level: 0 }, { level: 7 }, { level: '2' }, { stars: 1 }, { name: 'Two Names' }, { preset: null }, { avatar: 'other' }]) {
+    assert.equal((await patch(app, child.id, fields)).status, 400);
+  }
+  assert.equal((await patch(app, 'bad-id', { level: 2 })).status, 400);
+  assert.equal((await patch(app, randomUUID(), { level: 2 })).status, 404);
+  assert.equal((await teacherGet(app, '/api/children/%2e%2e/detail')).status, 403);
+  assert.equal((await teacherGet(app, '/api/children/bad-id/detail')).status, 400);
+  assert.equal((await teacherGet(app, `/api/children/${randomUUID()}/detail`)).status, 404);
+  assert.equal((await request(app, '/api/children/bad-id', { method: 'DELETE', headers: auth })).status, 400);
+  assert.equal((await request(app, `/api/children/${randomUUID()}`, { method: 'DELETE', headers: auth })).status, 404);
+});
+
+test('start loads the saved profile and returns a turn with only bank items', async () => {
+  const context = setup();
+  const { app, startProfile, chooseNextSet } = context;
+  const child = await add(app);
+  await patch(app, child.id, { level: 2 });
+  const turn = await start(app, child.id);
+  assert.deepEqual(Object.keys(turn).sort(), ['level', 'set', 'turnId']);
+  assert.equal(turn.level, 2);
+  assert.deepEqual(turn.set, items.slice(0, 2));
+  assert.deepEqual(startProfile.mock.calls[0].arguments, [{ level: 2 }]);
+  assert.deepEqual(chooseNextSet.mock.calls[0].arguments, [{ level: 2 }, [], items, { useModel: false }]);
+  await finish(app, turn.turnId);
+  const saved = disk(context.dataDir).children[child.id].profile;
+  await start(app, child.id);
+  assert.deepEqual(chooseNextSet.mock.calls[1].arguments[0], saved);
+  assert.equal(startProfile.mock.callCount(), 1);
+  assert.equal((await request(app, '/api/start', { data: {} })).status, 400);
+  assert.equal((await request(app, '/api/start', { data: { childId: 'bad-id' } })).status, 400);
+  assert.equal((await request(app, '/api/start', { data: { childId: randomUUID() } })).status, 404);
+});
+
+test('grade passes only audio to the ear, uses the saved preset, and omits verdicts and model', async () => {
+  for (const preset of ['sephardi', 'ashkenazi', 'chassidish']) {
+    const { app, listen, gradeLine } = setup();
+    const child = await add(app, { preset });
+    const turn = await start(app, child.id);
+    const data = Buffer.from('FAKE_AUDIO_BYTES');
+    const response = await grade(app, turn.turnId, 'kamatz-0', { data, type: 'audio/wav; charset=binary' });
+    assert.equal(response.status, 200);
+    assert.deepEqual(response.json, { itemId: 'kamatz-0', words: gradeFor().words, summary: gradeFor().summary });
+    assert.deepEqual(listen.mock.calls[0].arguments, [{ data, format: 'wav' }]);
+    assert.deepEqual(gradeLine.mock.calls[0].arguments, [{ heard: [['ba']], text: 'בָּ', preset }]);
+    assert.equal(response.headers['Cache-Control'], 'no-store');
+  }
+});
+
+test('grade rejects unknown turns, items outside the current set, empty audio, size and type errors', async () => {
+  const { app, listen } = setup();
+  const child = await add(app);
+  const turn = await start(app, child.id);
+  for (const [turnId, item, options, status] of [
+    ['missing', 'kamatz-0', {}, 404], [turn.turnId, 'patach-0', {}, 404], [turn.turnId, 'missing', {}, 404],
+    [turn.turnId, 'kamatz-0', { data: Buffer.alloc(0) }, 400],
+    [turn.turnId, 'kamatz-0', { type: 'audio/webm' }, 415],
+    [turn.turnId, 'kamatz-0', { data: Buffer.alloc(25 * 1024 * 1024 + 1) }, 413],
+    [turn.turnId, 'kamatz-0', { headers: { 'content-length': 25 * 1024 * 1024 + 1 } }, 413],
+  ]) {
+    const response = await grade(app, turnId, item, options);
     assert.equal(response.status, status);
     assert.deepEqual(Object.keys(response.json), ['error']);
   }
   assert.equal(listen.mock.callCount(), 0);
 });
 
-test('every pronunciation preset is accepted', async () => {
+test('the complete flow advances levels, returns facts, saves history, and accumulates stars and best', async () => {
+  const chooseNextSet = mock.fn(async (profile, results, candidates, options) => {
+    if (!options.useModel) return selection(profile, { profile: { ...profile, checkpoints: 1 } });
+    if (profile.checkpoints === 1) return selection(profile, { level: 2, profile: { level: 2, checkpoints: 2 }, itemIds: ['patach-0', 'challenge'] });
+    return selection(profile, { level: 2, profile: { level: 2, checkpoints: 3 }, itemIds: [], done: true });
+  });
+  const { app, dataDir } = setup({ chooseNextSet });
+  const child = await add(app);
+  const turn = await start(app, child.id);
+  assert.equal((await grade(app, turn.turnId)).status, 200);
+  assert.deepEqual(disk(dataDir).children[child.id].pairs, { [betKamatz]: [1] });
+  const checkpoint = await next(app, turn.turnId, 900);
+  assert.deepEqual(checkpoint.json, { done: false, level: 2, levelUp: true, set: [items[6], items.at(-1)] });
+  const args = chooseNextSet.mock.calls[1].arguments;
+  assert.deepEqual(args[1], [{ itemId: 'kamatz-0', summary: gradeFor().summary, verdicts: gradeFor().verdicts }]);
+  assert.deepEqual(args[3], { useModel: true, elapsedMs: 900 });
+  assert.equal((await grade(app, turn.turnId)).status, 404);
+  const done = await next(app, turn.turnId);
+  assert.deepEqual(done.json, { done: true, level: 2, levelUp: false, facts: { best: 'letter:bet', next: 'vowel:kamatz', proven: [] } });
+  assert.equal((await next(app, turn.turnId)).status, 400);
+  const saved = await finish(app, turn.turnId, 5);
+  assert.deepEqual(saved.json.child, { ...child, level: 2, stars: 5, best: 5 });
+  assert.equal((await finish(app, turn.turnId, 5)).status, 404);
+  assert.equal((await grade(app, turn.turnId)).status, 404);
+  assert.equal((await next(app, turn.turnId)).status, 404);
+  const state = disk(dataDir);
+  assert.equal(state.version, 1);
+  assert.equal(state.children[child.id].profile.level, 2);
+  assert.equal(state.turns[child.id][0].ok, 1);
+  assert.equal(state.turns[child.id][0].pairs, 1);
+  assert.equal(state.turns[child.id][0].decisions.length, 3);
+  assert.deepEqual(state.turns[child.id][0].log, Array(3).fill('Keep practicing these sounds.'));
+  const second = await start(app, child.id);
+  assert.equal((await finish(app, second.turnId, 2)).json.child.best, 5);
+  const third = await start(app, child.id);
+  assert.deepEqual((await finish(app, third.turnId, 7)).json.child, { ...child, level: 2, stars: 14, best: 7 });
+});
+
+test('failed lines stay out of checkpoints and COACH_MODEL=off disables model use', async () => {
+  const { app, chooseNextSet } = setup({ coachModel: 'off', listen: async () => { throw new Error('private failure'); } });
+  const child = await add(app);
+  const turn = await start(app, child.id);
+  assert.equal((await grade(app, turn.turnId)).status, 500);
+  assert.equal((await next(app, turn.turnId, 50)).json.levelUp, false);
+  assert.deepEqual(chooseNextSet.mock.calls[1].arguments[1], []);
+  assert.deepEqual(chooseNextSet.mock.calls[1].arguments[3], { useModel: false, elapsedMs: 50 });
+});
+
+test('levelUp compares each checkpoint, including a done checkpoint', async () => {
+  let calls = 0;
+  const { app } = setup({ chooseNextSet: async profile => {
+    calls++;
+    const level = calls === 1 ? 3 : calls === 2 ? 2 : 4;
+    return selection(profile, { level, profile: { level }, done: calls === 3,
+      itemIds: calls === 3 ? [] : ['kamatz-0', 'kamatz-1'] });
+  } });
+  const child = await add(app);
+  await patch(app, child.id, { level: 3 });
+  const turn = await start(app, child.id);
+  assert.equal((await next(app, turn.turnId)).json.levelUp, false);
+  const done = await next(app, turn.turnId);
+  assert.equal(done.json.done, true);
+  assert.equal(done.json.levelUp, true);
+  assert.equal(done.json.level, 4);
+});
+
+test('an invalid next selection preserves the pending grades for a retry', async () => {
+  let invalid = true;
+  const chooseNextSet = mock.fn(async (profile, results, candidates, options) =>
+    selection(profile, options.useModel && invalid ? { itemIds: ['unknown'] } : {}));
+  const { app, dataDir } = setup({ chooseNextSet });
+  const child = await add(app);
+  const turn = await start(app, child.id);
+  await grade(app, turn.turnId);
+  assert.deepEqual((await next(app, turn.turnId)).json, { error: 'Request failed' });
+  invalid = false;
+  assert.equal((await next(app, turn.turnId)).status, 200);
+  assert.deepEqual(chooseNextSet.mock.calls[1].arguments[1], chooseNextSet.mock.calls[2].arguments[1]);
+  await finish(app, turn.turnId);
+  assert.equal(disk(dataDir).turns[child.id][0].pairs, 1);
+});
+
+test('a repeated grade counts once in the turn total and each read in the cell history', async () => {
+  let result = gradeFor('wrong_vowel');
+  const { app, dataDir } = setup({ gradeLine: () => result });
+  const child = await add(app);
+  const turn = await start(app, child.id);
+  await grade(app, turn.turnId);
+  result = gradeFor();
+  await grade(app, turn.turnId);
+  await finish(app, turn.turnId);
+  const state = disk(dataDir);
+  assert.deepEqual(state.children[child.id].pairs[betKamatz], [0, 1]);
+  assert.equal(state.turns[child.id][0].ok, 1);
+  assert.equal(state.turns[child.id][0].pairs, 1);
+});
+
+test('next and finish validate their input and unknown turns', async () => {
   const { app } = setup();
+  const child = await add(app);
+  const turn = await start(app, child.id);
+  for (const elapsedMs of [-1, '1', null]) assert.equal((await next(app, turn.turnId, elapsedMs)).status, 400);
+  assert.equal((await request(app, '/api/next', { data: { turnId: turn.turnId } })).status, 400);
+  assert.equal((await next(app, 'missing')).status, 404);
+  for (const stars of [-1, 1.5, '2', null, Number.MAX_SAFE_INTEGER + 1]) assert.equal((await finish(app, turn.turnId, stars)).status, 400);
+  assert.equal((await request(app, '/api/finish', { data: { turnId: turn.turnId } })).status, 400);
+  assert.equal((await finish(app, 'missing')).status, 404);
+});
+
+test('JSON body validation keeps the 1 MB limit on create, patch and station routes', async () => {
+  const { app } = setup();
+  const child = await add(app);
+  for (const [url, method, headers] of [['/api/start', 'POST', {}], ['/api/next', 'POST', {}], ['/api/finish', 'POST', {}],
+    ['/api/children', 'POST', auth], [`/api/children/${child.id}`, 'PATCH', auth]]) {
+    for (const data of [Buffer.from('{'), Buffer.from('[]'), Buffer.from('null')]) {
+      assert.equal((await request(app, url, { method, headers, data })).status, 400);
+    }
+    assert.equal((await request(app, url, { method, headers, type: 'text/plain' })).status, 415);
+    assert.equal((await request(app, url, { method, headers, data: Buffer.alloc(1024 * 1024 + 1) })).status, 413);
+    assert.equal((await request(app, url, { method, headers: { ...headers, 'content-length': 1024 * 1024 + 1 } })).status, 413);
+  }
+});
+
+test('class groups use next skill, biggest first then label, and expose the last saved turn', async () => {
+  const { app } = setup({ turnFacts: profile => ({ best: null, next: profile.level === 3 ? null : profile.level === 2 ? 'letter:bet' : 'vowel:kamatz', proven: [] }) });
+  const first = await add(app);
+  const second = await add(app, { name: 'Pebble' });
+  const third = await add(app, { name: 'Cloud' });
+  const fourth = await add(app, { name: 'Leaf' });
+  await patch(app, third.id, { level: 2 });
+  await patch(app, fourth.id, { level: 3 });
+  const turn = await start(app, first.id);
+  await grade(app, turn.turnId);
+  await finish(app, turn.turnId, 4);
+  const response = await teacherGet(app, '/api/class');
+  assert.equal(response.status, 200);
+  assert.deepEqual(response.json.groups, [
+    { skill: 'vowel:kamatz', label: 'Kamatz', childIds: [first.id, second.id] },
+    { skill: 'letter:bet', label: 'Bet', childIds: [third.id] },
+  ]);
+  assert.deepEqual(response.json.children[0].lastTurn, { date: response.json.children[0].lastTurn.date, ok: 1, pairs: 1, stars: 4 });
+  assert.equal(response.json.children[1].lastTurn, null);
+  assert.equal(response.json.children[3].next, null);
+  await patch(app, second.id, { level: 3 });
+  assert.deepEqual((await teacherGet(app, '/api/class')).json.groups.map(group => group.label), ['Bet', 'Kamatz']);
+});
+
+test('pair histories retain six reads, include misses, and build solid, shaky and untested maps', async () => {
+  let result = gradeFor();
+  const { app, dataDir } = setup({ gradeLine: () => result });
+  const child = await add(app);
+  const turn = await start(app, child.id);
+  await grade(app, turn.turnId);
+  let detail = (await teacherGet(app, `/api/children/${child.id}/detail`)).json;
+  assert.equal(detail.map.cells[betKamatz], 'untested');
+  for (let i = 0; i < 6; i++) await grade(app, turn.turnId);
+  assert.deepEqual(disk(dataDir).children[child.id].pairs[betKamatz], Array(6).fill(1));
+  result = gradeFor('wrong_vowel', ['letter:bet', 'vowel:patach']);
+  await grade(app, turn.turnId);
+  detail = (await teacherGet(app, `/api/children/${child.id}/detail`)).json;
+  assert.deepEqual(detail.map.letters, ['letter:bet', 'letter:vet']);
+  assert.deepEqual(detail.map.vowels, ['vowel:kamatz', 'vowel:patach']);
+  assert.equal(detail.map.cells[betKamatz], 'solid');
+  assert.equal(detail.map.cells[betPatach], 'shaky');
+  assert.equal(detail.map.cells['letter:vet|vowel:patach'], 'untested');
+  assert.equal(detail.map.sample[betKamatz], 'בָּ');
+  assert.equal(detail.map.sample['letter:vet|vowel:kamatz'], 'בָ');
+  result = gradeFor();
+  result.verdicts.push({ verdict: 'ok', skills: ['letter:bet', 'letter:alef', 'vowel:kamatz'] });
+  await grade(app, turn.turnId);
+  assert.equal(Object.keys(disk(dataDir).children[child.id].pairs).length, 2);
+  await patch(app, child.id, { level: 3 });
+  detail = (await teacherGet(app, `/api/children/${child.id}/detail`)).json;
+  assert.ok(detail.map.letters.includes('letter:mem'));
+  assert.ok(detail.map.vowels.includes('vowel:chirik'));
+});
+
+test('each verdict other than ok records a miss; three subsequent ok reads restore solid', async () => {
+  let verdict = 'wrong_letter';
+  const { app, dataDir } = setup({ gradeLine: () => gradeFor(verdict) });
+  const child = await add(app);
+  const turn = await start(app, child.id);
+  for (verdict of ['wrong_letter', 'wrong_vowel', 'skipped', 'extra', 'uncertain', 'not_decoded']) await grade(app, turn.turnId);
+  assert.deepEqual(disk(dataDir).children[child.id].pairs[betKamatz], Array(6).fill(0));
+  verdict = 'ok';
+  for (let i = 0; i < 3; i++) await grade(app, turn.turnId);
+  assert.equal((await teacherGet(app, `/api/children/${child.id}/detail`)).json.map.cells[betKamatz], 'solid');
+});
+
+test('detail returns the latest twenty turns, templated parent lines and explain lines only', async () => {
+  let tick = 0;
+  const { app } = setup({ now: () => 1_800_000_000_000 + tick++ * 1000 });
+  const child = await add(app);
+  const empty = await teacherGet(app, `/api/children/${child.id}/detail`);
+  assert.deepEqual(empty.json.turns, []);
+  for (let i = 0; i < 21; i++) {
+    const turn = await start(app, child.id);
+    await grade(app, turn.turnId);
+    await finish(app, turn.turnId, i);
+  }
+  const detail = (await teacherGet(app, `/api/children/${child.id}/detail`)).json;
+  assert.equal(detail.turns.length, 20);
+  assert.deepEqual(detail.turns.map(turn => turn.stars), Array.from({ length: 20 }, (_, i) => 20 - i));
+  assert.ok(detail.turns[0].date > detail.turns[1].date);
+  assert.deepEqual(Object.keys(detail.turns[0]).sort(), ['date', 'endLevel', 'log', 'ok', 'pairs', 'stars', 'startLevel']);
+  assert.deepEqual(detail.turns[0].log, ['Keep practicing these sounds.']);
+  assert.equal(detail.parentLine, 'Sprout read 1 of 1 sounds right today. Every sound was right!');
+});
+
+test('parent hints cover every rulebook skill and use each preset for kamatz and sav', async () => {
   for (const preset of ['sephardi', 'ashkenazi', 'chassidish']) {
-    assert.equal((await request(app, `/api/grade?item=test-0&preset=${preset}`, {
-      data: Buffer.from('wav'), type: 'audio/wav; charset=binary',
-    })).status, 200);
+    for (const skill of Object.keys(SKILLS)) assert.ok(!hint(skill, preset).startsWith('practice '), skill);
+    assert.equal(hint('letter:sav', preset), `a tav with no dot says ${preset === 'sephardi' ? 't' : 's'}`);
+    const { app } = setup({ gradeLine: () => gradeFor('wrong_vowel') });
+    const child = await add(app, { preset });
+    const turn = await start(app, child.id);
+    await grade(app, turn.turnId);
+    await finish(app, turn.turnId);
+    const detail = await teacherGet(app, `/api/children/${child.id}/detail`);
+    assert.equal(detail.json.parentLine, `Sprout read 0 of 1 sounds right today. One to practice: the kamatz (ָ) says ${preset === 'sephardi' ? 'a' : 'o'}.`);
+  }
+  assert.equal(hint('future:skill', 'sephardi'), 'practice future:skill');
+});
+
+test('packets for children and skills are deterministic, bank-only, nearest level first, with three sections', async () => {
+  const { app } = setup();
+  const child = await add(app);
+  await patch(app, child.id, { level: 2 });
+  const byChild = await teacherGet(app, `/api/packet?child=${child.id}`);
+  const bySkill = await teacherGet(app, '/api/packet?skill=vowel:kamatz&level=2');
+  assert.equal(byChild.status, 200);
+  assert.equal(bySkill.status, 200);
+  assert.equal(byChild.json.title, 'Practice for Sprout');
+  assert.deepEqual(byChild.json.sections, bySkill.json.sections);
+  assert.deepEqual(byChild.json.sections.map(section => [section.heading, section.items.length]), [['Warm up', 2], ['Practice', 6], ['Challenge', 1]]);
+  assert.deepEqual(bySkill.json.sections[1].items.map(item => item.level), [2, 2, 2, 1, 1, 1]);
+  assert.ok(byChild.json.sections[0].items.every(item => item.level === 1));
+  assert.equal(byChild.json.sections[2].items[0].id, 'challenge');
+  for (const section of byChild.json.sections) {
+    for (const item of section.items) {
+      const original = items.find(candidate => candidate.id === item.id);
+      assert.deepEqual(item, { id: original.id, text: original.text, level: original.level });
+    }
+  }
+  assert.deepEqual((await teacherGet(app, `/api/packet?child=${child.id}`)).json, byChild.json);
+  const turn = await start(app, child.id);
+  for (let i = 0; i < 3; i++) await grade(app, turn.turnId);
+  const solidWarm = (await teacherGet(app, `/api/packet?child=${child.id}`)).json.sections[0].items;
+  assert.deepEqual(solidWarm.map(item => item.id), ['kamatz-3', 'kamatz-4']);
+  const missingChallenge = setup({ items: items.filter(item => !item.source.challenge) });
+  assert.deepEqual((await teacherGet(missingChallenge.app, '/api/packet?skill=vowel:kamatz&level=2')).json.sections[2].items, []);
+});
+
+test('packet errors reject invalid child ids, missing children, unknown skills and invalid levels', async () => {
+  const { app } = setup();
+  for (const [query, status] of [['child=bad-id', 400], [`child=${randomUUID()}`, 404], ['skill=unknown&level=1', 400],
+    ['skill=vowel:kamatz&level=7', 400], ['skill=vowel:kamatz', 400], ['level=1', 400], ['child=bad-id&skill=vowel:kamatz&level=1', 400]]) {
+    assert.equal((await teacherGet(app, `/api/packet?${query}`)).status, status);
   }
 });
 
-test('start creates a profile and requests a rule-based first set without results or a reason', async () => {
-  const { app, startProfile, chooseNextSet } = setup();
-  const response = await request(app, '/api/start', { data: { preset: 'ashkenazi', level: 2 } });
-  assert.equal(response.status, 200);
-  assert.deepEqual(startProfile.mock.calls[0].arguments, [{ level: 2 }]);
-  assert.deepEqual(chooseNextSet.mock.calls[0].arguments, [{ level: 2, turns: 0 }, [], items, { useModel: false }]);
-  assert.deepEqual(response.json, { profile: { level: 2, turns: 1 }, set: items.slice(0, 2) });
-  assert.ok(!response.body.includes('PRIVATE_REASON'));
-  assert.ok(!response.body.includes('reason'));
-});
-
-test('next forwards the set results and returns only profile, level and bank items', async () => {
-  const { app, chooseNextSet } = setup();
-  const profile = { level: 1, turns: 1 };
-  const results = items.slice(0, 2).map(item => ({ itemId: item.id, summary, verdicts: grade.verdicts }));
-  const response = await request(app, '/api/next', { data: { profile, results } });
-  assert.equal(response.status, 200);
-  assert.deepEqual(chooseNextSet.mock.calls[0].arguments, [profile, results, items, { useModel: true }]);
-  assert.deepEqual(response.json, { profile: { level: 1, turns: 2 }, level: 1, set: items.slice(0, 2) });
-  assert.ok(!response.body.includes('reason'));
-  assert.ok(!response.body.includes('PRIVATE_REASON'));
-});
-
-test('JSON requests have a 1 MB cap and reject malformed input', async () => {
-  const { app } = setup();
-  assert.equal((await request(app, '/api/start', { data: Buffer.from('{') })).status, 400);
-  assert.equal((await request(app, '/api/start', { data: Buffer.alloc(1024 * 1024 + 1) })).status, 413);
-  assert.equal((await request(app, '/api/start', { data: { preset: 'other', level: 1 } })).status, 400);
-  assert.equal((await request(app, '/api/start', { data: { preset: 'sephardi', level: 7 } })).status, 400);
-  assert.equal((await request(app, '/api/next', { data: { profile: {}, results: [] } })).status, 400);
-});
-
-test('static files, HEAD and index fallback work; literal, encoded and symlink traversal are blocked', async () => {
-  const { app } = setup();
-  assert.equal((await request(app, '/app.js', { method: 'GET' })).body, 'window.station = true;');
-  assert.equal((await request(app, '/bookmark', { method: 'GET' })).body, '<main>Station</main>');
-  assert.equal((await request(app, '/', { method: 'HEAD' })).body, '');
-  for (const url of ['/../app.js', '/%2e%2e/app.js', '/assets/%2e%2e/%2e%2e/package.json', '/%5c..%5cpackage.json', '/outside.js']) {
-    assert.equal((await request(app, url, { method: 'GET' })).status, 403);
+test('trace is hidden unless enabled and reasons never enter other responses or disk', async () => {
+  assert.deepEqual((await get(setup().app, '/api/config')).json, { trace: false });
+  assert.equal((await get(setup().app, '/api/trace?turn=missing')).status, 404);
+  const { app, dataDir } = setup({ trace: true });
+  assert.deepEqual((await get(app, '/api/config')).json, { trace: true });
+  const child = await add(app);
+  const turn = await start(app, child.id);
+  const responses = [await grade(app, turn.turnId), await next(app, turn.turnId), await finish(app, turn.turnId),
+    await get(app, '/api/children'), await teacherGet(app, '/api/class'), await teacherGet(app, `/api/children/${child.id}/detail`),
+    await teacherGet(app, `/api/packet?child=${child.id}`)];
+  assert.ok(!JSON.stringify(turn).includes(privateReason));
+  for (const response of responses) {
+    assert.equal(response.status, 200, response.body);
+    assert.ok(!response.body.includes(privateReason));
+    assert.ok(!response.body.includes('"reason"'));
   }
+  const trace = await teacherGet(app, `/api/trace?turn=${turn.turnId}`);
+  assert.equal(trace.status, 200);
+  assert.equal(trace.json.decisions.length, 2);
+  assert.equal(trace.json.decisions[0].checkpoint, 0);
+  assert.equal(trace.json.decisions[1].checkpoint, 1);
+  assert.equal(trace.json.decisions[1].reason, privateReason);
+  assert.equal(trace.json.decisions[1].explain, 'Keep practicing these sounds.');
+  assert.deepEqual(Object.keys(trace.json.decisions[1]).sort(), ['checkpoint', 'decision', 'explain', 'reason', 'source']);
+  assert.equal((await teacherGet(app, '/api/trace?turn=missing')).status, 404);
+  const saved = fs.readFileSync(path.join(dataDir, 'store.json'), 'utf8');
+  assert.ok(!saved.includes(privateReason));
+  assert.ok(!saved.includes(privateHeard));
+  assert.ok(!saved.includes('"verdicts"'));
 });
 
-test('audio is never written to disk, echoed, or exposed in an error', async t => {
-  const writes = [
-    t.mock.method(fs, 'writeFile', () => { throw new Error('Unexpected write'); }),
-    t.mock.method(fs, 'writeFileSync', () => { throw new Error('Unexpected write'); }),
-    t.mock.method(fs.promises, 'writeFile', async () => { throw new Error('Unexpected write'); }),
-    t.mock.method(fs, 'createWriteStream', () => { throw new Error('Unexpected write'); }),
-  ];
-  const logs = [t.mock.method(console, 'log', () => {}), t.mock.method(console, 'error', () => {})];
-  const data = Buffer.from('PRIVATE_AUDIO_BYTES');
-  const success = await request(setup().app, '/api/grade?item=test-0&preset=sephardi', { data, type: 'audio/wav' });
-  const failure = await request(setup({ listen: async () => { throw new Error('PRIVATE_AUDIO_BYTES secret stack'); } }).app,
-    '/api/grade?item=test-0&preset=sephardi', { data, type: 'audio/wav' });
-  assert.ok(!success.body.includes('PRIVATE_AUDIO_BYTES'));
-  assert.equal(failure.status, 500);
-  assert.deepEqual(failure.json, { error: 'Request failed' });
-  for (const spy of [...writes, ...logs]) assert.equal(spy.mock.callCount(), 0);
+test('delete removes the child, all saved turns and every live or finished turn', async () => {
+  const { app, dataDir } = setup({ trace: true });
+  const child = await add(app);
+  const saved = await start(app, child.id);
+  await grade(app, saved.turnId);
+  await finish(app, saved.turnId);
+  const open = await start(app, child.id);
+  assert.deepEqual((await request(app, `/api/children/${child.id}`, { method: 'DELETE', headers: auth })).json, { ok: true });
+  assert.deepEqual(disk(dataDir), { version: 1, children: {}, turns: {} });
+  assert.deepEqual((await get(app, '/api/children')).json, []);
+  assert.equal((await next(app, open.turnId)).status, 404);
+  for (const id of [saved.turnId, open.turnId]) assert.equal((await teacherGet(app, `/api/trace?turn=${id}`)).status, 404);
 });
 
-test('coach cannot return items outside the bank', async () => {
-  const { app } = setup({ chooseNextSet: async () => ({ profile: {}, itemIds: ['made-up', 'test-0'] }) });
-  const response = await request(app, '/api/start', { data: { preset: 'sephardi', level: 1 } });
+test('the store survives an app reload but open turns and private trace reasons do not', async () => {
+  const { app, dataDir } = setup();
+  const child = await add(app);
+  const turn = await start(app, child.id);
+  await grade(app, turn.turnId);
+  await finish(app, turn.turnId, 6);
+  const reloaded = setup({ dataDir, trace: true });
+  assert.deepEqual((await get(reloaded.app, '/api/children')).json, [{ ...child, stars: 6, best: 6 }]);
+  const detail = await teacherGet(reloaded.app, `/api/children/${child.id}/detail`);
+  assert.equal(detail.json.turns.length, 1);
+  assert.equal(detail.json.turns[0].ok, 1);
+  const restarted = await start(reloaded.app, child.id);
+  assert.deepEqual(reloaded.chooseNextSet.mock.calls[0].arguments[0], disk(dataDir).children[child.id].profile);
+  assert.equal((await grade(reloaded.app, restarted.turnId)).status, 200);
+  assert.deepEqual(disk(dataDir).children[child.id].pairs[betKamatz], [1, 1]);
+  assert.equal((await teacherGet(reloaded.app, `/api/trace?turn=${turn.turnId}`)).status, 404);
+  assert.deepEqual(fs.readdirSync(dataDir), ['store.json']);
+});
+
+test('turns expire thirty minutes after start without a background timer', async () => {
+  let time = 1_800_000_000_000;
+  const { app } = setup({ now: () => time, trace: true });
+  const child = await add(app);
+  const turn = await start(app, child.id);
+  time += 30 * 60 * 1000;
+  assert.equal((await grade(app, turn.turnId)).status, 404);
+  assert.equal((await next(app, turn.turnId)).status, 404);
+  assert.equal((await finish(app, turn.turnId)).status, 404);
+  assert.equal((await teacherGet(app, `/api/trace?turn=${turn.turnId}`)).status, 404);
+});
+
+test('audio is never written or logged, and internal failures have no stack traces', async t => {
+  const { app, dataDir } = setup();
+  const realAsyncWrite = fs.promises.writeFile;
+  const realWrite = fs.writeFile;
+  const realSyncWrite = fs.writeFileSync;
+  const paths = [];
+  function check(file, data) {
+    paths.push(String(file));
+    assert.equal(path.dirname(String(file)), dataDir);
+    assert.match(path.basename(String(file)), /^store\.json(?:\.[a-f0-9-]+\.tmp)?$/);
+    const text = data.toString();
+    for (const privateValue of ['FAKE_AUDIO_BYTES', privateHeard, privateReason]) assert.ok(!text.includes(privateValue));
+  }
+  t.mock.method(fs.promises, 'writeFile', async function(file, data, ...args) { check(file, data); return realAsyncWrite.call(this, file, data, ...args); });
+  t.mock.method(fs, 'writeFile', function(file, data, ...args) { check(file, data); return realWrite.call(this, file, data, ...args); });
+  t.mock.method(fs, 'writeFileSync', function(file, data, ...args) { check(file, data); return realSyncWrite.call(this, file, data, ...args); });
+  const streams = t.mock.method(fs, 'createWriteStream', () => { throw new Error('Unexpected stream'); });
+  const logs = [t.mock.method(console, 'log', () => {}), t.mock.method(console, 'error', () => {}), t.mock.method(console, 'warn', () => {})];
+  const child = await add(app);
+  const turn = await start(app, child.id);
+  await grade(app, turn.turnId);
+  await next(app, turn.turnId);
+  await finish(app, turn.turnId);
+  assert.ok(paths.length >= 3);
+  const failing = setup({ dataDir, listen: async () => { throw new Error('FAKE_AUDIO_BYTES secret stack'); } });
+  const failedTurn = await start(failing.app, child.id);
+  const response = await grade(failing.app, failedTurn.turnId);
   assert.equal(response.status, 500);
   assert.deepEqual(response.json, { error: 'Request failed' });
+  assert.equal(streams.mock.callCount(), 0);
+  for (const log of logs) assert.equal(log.mock.callCount(), 0);
+});
+
+test('atomic write failure preserves the previous store and leaves no temporary file', async t => {
+  const { app, dataDir } = setup();
+  const child = await add(app);
+  const original = fs.readFileSync(path.join(dataDir, 'store.json'), 'utf8');
+  const rename = t.mock.method(fs.promises, 'rename', async () => { throw new Error('private filesystem details'); });
+  const response = await patch(app, child.id, { level: 2 });
+  assert.equal(response.status, 500);
+  assert.deepEqual(response.json, { error: 'Request failed' });
+  assert.equal(fs.readFileSync(path.join(dataDir, 'store.json'), 'utf8'), original);
+  assert.deepEqual(fs.readdirSync(dataDir), ['store.json']);
+  assert.equal((await get(app, '/api/children')).json[0].level, 1);
+  rename.mock.restore();
+  assert.equal((await patch(app, child.id, { level: 2 })).status, 200);
+});
+
+test('concurrent child writes preserve both records and concurrent finish cannot count stars twice', async () => {
+  const { app, dataDir } = setup();
+  const children = await Promise.all([add(app, { name: 'Cloud' }), add(app, { name: 'Leaf' })]);
+  assert.equal(Object.keys(disk(dataDir).children).length, 2);
+  const turn = await start(app, children[0].id);
+  const outcomes = await Promise.all([finish(app, turn.turnId, 5), finish(app, turn.turnId, 5)]);
+  assert.deepEqual(outcomes.map(outcome => outcome.status), [200, 404]);
+  assert.equal(disk(dataDir).children[children[0].id].stars, 5);
+});
+
+test('static serving, HEAD, index fallback and path traversal protection still work', async () => {
+  const { app } = setup();
+  assert.equal((await get(app, '/app.js')).body, 'window.station = true;');
+  assert.equal((await get(app, '/bookmark')).body, '<main>Station</main>');
+  const head = await request(app, '/', { method: 'HEAD' });
+  assert.equal(head.body, '');
+  assert.equal(head.headers['X-Content-Type-Options'], 'nosniff');
+  for (const url of ['/../app.js', '/%2e%2e/app.js', '/assets/%2e%2e/%2e%2e/package.json', '/%5c..%5cpackage.json', '/outside.js', '/%00']) {
+    assert.equal((await get(app, url)).status, 403);
+  }
+  assert.equal((await get(app, '/%xx')).status, 400);
+  assert.equal((await get(app, '/api/unknown')).status, 404);
+  assert.equal((await request(app, '/bookmark')).status, 404);
+  assert.equal((await get(setup({ staticDir: undefined }).app, '/')).status, 404);
+  assert.equal((await get(setup({ staticDir: path.join(root, 'absent') }).app, '/')).status, 404);
+});
+
+test('invalid coach selections and dependency failures return safe errors', async () => {
+  for (const chooseNextSet of [async profile => selection(profile, { itemIds: ['made-up'] }),
+    async profile => selection(profile, { itemIds: [] }), async profile => selection(profile, { itemIds: ['kamatz-0', 'kamatz-0'] }),
+    async profile => selection(profile, { level: 7 }), async () => { throw new Error('private model stack'); }]) {
+    const { app } = setup({ chooseNextSet });
+    const child = await add(app);
+    const response = await request(app, '/api/start', { data: { childId: child.id } });
+    assert.equal(response.status, 500);
+    assert.deepEqual(response.json, { error: 'Request failed' });
+  }
 });
