@@ -32,6 +32,16 @@ export function parseOptions(argv, command) {
     } else if (flag === '--preset' && command === 'ear') {
       options.preset = argv[++index];
       if (!Object.hasOwn(PRESETS, options.preset)) throw new Error(`Preset must be one of: ${Object.keys(PRESETS).join(', ')}`);
+    } else if (flag === '--card' && command === 'ear') {
+      options.cardName = argv[++index];
+      if (!options.cardName?.trim() || options.cardName.startsWith('--')) {
+        throw new Error('Card name must be supplied with --card.');
+      }
+    } else if (flag === '--round' && command === 'ear') {
+      options.round = argv[++index];
+      if (!options.round?.trim() || options.round.startsWith('--')) {
+        throw new Error('Round section must be supplied with --round.');
+      }
     } else if (flag === '--no-meter' && command === 'ear') options.meter = false;
     else if (flag === '--no-card' && command === 'ear') options.card = false;
     else if (flag === '--no-referee' && command === 'ear') options.referee = false;

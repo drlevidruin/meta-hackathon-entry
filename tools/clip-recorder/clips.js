@@ -39,20 +39,25 @@ export async function loadClips(set = 'adult') {
   checkSet(set);
   const markdown = await readFile(tableURL, 'utf8');
   const clips = [
-    ...parseClips(markdown, 'Voice check').map((clip) => ({ ...clip, kind: 'voice' })),
-    ...parseClips(markdown, 'Round 1b').map((clip) => ({ ...clip, kind: 'reading' })),
-    ...parseClips(markdown, 'Round 1c').map((clip) => ({ ...clip, kind: 'reading' })),
-    ...parseClips(markdown, 'Card tests').map((clip) => ({ ...clip, kind: 'card' })),
-    ...parseClips(markdown, 'Sheva tests').map((clip) => ({ ...clip, kind: 'card' })),
-    ...parseClips(markdown, 'Round 1d').map((clip) => ({ ...clip, kind: 'reading' })),
-    ...parseClips(markdown, 'Round 1e').map((clip) => ({ ...clip, kind: 'reading' })),
-    ...parseClips(markdown).map((clip) => ({ ...clip, kind: 'reading' })),
-  ];
+    ['Voice check', 'voice'],
+    ['Round 1b', 'reading', 'voice-check'],
+    ['Round 1c', 'reading', 'voice-check'],
+    ['Card tests', 'card', 'voice-check'],
+    ['Sheva tests', 'card', 'voice-check'],
+    ['Round 1d', 'reading', 'voice-check'],
+    ['Round 1e', 'reading', 'voice-check'],
+    ['Voice check 2', 'voice'],
+    ['Round 1f', 'reading', 'voice-check-2'],
+    ['Round 1g', 'reading', 'voice-check-2'],
+    ['Round 1', 'reading', 'voice-check'],
+  ].flatMap(([section, kind, card]) => parseClips(markdown, section)
+    .map((clip) => ({ ...clip, kind, section, ...(card ? { card } : {}) })));
   if (new Set(clips.map((clip) => clip.name)).size !== clips.length) {
     throw new Error('Clip names must be unique across sections.');
   }
   return clips.map((clip) => ({
     ...clip, name: `${set === 'child' ? 'child_' : ''}${clip.name}`,
+    ...(clip.card ? { card: `${set === 'child' ? 'child_' : ''}${clip.card}` } : {}),
   }));
 }
 

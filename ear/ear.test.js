@@ -278,6 +278,7 @@ test('listen keeps real words when two primary replies parse to no words without
       return answer(raw);
     } });
     assert.deepEqual(result.words, [['ko', 'voyd']]);
+    assert.deepEqual(result.answers, [[], [], [['ko', 'voyd']]]);
     assert.deepEqual(result.votes, { asked: 3, answered: 3 });
     assert.deepEqual(models, [PRIMARY, PRIMARY, PRIMARY]);
   }
@@ -329,6 +330,7 @@ test('primary votes start together and combine in request order when they finish
       const result = await pending;
       assert.deepEqual(order, [2, 1, 0]);
       assert.deepEqual(result.words, expected);
+      assert.deepEqual(result.answers, raws.map(parseEarOutput));
       assert.equal(result.raw, raws[0]);
       assert.deepEqual(result.votes, { asked: 3, answered: 3 });
     } finally {
@@ -349,6 +351,7 @@ test('a prose answer retries within its primary slot and retains that slot order
   assert.equal(calls, 4);
   assert.deepEqual(result.words, [['ka', 'voyd']]);
   assert.equal(result.raw, 'ko-voyd');
+  assert.deepEqual(result.answers, [[['ko', 'voyd']], [['ka', 'voyd']], [['ka', 'voyd']]]);
   assert.deepEqual(result.usage, { prompt_tokens: 30, completion_tokens: 60, total_tokens: 90 });
   assert.deepEqual(result.votes, { asked: 3, answered: 3 });
 });
@@ -380,6 +383,7 @@ test('one network failure leaves two primary answers to combine without fallback
     words: [['ko', 'voyd']], model: PRIMARY, raw: 'ko-voyd', card: true,
     usage: { prompt_tokens: 20, completion_tokens: 40, total_tokens: 60 },
     votes: { asked: 3, answered: 2 },
+    answers: [[['ko', 'voyd']], [['ka', 'voyd']]],
   });
 });
 
@@ -398,6 +402,7 @@ test('a single successful primary answer prevents fallback and preserves its usa
   assert.equal(result.raw, 'ka-voyd');
   assert.deepEqual(result.usage, usage);
   assert.deepEqual(result.votes, { asked: 3, answered: 1 });
+  assert.deepEqual(result.answers, [[['ka', 'voyd']]]);
 });
 
 test('primary usage includes every answer even when its word count is excluded', async t => {
@@ -411,6 +416,7 @@ test('primary usage includes every answer even when its word count is excluded',
     } });
   } });
   assert.deepEqual(result.words, [['ka', 'voyd'], ['ba', 'ruch']]);
+  assert.deepEqual(result.answers, raws.map(parseEarOutput));
   assert.equal(result.raw, raws[0]);
   assert.deepEqual(result.usage, { prompt_tokens: 6, completion_tokens: 12, total_tokens: 18 });
 });
@@ -460,6 +466,7 @@ test('listen sends the exact primary request and returns only content as the ans
     usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 },
     card: false,
     votes: { asked: 1, answered: 1 },
+    answers: [[['sha', 'bos'], ['ba', 'ruch']]],
   });
 });
 
@@ -574,6 +581,7 @@ test('fallback always keeps the plain request and reports card false even with a
     assert.equal(fallbackCalls, 1);
     assert.equal(primaryCalls, ['plain', 'forced', 'missing key'].includes(mode) ? 0 : mode === 'prose' ? 6 : 3);
     assert.deepEqual(result.votes, { asked: 1, answered: 1 });
+    assert.deepEqual(result.answers, [[['sha', 'bos'], ['ba', 'ruch']]]);
   }
 });
 

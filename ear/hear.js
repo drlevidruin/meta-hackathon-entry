@@ -215,6 +215,7 @@ export async function listen(audio, options = {}) {
       return {
         ...answers[0],
         words: combineAnswers(answers),
+        answers: answers.map(answer => answer.words),
         usage: combineUsage(answers),
         votes: { asked, answered: answers.length },
       };

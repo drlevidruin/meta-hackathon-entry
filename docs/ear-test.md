@@ -485,6 +485,54 @@ Where the ear wrote o and Levi said a, the model's back share was 0.06 to 0.10, 
 
 For Levi's voice the phoneme model cannot tell kom's a from the o of mitz-vo, so the threshold stays at 0.15, and no sealed round is needed to test it.
 
+## Voice check 2
+
+Read this card first, in the sitting for Rounds 1f and 1g. Those two rounds use it in place of the first card, so the card and the words come from the same sitting.
+
+| File name | Hebrew | Say | Planted | The ear should write |
+| --- | --- | --- | --- | --- |
+| voice-check-2 | בָּ בַּ בֶּ בִּ בֹּ דָ דַ דֶ דִ דֹ מָ מַ מֶ מִ מֹ | bo ba be bi boy do da de di doy mo ma me mi moy | nothing | not graded |
+
+## Round 1f: design words
+
+Read each clip once, in Ashkenazi pronunciation, right after Voice check 2 and in the same sitting as Round 1g. These words test a vowel before a final l, kamatz after r, and a kamatz read as patach before m. They are design words: the rules may change after their answers are read.
+
+| File name | Hebrew | Say | Planted | The ear should write |
+| --- | --- | --- | --- | --- |
+| gal_clean | גַּל | gal | nothing | gal |
+| moyro_clean | מוֹרָה | moy-ro | nothing | moy-ro |
+| tal_kamatz-for-patach | טַל | tol | patach read as kamatz | tol |
+| chozok_clean | חָזָק | cho-zok | nothing | cho-zok |
+| moshol_clean | מָשָׁל | mo-shol | nothing | mo-shol |
+| kohol_patach-for-kamatz | קָהָל | ka-hol | the first kamatz read as patach | ka-hol |
+| soro_clean | שָׂרָה | so-ro | nothing | so-ro |
+| naal_clean | נַעַל | na-al | nothing | na-al |
+| omol_patach-for-kamatz | עָמָל | o-mal | the second kamatz read as patach | o-mal |
+| chaveyro_clean | חֲבֵרָה | cha-vey-ro | nothing | cha-vey-ro |
+| godoyl_clean | גָּדוֹל | go-doyl | nothing | go-doyl |
+| chom_patach-for-kamatz | חָם | cham | kamatz read as patach | cham |
+| shulchon_clean | שֻׁלְחָן | shul-chon | nothing | shul-chon |
+
+## Round 1g: sealed test
+
+Read each clip once, in the same sitting as Round 1f. Round 1e has been read, so these thirteen words take its place as the sealed test. Nobody reads the ear's or the phoneme model's answers on them until the rules are frozen, and the pass rule is set before the first run.
+
+| File name | Hebrew | Say | Planted | The ear should write |
+| --- | --- | --- | --- | --- |
+| sal_clean | סַל | sal | nothing | sal |
+| shiro_clean | שִׁירָה | shi-ro | nothing | shi-ro |
+| dal_kamatz-for-patach | דַּל | dol | patach read as kamatz | dol |
+| bosor_clean | בָּשָׂר | bo-sor | nothing | bo-sor |
+| cholol_clean | חָלָל | cho-lol | nothing | cho-lol |
+| yofo_patach-for-kamatz | יָפָה | ya-fo | the first kamatz read as patach | ya-fo |
+| malko_clean | מַלְכָּה | mal-ko | nothing | mal-ko |
+| baal_clean | בַּעַל | ba-al | nothing | ba-al |
+| sholol_patach-for-kamatz | שָׁלָל | sho-lal | the second kamatz read as patach | sho-lal |
+| diro_clean | דִּירָה | di-ro | nothing | di-ro |
+| oylom_clean | עוֹלָם | oy-lom | nothing | oy-lom |
+| dom_patach-for-kamatz | דָּם | dam | kamatz read as patach | dam |
+| suko_clean | סֻכָּה | su-ko | nothing | su-ko |
+
 ## Round 2: a child's voice
 
 The adult round must pass first. Recording a child requires written parent consent. Turn Meta Model API free credits off and use a paid plan before sending children's audio. Meta's free-credit terms allow content to be used for product improvement.
