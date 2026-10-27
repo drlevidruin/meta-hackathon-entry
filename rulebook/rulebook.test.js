@@ -28,6 +28,124 @@ for (const entry of golden.flagOnly) for (const preset of presets) {
   });
 }
 
+const reviewedWords = [
+  { word: 'חֵטְא', sephardi: ['che|chey', 't'], ashkenazi: ['chey', 't'], chassidish: ['chey', 't'], flags: [] },
+  { word: 'וַיֵּרְא', sephardi: ['va', 'ye|yey', 'r'], ashkenazi: ['va', 'yey', 'r'], chassidish: ['va', 'yey', 'r'], flags: [] },
+  { word: 'וֵאלֹהֵי', sephardi: ['ve|vey', 'lo', 'he|hey|ke|key'], ashkenazi: ['vey', 'lo|loy|ley', 'hey|key'],
+    chassidish: ['vey', 'lo|loy|ley', 'hey|key'], flags: ['divine_name'] },
+  { word: 'לֵאלֹהִים', sephardi: ['le|ley', 'lo', 'hi|ki', 'm'], ashkenazi: ['ley', 'lo|loy|ley', 'hi|ki', 'm'],
+    chassidish: ['ley', 'lo|loy|ley', 'hi|ki', 'm'], flags: ['divine_name'] },
+  { word: 'לֵאלֹהֵיכֶם', sephardi: ['le|ley', 'lo', 'he|hey|ke|key', 'che', 'm'],
+    ashkenazi: ['ley', 'lo|loy|ley', 'hey|key', 'che', 'm'],
+    chassidish: ['ley', 'lo|loy|ley', 'hey|key', 'che', 'm'], flags: ['divine_name'] },
+  { word: 'אֱלוֹהַי', sephardi: ['e', 'lo', 'ha|ka', 'y'], ashkenazi: ['e', 'lo|loy|ley', 'ha|ka', 'y'],
+    chassidish: ['e', 'lo|loy|ley', 'ha|ka', 'y'], flags: ['divine_name'] },
+  { word: 'לָךְ', sephardi: ['la', 'ch'], ashkenazi: ['lo', 'ch'], chassidish: ['lo|lu', 'ch'], flags: [] },
+  { word: 'את', sephardi: ['', 't'], ashkenazi: ['', 's'], chassidish: ['', 's'], flags: ['unpointed'] },
+  { word: 'על', sephardi: ['', 'l'], ashkenazi: ['', 'l'], chassidish: ['', 'l'], flags: ['unpointed'] },
+];
+
+for (const entry of reviewedWords) for (const preset of presets) {
+  test(`reviewed ${entry.word} ${preset}`, () => {
+    const result = expectedSounds(entry.word, preset);
+    assert.deepEqual(result.flags, entry.flags);
+    assert.deepEqual(alternatives(result.pairs), answerPairs(entry[preset]));
+    assert.equal(result.pairs.map((pair) => pair.text).join(''), cleanWord(entry.word));
+    assert.equal(result.readings, null);
+  });
+}
+
+const nameReadings = {
+  sephardi: [['a', 'do', 'na', 'y'], ['ha', 'she|shey', 'm']],
+  ashkenazi: [['a', 'do|doy|dey', 'no', 'y'], ['ha', 'shey', 'm']],
+  chassidish: [['a', 'do|doy|dey', 'no|nu', 'y'], ['ha', 'shey', 'm']],
+};
+for (const [word, prefix, sounds] of [
+  ['שֶׁיְהֹוָה', 'שֶׁ', ['she']], ['וַיהֹוָה', 'וַ', ['va']],
+  ['לַיהֹוָה', 'לַ', ['la']], ['בַּיהֹוָה', 'בַּ', ['ba']],
+  ['וּבְיְהֹוָה', 'וּבְ', ['u', 've']], ['בִּיהוה', 'בִּ', ['bi']],
+]) for (const preset of presets) {
+  test(`prefixed four-letter Name ${word} ${preset}`, () => {
+    const result = expectedSounds(word, preset);
+    assert.deepEqual(result.flags, ['divine_name']);
+    assert.equal(result.substitute, true);
+    assert.equal(result.pairs.map((pair) => pair.text).join(''), cleanWord(prefix));
+    assert.deepEqual(alternatives(result.pairs), answerPairs(sounds));
+    assert.deepEqual(result.readings.map((reading) => alternatives(reading.pairs)),
+      nameReadings[preset].map((reading) => answerPairs([...sounds, ...reading])));
+    assert.equal(formatPairs(result), sounds.join(' · '));
+    assert.equal(formatReading(result), formatReading(result.readings[0]));
+    assert.deepEqual(result.skills, [...new Set(result.pairs.flatMap((pair) => pair.skills))].sort());
+  });
+}
+
+test('a final sheva stays nach before silent alef, ayin or hei, but not before a sounded letter', () => {
+  for (const preset of presets) {
+    for (const word of ['חֵטְא', 'חֵטְע', 'חֵטְה', 'חֵטְאה']) {
+      const result = expectedSounds(word, preset);
+      assert.deepEqual(result.flags, [], word);
+      assert.equal(result.pairs.at(-1).vowel, 'sheva_nach', word);
+      assert.deepEqual(result.pairs.at(-1).sounds, ['t'], word);
+    }
+    assert.deepEqual(expectedSounds('בַּרְךְא', preset).pairs.map((pair) => pair.vowel),
+      ['patach', 'sheva_nach', 'sheva_nach']);
+    for (const word of ['חֵטְאָ', 'חֵטְהּ', 'חֵטְעַ']) {
+      assert.ok(expectedSounds(word, preset).flags.includes('sheva'), word);
+    }
+  }
+});
+
+test('Elokim recognition requires a standard prefix, an eligible alef and a lamed with cholam', () => {
+  for (const preset of presets) {
+    for (const prefix of ['וֵ', 'בֵּ', 'כֵּ', 'לֵ', 'מֵ', 'שֵׁ', 'הֵ', 'וּבֵ']) {
+      for (const suffix of ['אלֹהִים', 'אלוֹהִים', 'אֱלֹהִים', 'אֱלוֹהִים']) {
+        const result = expectedSounds(prefix + suffix, preset);
+        assert.deepEqual(result.flags, ['divine_name'], prefix + suffix);
+        const hei = result.pairs.find((pair) => pair.flags.includes('divine_name'));
+        assert.equal(hei.letter, 'ה');
+        assert.deepEqual(hei.consonants, ['h', 'k']);
+        assert.deepEqual(hei.flags, ['divine_name']);
+      }
+    }
+    for (const word of ['נֵאלֹהִים', 'וּבְלֵאלֹהִים', 'וֵאֶלֹהִים', 'אלֹהִים', 'אֱלֶה', 'וֵאלַהִים',
+      'וֵאלוּהִים', 'וֵאלוֺהִים', 'וֵאלוֹּהִים']) {
+      assert.ok(!expectedSounds(word, preset).flags.includes('divine_name'), word);
+    }
+    for (const word of ['נַיהוה', 'וּבְלַיהוה', 'שֶׁיְהֹוָהם']) {
+      assert.ok(!expectedSounds(word, preset).substitute, word);
+    }
+  }
+});
+
+test('final-sheva kamatz is gadol without maqaf and existing katan triggers remain', () => {
+  for (const preset of presets) {
+    for (const word of ['לָךְ', 'מֶלָךְ', 'דָם']) {
+      assert.deepEqual(expectedSounds(word, preset).flags, [], word);
+    }
+    const silentEnding = expectedSounds('שָׁוְא', preset);
+    assert.deepEqual(silentEnding.flags, []);
+    assert.deepEqual(silentEnding.pairs.map((pair) => pair.sounds), [
+      preset === 'sephardi' ? ['sha'] : preset === 'ashkenazi' ? ['sho'] : ['sho', 'shu'], ['v'],
+    ]);
+    for (const word of ['לָךְ־', 'שָׁוְא־', 'חָכְמָה', 'בָּרְכוּ', 'כָּל', 'וַיָּקָם']) {
+      assert.ok(expectedSounds(word, preset).flags.includes('kamatz_katan'), word);
+    }
+    assert.deepEqual(expectedSounds('לׇךְ', preset).pairs.map((pair) => pair.sounds), [['lo'], ['ch']]);
+    assert.deepEqual(expectedSounds('לׇךְ', preset).flags, []);
+  }
+});
+
+test('wholly unpointed short words are flagged without mistaking sheva or shuruk for missing pointing', () => {
+  for (const preset of presets) {
+    for (const word of ['את', 'על', 'אם', 'אף', 'או', 'אה', 'שׂל']) {
+      assert.ok(expectedSounds(word, preset).flags.includes('unpointed'), word);
+    }
+    for (const word of ['אֵת', 'עַל', 'אִם', 'אַף', 'בּוּ', 'וּ', 'כְּ', 'שׂנְאַי', 'א', 'ע', 'ה׳', 'יי', 'יהוה']) {
+      assert.ok(!expectedSounds(word, preset).flags.includes('unpointed'), word);
+    }
+  }
+});
+
 test('cleanup strips HTML, punctuation, cantillation, meteg and decomposes presentation forms', () => {
   assert.deepEqual(splitWords('<b>שְׁמַ֖ע</b>,יִשְׂרָאֵֽל.בִּי:מִן;חַי׃רוּחַ־שָׁלוֹם'), [
     ...['שְׁמַע', 'יִשְׂרָאֵל', 'בִּי', 'מִן', 'חַי'].map((word) => ({ word: cleanWord(word), maqaf: false })),

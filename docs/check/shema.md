@@ -237,7 +237,7 @@
 | 231 | מִצְוֹתָי | mitz-vo-tay | mitz-vo-soy (mi · tz · vo/voy/vey · so · y) | mitz-vo-soy (mi · tz · vo/voy/vey · so/su · y) | - |
 | 232 | וִהְיִיתֶם | vih-yi-tem | vih-yi-sem | vih-yi-sem | - |
 | 233 | קְדשִׁים | ke-do-shim | ke-do-shim (ke · do/doy/dey · shi · m) | ke-do-shim (ke · do/doy/dey · shi · m) | - |
-| 234 | לֵאלֹהֵיכֶם | le-lo-he-chem (le/ley · lo · he/hey · che · m) | ley-lo-hey-chem (ley · lo/loy/ley · hey · che · m) | ley-lo-hey-chem (ley · lo/loy/ley · hey · che · m) | - |
+| 234 | לֵאלֹהֵיכֶם | le-lo-he-chem (le/ley · lo · he/hey/ke/key · che · m) | ley-lo-hey-chem (ley · lo/loy/ley · hey/key · che · m) | ley-lo-hey-chem (ley · lo/loy/ley · hey/key · che · m) | divine_name |
 | 235 | אֲנִי | a-ni | a-ni | a-ni | - |
 | 236 | יְהֹוָה | a-do-nay / ha-shem (ha · she/shey · m) | a-do-noy (a · do/doy/dey · no · y) / ha-sheym | a-do-noy (a · do/doy/dey · no/nu · y) / ha-sheym | divine_name |
 | 237 | אֱלֹהֵיכֶם | e-lo-he-chem (e · lo · he/hey/ke/key · che · m) | e-lo-hey-chem (e · lo/loy/ley · hey/key · che · m) | e-lo-hey-chem (e · lo/loy/ley · hey/key · che · m) | divine_name |
@@ -248,7 +248,7 @@
 | 242 | מִצְרַיִם | mitz-ra-yim | mitz-ra-yim | mitz-ra-yim | - |
 | 243 | לִהְיוֹת | lih-yot | lih-yos (li · h · yo/yoy/yey · s) | lih-yos (li · h · yo/yoy/yey · s) | - |
 | 244 | לָכֶם | la-chem | lo-chem | lo-chem (lo/lu · che · m) | - |
-| 245 | לֵאלֹהִים | le-lo-him (le/ley · lo · hi · m) | ley-lo-him (ley · lo/loy/ley · hi · m) | ley-lo-him (ley · lo/loy/ley · hi · m) | - |
+| 245 | לֵאלֹהִים | le-lo-him (le/ley · lo · hi/ki · m) | ley-lo-him (ley · lo/loy/ley · hi/ki · m) | ley-lo-him (ley · lo/loy/ley · hi/ki · m) | divine_name |
 | 246 | אֲנִי | a-ni | a-ni | a-ni | - |
 | 247 | יְהֹוָה | a-do-nay / ha-shem (ha · she/shey · m) | a-do-noy (a · do/doy/dey · no · y) / ha-sheym | a-do-noy (a · do/doy/dey · no/nu · y) / ha-sheym | divine_name |
 | 248 | אֱלֹהֵיכֶם | e-lo-he-chem (e · lo · he/hey/ke/key · che · m) | e-lo-hey-chem (e · lo/loy/ley · hey/key · che · m) | e-lo-hey-chem (e · lo/loy/ley · hey/key · che · m) | divine_name |

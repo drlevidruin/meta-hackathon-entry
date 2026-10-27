@@ -75,7 +75,7 @@ A final ח, ע or הּ with a patach is read vowel first: רוּחַ is `ru` `ac
 Decided in this order:
 
 1. First letter of the word: na.
-2. Last letter of the word: nach. Two shevas on the last two letters: both nach.
+2. Last sounding letter of the word: nach, including a sheva followed only by silent א, ע or final ה (חֵטְא, וַיֵּרְא). A pointed alef or ayin, or a hei with mappik, still sounds and does not make the sheva final. Two shevas at the end: both nach, including before a silent ending.
 3. Two shevas in a row inside the word: the first is nach, the second is na (נַפְשְׁךָ: `na` `f` `she` `cha`).
 4. Under a letter with a dagesh chazak: na (הַדְּבָרִים: `ha` `de` `va` `ri` `m`). A dagesh is chazak in any letter outside בגדכפת (except shuruk and mappik), and in a בגדכפת letter that follows a sounded vowel. A בגדכפת dagesh at the start of a word or after a sheva nach is kal.
 5. Right after a word-initial shuruk: na (וּבְכָל: `u` `ve`).
@@ -88,8 +88,9 @@ Na sounds `e`. Nach sounds nothing. A flagged sheva accepts both.
 ### Kamatz katan
 
 - U+05C7 (kamatz katan) is always `o`, unflagged.
+- Ordinary kamatz in a one-syllable closed word stays gadol (דָם). A kamatz immediately before the last sounding letter carrying sheva also stays gadol when there is no maqaf (לָךְ: Sephardi `la` `ch`, Ashkenazi `lo` `ch`, Chassidish `lo/lu` `ch`). This includes a sheva hidden by a silent ending, as in שָׁוְא. The explicit כָּל and other triggers below still apply.
 - These kamatzes may be katan and are flagged `kamatz_katan`. The grader accepts either reading.
-  - The next letter has a sheva (חָכְמָה, בָּרְכוּ).
+  - The next letter has a sheva inside the word (חָכְמָה, בָּרְכוּ). A word-final sheva triggers this only with maqaf.
   - The next letter has a chataf kamatz (צָהֳרַיִם).
   - The next letter has a dagesh chazak (חָנֵּנִי, בָּתִּים).
   - The word is joined to the next word by a maqaf and the kamatz is in its last syllable (כָּל־).
@@ -100,8 +101,8 @@ Na sounds `e`. Nach sounds nothing. A flagged sheva accepts both.
 
 Flagged `divine_name`. The bank keeps them out of levels 1 to 4.
 
-- The four-letter name (any pointing of יהוה, also יְיָ and ה׳): no pairs. `readings` holds the expected sounds of אֲדֹנָי and of הַשֵּׁם under the same preset; the grader accepts either.
-- אֱלֹהִים and its forms (any word whose letters, after prefixes, start with אלה and that has a chataf segol under the alef): the ה accepts `h` or `k` (`e-lo-key-nu`).
+- The four-letter name (any pointing of יהוה, also יְיָ and ה׳): no literal Name pairs. `readings` holds the expected sounds of אֲדֹנָי and of הַשֵּׁם under the same preset; the grader accepts either. יהוה can follow one or two standard prefixes from ו ב כ ל מ ש ה. `pairs` then holds only the prefix pairs, with their own pointing and skills; `substitute: true` means those pairs are not a complete reading. Each entry in `readings` includes the prefix exactly once followed by the substitute Name, so callers use these complete alternatives. For שֶׁיְהֹוָה, `pairs` is `she`, and the Sephardi alternatives are `she · a · do · na · y` and `she · ha · she/shey · m`. `formatPairs` reports the prefix alone; `formatReading` reports the first complete alternative. Bare Names still have empty `pairs` and the same two readings.
+- אֱלֹהִים and its forms: after zero, one or two standard prefixes from ו ב כ ל מ ש ה, the alef has chataf segol, or is silent after a prefix; the next letter is ל with cholam, either on the lamed or carried by וֹ; the following letter is ה. That ה accepts `h` or `k` (`e-lo-key-nu`). This includes וֵאלֹהֵי, לֵאלֹהִים, לֵאלֹהֵיכֶם and אֱלוֹהַי.
 - אֲדֹנָי written out: decoded normally, and `readings` also holds הַשֵּׁם.
 - אֵל with a tzere: the alef accepts `''` or `k`.
 
@@ -110,6 +111,8 @@ Flagged `divine_name`. The bank keeps them out of levels 1 to 4.
 Before splitting: remove HTML tags, cantillation (U+0591 to U+05AF), meteg (U+05BD), paseq, sof pasuq, geresh and gershayim (after checking for ה׳), punctuation, and Unicode presentation forms (decompose them). Order of marks on a letter does not matter.
 
 A letter other than the last one, with no vowel, that is not a silent mater or a closing yud as described above, means the word is unpointed: flag `unpointed`. Siddur instructions in plain letters (יחיד אומר) are caught this way.
+
+Also flag any word of two or more letters with no vowel point or sheva anywhere, unless it is a recognized divine-name abbreviation or substitution. This catches short instruction words such as את, על, אם and אף even when their first letter is silent. Dagesh and shin/sin dots are not vowel points; shuruk is a vowel and does not cause this flag. This word-level check adds no sounds or pair flags.
 
 ## Output
 
@@ -135,6 +138,8 @@ A letter other than the last one, with no vowel, that is not a silent mater or a
   flags,           // union of pair flags plus word flags
   skills,          // union of pair skills
   readings,        // null, or alternative whole-word results (divine names)
+  substitute,      // true on substituted Names: pairs holds only any prefix;
+                   // readings supplies complete alternatives, including that prefix
 }
 ```
 

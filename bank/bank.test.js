@@ -70,6 +70,23 @@ test('generated words pass skeleton and every accepted sound in the blocklist', 
     ['ab', 'av', 'eb', 'ev']);
 });
 
+test('prefixed Name readings include the prefix exactly once and never accept a prefix alone', () => {
+  for (const preset of presets) {
+    const result = expectedSounds('שֶׁיְהֹוָה', preset);
+    const readings = acceptedReadings(result);
+    assert.ok(readings.length);
+    assert.ok(readings.every((reading) => reading.startsWith('she')));
+    assert.ok(!readings.includes('she'));
+    assert.deepEqual([...readings].sort(), unique(expectedSounds('יְהֹוָה', preset).readings
+      .flatMap(acceptedReadings).map((reading) => 'she' + reading)));
+  }
+  const row = checkPage('ashrei').split('\n').find((line) => line.includes(cleanWord('שֶׁיְהֹוָה')));
+  assert.ok(row.includes('she-a-do-nay'));
+  assert.ok(row.includes('she-ha-shem'));
+  assert.ok(!row.includes('| she /'));
+  assert.ok(row.endsWith('divine_name |'));
+});
+
 test('level 1 has 60 lines of five or six pairs and covers letters, variants and all target vowels', () => {
   const level = items.filter((item) => item.level === 1);
   assert.equal(level.length, 60);

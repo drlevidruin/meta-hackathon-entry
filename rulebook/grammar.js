@@ -15,6 +15,12 @@ function afterLongVowel(pair) {
     || pair.skills.includes('pattern:chirik_male'));
 }
 
+function silentEnding(groups, start) {
+  return groups.slice(start).every((group, offset) => group.vowel === 'none'
+    && ('אע'.includes(group.letter) || (group.letter === 'ה'
+      && start + offset === groups.length - 1 && !hasDagesh(group))));
+}
+
 export function decideShevas(groups, pairs) {
   for (let index = 0; index < pairs.length; index++) {
     const pair = pairs[index];
@@ -24,7 +30,7 @@ export function decideShevas(groups, pairs) {
     const nextSheva = groups[position + 1]?.vowel === 'sheva';
     if (previousSheva || nextSheva) pair.skills.push('pattern:two_shevas');
     if (position === 0) pair.vowel = 'sheva_na';
-    else if (position === groups.length - 1 || (nextSheva && position === groups.length - 2)) {
+    else if (silentEnding(groups, position + 1) || (nextSheva && silentEnding(groups, position + 2))) {
       pair.vowel = 'sheva_nach';
     } else if (nextSheva) pair.vowel = 'sheva_nach';
     else if (previousSheva || dageshChazak(pairs, index)) pair.vowel = 'sheva_na';
@@ -58,6 +64,7 @@ export function flagKamatzKatan(groups, pairs, maqaf) {
     const pair = pairs[index];
     if (pair.vowel !== 'kamatz') continue;
     const next = groups[pair.index + 1];
+    if (!maqaf && next?.vowel === 'sheva' && silentEnding(groups, pair.index + 2)) continue;
     const beforeClosingConsonant = pairs[index + 1]
       && ['none', 'sheva_nach'].includes(pairs[index + 1].vowel);
     if (next?.vowel === 'sheva' || next?.vowel === 'chataf_kamatz'

@@ -10,7 +10,7 @@ function hasAlternatives(result) {
 function readingCell(result) {
   const display = (reading) => formatReading(reading)
     + (hasAlternatives(reading) ? ` (${formatPairs(reading)})` : '');
-  if (!result.pairs.length) return result.readings.map(display).join(' / ');
+  if (result.substitute || !result.pairs.length) return result.readings.map(display).join(' / ');
   return [display(result), ...(result.readings ?? []).map(display)].join(' / ');
 }
 
