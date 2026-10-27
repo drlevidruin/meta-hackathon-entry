@@ -226,10 +226,11 @@ function heldLongEnough(profile) {
 
 function decisionFor(profile, picked, items, plan) {
   const first = items.find(item => item.id === picked.itemIds[0]);
-  const move = picked.level > profile.level ? 'up' : picked.level < profile.level ? 'down'
+  const current = snapLevel(profile.level, availableLevels(items));
+  const move = picked.level > current ? 'up' : picked.level < current ? 'down'
     : profile.checkpoints ? 'stay' : 'start';
   return {
-    move, from: profile.level, level: picked.level, target: plan.target,
+    move, from: current, level: picked.level, target: plan.target,
     focus: first?.focus || null,
     recentMisses: plan.target && profile.skills[plan.target] ? misses(profile.skills[plan.target]) : 0,
     why: move === 'start' ? 'start'

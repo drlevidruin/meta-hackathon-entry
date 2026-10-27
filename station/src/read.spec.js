@@ -132,7 +132,7 @@ it('uses the expected count from the server and lets the child record again befo
   expect(window.location.hash).toBe('#/child/plo/voice');
   fireEvent.click(screen.getByRole('button', { name: 'Record' }));
   fireEvent.click(screen.getByRole('button', { name: 'Stop recording' }));
-  expect(await screen.findByText(items[0].text, { selector: '.current-line' })).toBeTruthy();
+  expect(await screen.findByText('בָּ בַּ מָ', { selector: '.current-line' })).toBeTruthy();
 });
 
 it.each([
@@ -271,7 +271,7 @@ it('finishes when the server says done, saves line and bonus stars, and replaces
   const finish = vi.spyOn(api, 'finish');
   const replace = vi.spyOn(window.history, 'replaceState');
   render(React.createElement(App));
-  for (const item of items) {
+  for (const item of items.filter(item => !item.source?.beginner)) {
     await screen.findByText(item.text, { selector: '.current-line' }, { timeout: 3500 });
     fireEvent.click(screen.getByRole('button', { name: 'Record' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Stop recording' }));

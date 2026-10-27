@@ -93,9 +93,12 @@ in that order. Five columns use the original 15 syllables on בּ ד מ. Three o
 four columns use those three rows. One or two columns use six rows, בּ ד מ ג תּ ק.
 No shown columns, or labels with no usable pair for the preset, gives no card.
 For example, kamatz alone has no card for Ashkenazi. `POST /api/voice` then returns
-409 `{ error: "No voice check" }` before consuming audio. Otherwise it builds
-the profile using the child's card and preset. A count mismatch returns 422
-`{ error: "count", heard, expected }`, where `expected` is the card's length.
+409 `{ error: "No voice check" }` before consuming audio, or if the card is
+removed during upload. If the card's syllables or preset labels change during
+upload, it returns 409 `{ error: "Voice card changed" }` without saving a profile
+or changing `voiceSkipped`. Otherwise it builds the profile using the captured
+card and labels. A count mismatch returns 422 `{ error: "count", heard, expected }`,
+where `expected` is the captured card's length.
 Measured classes with at least two tokens each must also hold a usable pair,
 otherwise the audio returns 422 `{ error: "quiet" }`. Malformed WAV or a WAV
 outside 16 kHz mono returns 415 `{ error: "Use 16 kHz mono WAV" }`. Success

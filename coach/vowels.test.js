@@ -1,10 +1,39 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { chooseNextSet, ruleNextSet, startProfile } from './index.js';
+import { chooseNextSet, explain, ruleNextSet, startProfile } from './index.js';
 
 const items = [1, 2, 4].flatMap(level => ['a', 'b', 'c'].map(id => ({
   id: `${level}-${id}`, level, skills: ['vowel:kamatz'], focus: 'vowel:kamatz',
 })));
+
+test('a first set snapped down to an available level starts without consuming demotion evidence', async () => {
+  const profile = startProfile({ level: 6 });
+  profile.skills = {
+    'vowel:kamatz': { tries: 5, misses: 2, recent: [0, 0, 0, 1, 1], demotedAt: 2 },
+    'letter:bet': { tries: 3, misses: 0, recent: [0, 0, 0] },
+  };
+  profile.cleanAtLevel = { clean: true, held: [['vowel:kamatz'], ['letter:bet']] };
+  const picked = await chooseNextSet(profile, [], items, { useModel: false });
+  assert.equal(picked.decision.move, 'start');
+  assert.equal(picked.decision.why, 'start');
+  assert.equal(picked.level, 4);
+  assert.equal(picked.decision.level, 4);
+  assert.equal(picked.decision.from, 4);
+  assert.equal(picked.profile.level, 4);
+  assert.deepEqual(picked.profile.skills, profile.skills);
+  assert.deepEqual(picked.profile.cleanAtLevel, profile.cleanAtLevel);
+  assert.equal(explain(picked.decision), 'Started at level 4 with a focus on the vowel kamatz.');
+});
+
+test('a first set below all available levels starts at the lowest available level', async () => {
+  const bank = [2, 3].map(level => ({ ...items[0], id: `level-${level}`, level }));
+  const picked = await chooseNextSet(startProfile(), [], bank, { useModel: false });
+  assert.equal(picked.decision.move, 'start');
+  assert.equal(picked.decision.why, 'start');
+  assert.equal(picked.level, 2);
+  assert.equal(picked.decision.from, 2);
+  assert.equal(explain(picked.decision), 'Started at level 2 with a focus on the vowel kamatz.');
+});
 
 test('rule levels snap and move between the available regular levels', async () => {
   for (const [level, state, expected] of [[2, 'clean', 4], [4, 'missed', 2], [3, 'start', 2],

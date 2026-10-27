@@ -276,6 +276,48 @@ test('voice status, skip, delete and successful subset recording follow the lear
   assert.deepEqual(mismatch.json, { error: 'count', heard: 2, expected: 12 });
 });
 
+for (const [change, vowels, fields, error] of [
+  ['vowels with the same card length', ['kamatz', 'patach'], { vowels: ['patach', 'segol'] }, 'Voice card changed'],
+  ['preset with the same card syllables', ['kamatz', 'segol', 'chirik'], { preset: 'sephardi' }, 'Voice card changed'],
+  ['vowels that remove the card', ['kamatz', 'patach'], { vowels: ['kamatz'] }, 'No voice check'],
+]) {
+  test(`an open voice upload rejects changed ${change} without saving or clearing a skip`, async () => {
+    for (const skipped of [false, true]) {
+      const { app, dataDir } = setup();
+      const child = await add(app, { preset: 'ashkenazi', vowels });
+      if (skipped) {
+        await request(app, `/api/children/${child.id}/voice`, { method: 'PUT', headers: auth, data: { skipped: true } });
+      }
+      const card = voiceCardFor(child.vowels, child.preset);
+      const data = wav(utterance(cardLabels(child.preset, card)));
+      const entered = deferred();
+      const req = new Readable({ read() { entered.resolve(); } });
+      Object.assign(req, { method: 'POST', url: `/api/voice?child=${child.id}`, headers: { 'content-type': 'audio/wav' } });
+      let status, body;
+      const pending = app(req, { writeHead(code) { status = code; }, end(value) { body = JSON.parse(value); } });
+      await Promise.race([entered.promise, pending.then(() => { throw new Error('Upload ended before reading audio'); })]);
+      const edited = await patch(app, child.id, fields);
+      assert.equal(edited.status, 200);
+      const updatedCard = voiceCardFor(edited.json.vowels, edited.json.preset);
+      if (error === 'Voice card changed') assert.equal(updatedCard.length, card.length);
+      if (fields.preset) {
+        assert.deepEqual(updatedCard, card);
+        assert.notDeepEqual(cardLabels(edited.json.preset, updatedCard), cardLabels(child.preset, card));
+      }
+      req.push(data);
+      req.push(null);
+      await pending;
+      assert.equal(status, 409);
+      assert.deepEqual(body, { error });
+      const saved = disk(dataDir).children[child.id];
+      assert.equal(saved.voice, null);
+      assert.equal(saved.voiceSkipped, skipped ? true : undefined);
+      assert.equal((await get(app, '/api/children')).json[0].voiceStatus,
+        error === 'No voice check' ? 'none' : skipped ? 'skipped' : 'needed');
+    }
+  });
+}
+
 test('a child with no measurable card returns 409 without consuming the audio', async () => {
   const bank = [{ ...items[0], id: 'cholam', text: 'בֹּ', skills: ['vowel:cholam'] }];
   const { app } = setup({ items: bank });
