@@ -36,10 +36,14 @@ export function parseEarOutput(text) {
 
 // The models sometimes answer in English prose instead of sounds ("I don't have the
 // ability to hear audio"). That is a failed call, not a child who read badly.
-const proseWords = /\b(?:i|audio|hear|heard|ability|upload|sorry|cannot|unable|file|sound|alphabet|please)\b/i;
+// Single letters such as "i" are real vowels, so they never count as prose.
+const proseWords = /\b(?:audio|hear|heard|ability|upload|sorry|cannot|unable|file|sound|alphabet|please|recording|transcribe)\b/gi;
+const prosePhrase = /\b(?:i (?:can'?t|cannot|don'?t|do not|am (?:not |un)able)|i'?m (?:sorry|unable|not able)|as an ai)\b/i;
 
 export function looksLikeProse(raw) {
   const tokens = raw.trim().split(/\s+/).filter(Boolean);
-  const longLine = raw.split(/\r?\n/).some((line) => line.trim().split(/\s+/).length > 6);
-  return tokens.length > 6 && longLine && proseWords.test(raw);
+  if (tokens.length <= 6) return false;
+  if (prosePhrase.test(raw)) return true;
+  const hits = new Set((raw.match(proseWords) || []).map((word) => word.toLowerCase()));
+  return hits.size >= 2;
 }

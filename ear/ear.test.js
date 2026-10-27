@@ -465,4 +465,8 @@ test('looksLikeProse leaves real sound lines alone', async () => {
   const { looksLikeProse } = await import('./parse.js');
   assert.equal(looksLikeProse('she-ma\nyis-ro-eyl\na-do-noy\ne-lo-key-nu\na-do-noy\ne-chod'), false);
   assert.equal(looksLikeProse('i ? have the ability to hear audio so i ? hear the child'), true);
+  assert.equal(looksLikeProse('ni i ma ti ka lo mi i'), false);
+  assert.equal(looksLikeProse('ni\ni\nma\nti\nka\nlo\nmi'), false);
+  assert.equal(looksLikeProse("I'm sorry,\nbut I can't\nlisten to\nthis file\nright now\nfriend"), true);
+  assert.equal(looksLikeProse('please\nupload\nthe\naudio\nfile\nagain\nnow'), true);
 });
