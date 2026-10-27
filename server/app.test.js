@@ -102,7 +102,15 @@ async function start(app, childId) {
 }
 const grade = (app, turnId, item = 'kamatz-0', options = {}) => request(app, `/api/grade?turn=${turnId}&item=${item}`,
   { type: 'audio/wav', data: Buffer.from('FAKE_AUDIO_BYTES'), ...options });
-const next = (app, turnId, elapsedMs = 1200) => request(app, '/api/next', { data: { turnId, elapsedMs } });
+const checkpoints = new WeakMap();
+async function next(app, turnId, elapsedMs = 1200) {
+  if (!checkpoints.has(app)) checkpoints.set(app, new Map());
+  const counts = checkpoints.get(app);
+  const checkpoint = (counts.get(turnId) || 0) + 1;
+  const response = await request(app, '/api/next', { data: { turnId, elapsedMs, checkpoint } });
+  if (response.status === 200) counts.set(turnId, checkpoint);
+  return response;
+}
 const finish = (app, turnId, stars = 3) => request(app, '/api/finish', { data: { turnId, stars } });
 const patch = (app, id, data) => request(app, `/api/children/${id}`, { method: 'PATCH', headers: auth, data });
 const disk = dataDir => JSON.parse(fs.readFileSync(path.join(dataDir, 'store.json'), 'utf8'));
@@ -303,8 +311,8 @@ test('the complete flow advances levels, returns facts, saves history, and accum
   assert.deepEqual(done.json, { done: true, level: 2, levelUp: false, facts: { best: 'letter:bet', next: 'vowel:kamatz', proven: [] } });
   assert.equal((await next(app, turn.turnId)).status, 400);
   const saved = await finish(app, turn.turnId, 5);
-  assert.deepEqual(saved.json.child, { ...child, level: 2, stars: 5, best: 5 });
-  assert.equal((await finish(app, turn.turnId, 5)).status, 404);
+  assert.deepEqual(saved.json.child, { ...child, level: 2, stars: 1, best: 1 });
+  assert.deepEqual((await finish(app, turn.turnId, 5)).json, saved.json);
   assert.equal((await grade(app, turn.turnId)).status, 404);
   assert.equal((await next(app, turn.turnId)).status, 404);
   const state = disk(dataDir);
@@ -315,9 +323,12 @@ test('the complete flow advances levels, returns facts, saves history, and accum
   assert.equal(state.turns[child.id][0].decisions.length, 3);
   assert.deepEqual(state.turns[child.id][0].log, Array(3).fill('Keep practicing these sounds.'));
   const second = await start(app, child.id);
-  assert.equal((await finish(app, second.turnId, 2)).json.child.best, 5);
+  await grade(app, second.turnId);
+  assert.equal((await finish(app, second.turnId, 2)).json.child.best, 1);
   const third = await start(app, child.id);
-  assert.deepEqual((await finish(app, third.turnId, 7)).json.child, { ...child, level: 2, stars: 14, best: 7 });
+  await grade(app, third.turnId);
+  await grade(app, third.turnId, 'kamatz-1');
+  assert.deepEqual((await finish(app, third.turnId, 7)).json.child, { ...child, level: 2, stars: 4, best: 2 });
 });
 
 test('failed lines stay out of checkpoints and COACH_MODEL=off disables model use', async () => {
@@ -422,7 +433,7 @@ test('class groups use next skill, biggest first then label, and expose the last
     { skill: 'vowel:kamatz', label: 'Kamatz', childIds: [first.id, second.id] },
     { skill: 'letter:bet', label: 'Bet', childIds: [third.id] },
   ]);
-  assert.deepEqual(response.json.children[0].lastTurn, { date: response.json.children[0].lastTurn.date, ok: 1, pairs: 1, stars: 4 });
+  assert.deepEqual(response.json.children[0].lastTurn, { date: response.json.children[0].lastTurn.date, ok: 1, pairs: 1, stars: 1 });
   assert.equal(response.json.children[1].lastTurn, null);
   assert.equal(response.json.children[3].next, null);
   await patch(app, second.id, { level: 3 });
@@ -485,7 +496,7 @@ test('detail returns the latest twenty turns, templated parent lines and explain
   }
   const detail = (await teacherGet(app, `/api/children/${child.id}/detail`)).json;
   assert.equal(detail.turns.length, 20);
-  assert.deepEqual(detail.turns.map(turn => turn.stars), Array.from({ length: 20 }, (_, i) => 20 - i));
+  assert.deepEqual(detail.turns.map(turn => turn.stars), Array(20).fill(1));
   assert.ok(detail.turns[0].date > detail.turns[1].date);
   assert.deepEqual(Object.keys(detail.turns[0]).sort(), ['date', 'endLevel', 'log', 'ok', 'pairs', 'stars', 'startLevel']);
   assert.deepEqual(detail.turns[0].log, ['Keep practicing these sounds.']);
@@ -523,7 +534,7 @@ test('parent line follows the coach next skill rather than the first summary mis
   assert.equal(detail.parentLine, 'Sprout read 0 of 1 sounds right today. One to practice: a bet with a dot says b.');
 });
 
-test('parent line says every sound was right when the coach has no next skill', async () => {
+test('parent line stops after the count when the coach has no next skill and there are misses', async () => {
   const { app } = setup({
     gradeLine: () => gradeFor('wrong_vowel'),
     turnFacts: () => ({ best: null, next: null, proven: [] }),
@@ -533,7 +544,7 @@ test('parent line says every sound was right when the coach has no next skill', 
   await grade(app, turn.turnId);
   await finish(app, turn.turnId);
   const detail = (await teacherGet(app, `/api/children/${child.id}/detail`)).json;
-  assert.equal(detail.parentLine, 'Sprout read 0 of 1 sounds right today. Every sound was right!');
+  assert.equal(detail.parentLine, 'Sprout read 0 of 1 sounds right today.');
 });
 
 test('server entry point has no test-context import', () => {
@@ -635,7 +646,7 @@ test('the store survives an app reload but open turns and private trace reasons 
   await grade(app, turn.turnId);
   await finish(app, turn.turnId, 6);
   const reloaded = setup({ dataDir, trace: true });
-  assert.deepEqual((await get(reloaded.app, '/api/children')).json, [{ ...child, stars: 6, best: 6 }]);
+  assert.deepEqual((await get(reloaded.app, '/api/children')).json, [{ ...child, stars: 1, best: 1 }]);
   const detail = await teacherGet(reloaded.app, `/api/children/${child.id}/detail`);
   assert.equal(detail.json.turns.length, 1);
   assert.equal(detail.json.turns[0].ok, 1);
@@ -712,9 +723,10 @@ test('concurrent child writes preserve both records and concurrent finish cannot
   const children = await Promise.all([add(app, { name: 'Cloud' }), add(app, { name: 'Leaf' })]);
   assert.equal(Object.keys(disk(dataDir).children).length, 2);
   const turn = await start(app, children[0].id);
+  await grade(app, turn.turnId);
   const outcomes = await Promise.all([finish(app, turn.turnId, 5), finish(app, turn.turnId, 5)]);
-  assert.deepEqual(outcomes.map(outcome => outcome.status), [200, 404]);
-  assert.equal(disk(dataDir).children[children[0].id].stars, 5);
+  assert.deepEqual(outcomes.map(outcome => outcome.status), [200, 200]);
+  assert.equal(disk(dataDir).children[children[0].id].stars, 1);
 });
 
 test('static serving, HEAD, index fallback and path traversal protection still work', async () => {
@@ -744,4 +756,217 @@ test('invalid coach selections and dependency failures return safe errors', asyn
     assert.equal(response.status, 500);
     assert.deepEqual(response.json, { error: 'Request failed' });
   }
+});
+
+
+test('finish caps browser stars at the stars earned by the latest server grades', async () => {
+  let result = gradeFor('wrong_vowel');
+  const { app, dataDir } = setup({ gradeLine: () => result });
+  const child = await add(app);
+  const turn = await start(app, child.id);
+  await grade(app, turn.turnId);
+  result = gradeFor();
+  await grade(app, turn.turnId);
+  const receipt = await finish(app, turn.turnId, Number.MAX_SAFE_INTEGER);
+  assert.equal(receipt.status, 200);
+  assert.equal(receipt.json.child.stars, 1);
+  assert.equal(receipt.json.child.best, 1);
+  assert.equal(disk(dataDir).turns[child.id][0].stars, 1);
+});
+
+test('finish awards the smaller client count and never awards ungraded or failed lines', async () => {
+  for (const claimed of [0, 1, 9]) {
+    const { app } = setup();
+    const child = await add(app);
+    const turn = await start(app, child.id);
+    await grade(app, turn.turnId);
+    await grade(app, turn.turnId, 'kamatz-1');
+    assert.equal((await finish(app, turn.turnId, claimed)).json.child.stars, Math.min(claimed, 2));
+  }
+  const { app } = setup({ listen: async () => { throw new Error('offline'); } });
+  const child = await add(app);
+  const turn = await start(app, child.id);
+  await grade(app, turn.turnId);
+  assert.equal((await finish(app, turn.turnId, 100)).json.child.stars, 0);
+});
+
+test('finish counts challenge bonuses and repeated items in separate sets from server grades', async () => {
+  const { app } = setup({ chooseNextSet: async profile => selection(profile, { itemIds: ['kamatz-0', 'challenge'] }) });
+  const child = await add(app);
+  const turn = await start(app, child.id);
+  for (let checkpoint = 1; checkpoint <= 2; checkpoint++) {
+    await grade(app, turn.turnId);
+    await grade(app, turn.turnId, 'challenge');
+    await request(app, '/api/next', { data: { turnId: turn.turnId, checkpoint, elapsedMs: 10 } });
+  }
+  assert.equal((await finish(app, turn.turnId, 100)).json.child.stars, 6);
+});
+
+test('finish retries return the original receipt even after another turn changes totals', async () => {
+  const { app, dataDir } = setup();
+  const child = await add(app);
+  const turn = await start(app, child.id);
+  await grade(app, turn.turnId);
+  const first = await finish(app, turn.turnId, 1);
+  const newer = await start(app, child.id);
+  await grade(app, newer.turnId);
+  await finish(app, newer.turnId, 1);
+  const retry = await finish(app, turn.turnId, 900);
+  assert.equal(retry.status, 200);
+  assert.deepEqual(retry.json, first.json);
+  assert.equal(disk(dataDir).children[child.id].stars, 2);
+  assert.equal(disk(dataDir).turns[child.id].length, 2);
+});
+
+test('checkpoint retries replay the saved response without coaching or consuming current grades', async () => {
+  const { app, chooseNextSet, dataDir } = setup();
+  const child = await add(app);
+  const turn = await start(app, child.id);
+  const checkpoint = number => request(app, '/api/next', { data: { turnId: turn.turnId, checkpoint: number, elapsedMs: 10 } });
+  await grade(app, turn.turnId);
+  const first = await checkpoint(1);
+  await grade(app, turn.turnId);
+  const retry = await checkpoint(1);
+  assert.equal(retry.status, 200);
+  assert.deepEqual(retry.json, first.json);
+  assert.equal(chooseNextSet.mock.callCount(), 2);
+  assert.equal((await checkpoint(3)).status, 409);
+  assert.equal((await checkpoint(0)).status, 409);
+  assert.equal((await checkpoint(2)).status, 200);
+  assert.equal((await checkpoint(1)).status, 409);
+  await finish(app, turn.turnId);
+  assert.equal(disk(dataDir).turns[child.id][0].pairs, 2);
+});
+
+test('concurrent checkpoint retries coach once and done checkpoints replay too', async () => {
+  const { app, chooseNextSet } = setup({ chooseNextSet: mock.fn(async (profile, results) =>
+    selection(profile, { done: results.length > 0 })) });
+  const child = await add(app);
+  const turn = await start(app, child.id);
+  await grade(app, turn.turnId);
+  const call = () => request(app, '/api/next', { data: { turnId: turn.turnId, checkpoint: 1, elapsedMs: 10 } });
+  const responses = await Promise.all([call(), call()]);
+  assert.deepEqual(responses.map(response => response.status), [200, 200]);
+  assert.deepEqual(responses[0].json, responses[1].json);
+  assert.equal(responses[1].json.done, true);
+  assert.equal(chooseNextSet.mock.callCount(), 2);
+});
+
+test('next requires an integer checkpoint identity', async () => {
+  const { app } = setup();
+  const child = await add(app);
+  const turn = await start(app, child.id);
+  for (const checkpoint of [undefined, null, '1', 1.5, -1, Number.MAX_SAFE_INTEGER + 1]) {
+    assert.equal((await request(app, '/api/next', { data: { turnId: turn.turnId, elapsedMs: 1, checkpoint } })).status, 409);
+  }
+});
+
+test('a new turn and a changed teacher level invalidate earlier live turns', async () => {
+  const { app, dataDir } = setup();
+  const child = await add(app);
+  const old = await start(app, child.id);
+  await grade(app, old.turnId);
+  const current = await start(app, child.id);
+  assert.equal((await finish(app, old.turnId)).status, 404);
+  assert.equal((await grade(app, old.turnId)).status, 404);
+  await patch(app, child.id, { level: 4 });
+  assert.equal((await finish(app, current.turnId)).status, 404);
+  assert.equal(disk(dataDir).children[child.id].level, 4);
+  assert.deepEqual(disk(dataDir).turns[child.id], []);
+});
+
+test('roster edits with the same level preserve the saved coach profile and live turn', async () => {
+  const { app, dataDir } = setup({ ...realCoach, coachModel: 'off' });
+  const child = await add(app);
+  const first = await start(app, child.id);
+  await grade(app, first.turnId);
+  await request(app, '/api/next', { data: { turnId: first.turnId, checkpoint: 1, elapsedMs: 10 } });
+  await finish(app, first.turnId);
+  const before = disk(dataDir).children[child.id].profile;
+  const live = await start(app, child.id);
+  await patch(app, child.id, { level: before.level, name: 'Pebble', avatar: 'fox', preset: 'ashkenazi' });
+  assert.deepEqual(disk(dataDir).children[child.id].profile, before);
+  assert.equal((await finish(app, live.turnId)).status, 200);
+});
+
+function deferred() {
+  let resolve;
+  const promise = new Promise(done => { resolve = done; });
+  return { promise, resolve };
+}
+
+for (const invalidation of ['delete', 'start', 'level', 'expiry']) {
+  test(`pending checkpoint returns 404 after ${invalidation} invalidates the turn`, async () => {
+    const entered = deferred(), release = deferred();
+    let time = 1000;
+    const { app, dataDir } = setup({ now: () => time, chooseNextSet: async (profile, results, candidates, options) => {
+      if (options.useModel) { entered.resolve(); await release.promise; }
+      return selection(profile);
+    } });
+    const child = await add(app);
+    const turn = await start(app, child.id);
+    const pending = request(app, '/api/next', { data: { turnId: turn.turnId, checkpoint: 1, elapsedMs: 10 } });
+    await entered.promise;
+    if (invalidation === 'delete') await request(app, `/api/children/${child.id}`, { method: 'DELETE', headers: auth });
+    if (invalidation === 'start') await start(app, child.id);
+    if (invalidation === 'level') await patch(app, child.id, { level: 3 });
+    if (invalidation === 'expiry') time += 30 * 60 * 1000;
+    const before = disk(dataDir);
+    release.resolve();
+    assert.equal((await pending).status, 404);
+    assert.deepEqual(disk(dataDir), before);
+  });
+}
+
+test('a start during a teacher level write waits for the saved profile', async t => {
+  const { app, dataDir } = setup();
+  const child = await add(app);
+  const entered = deferred(), release = deferred();
+  const rename = fs.promises.rename;
+  t.mock.method(fs.promises, 'rename', async function(from, to) {
+    if (to === path.join(dataDir, 'store.json')) {
+      entered.resolve();
+      await release.promise;
+    }
+    return rename.call(this, from, to);
+  });
+  const editing = patch(app, child.id, { level: 4 });
+  await entered.promise;
+  const starting = start(app, child.id);
+  // Let the start request reach the store while the teacher write is pending.
+  await new Promise(resolve => setImmediate(resolve));
+  release.resolve();
+  assert.equal((await editing).status, 200);
+  const turn = await starting;
+  assert.equal(turn.level, 4);
+  assert.equal((await finish(app, turn.turnId)).json.child.level, 4);
+});
+
+for (const invalidation of ['start', 'level']) {
+  test(`a pending start cannot reopen a turn after a newer ${invalidation}`, async () => {
+    const entered = deferred(), release = deferred();
+    let calls = 0;
+    const { app } = setup({ chooseNextSet: async profile => {
+      if (++calls === 1) { entered.resolve(); await release.promise; }
+      return selection(profile);
+    } });
+    const child = await add(app);
+    const pending = request(app, '/api/start', { data: { childId: child.id } });
+    await entered.promise;
+    if (invalidation === 'start') await start(app, child.id);
+    else await patch(app, child.id, { level: 4 });
+    release.resolve();
+    assert.equal((await pending).status, 404);
+  });
+}
+
+test('a failed teacher level write preserves the live turn as well as the saved profile', async t => {
+  const { app, dataDir } = setup();
+  const child = await add(app);
+  const turn = await start(app, child.id);
+  const rename = t.mock.method(fs.promises, 'rename', async () => { throw new Error('offline write failure'); });
+  assert.equal((await patch(app, child.id, { level: 4 })).status, 500);
+  rename.mock.restore();
+  assert.equal(disk(dataDir).children[child.id].level, 1);
+  assert.equal((await grade(app, turn.turnId)).status, 200);
 });

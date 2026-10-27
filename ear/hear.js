@@ -82,6 +82,7 @@ async function readAudio(audio) {
 class EarFailure extends Error {}
 
 async function request(provider, audio, fetcher) {
+  if (provider.model.endsWith('-contributor')) throw new EarFailure('contributor models are disabled');
   const key = process.env[provider.key];
   if (!key?.trim()) throw new EarFailure('no key');
 

@@ -28,6 +28,15 @@ export function useTurn() {
     setTurn(value);
   }
 
+  function unknownTurn(error, turnId) {
+    if (error.status !== 404) return false;
+    if (current.current?.turnId === turnId) {
+      store(null);
+      navigate('/', { replace: true });
+    }
+    return true;
+  }
+
   async function start(child, { replace = false } = {}) {
     if (startingRef.current || !child?.id) return;
     startingRef.current = true;
@@ -63,7 +72,8 @@ export function useTurn() {
       const audio = api.isMockMode() ? null : await recordingToWav(blob);
       result = await api.grade({ turnId: snapshot.turnId, itemId: item.id, audio });
       if (result.itemId !== item.id || !Array.isArray(result.words) || !result.summary) throw new Error('Invalid grade');
-    } catch {
+    } catch (error) {
+      if (unknownTurn(error, snapshot.turnId)) return;
       result = grayGrade(item);
       status = 'failed';
     }
@@ -95,7 +105,8 @@ export function useTurn() {
     if (latest.phase === 'checkpoint' && latest.attempts.slice(latest.setStart).every(entry => entry.status !== 'pending')) {
       const checkpoint = latest;
       store({ ...latest, phase: 'choosing' });
-      api.next({ turnId: latest.turnId, elapsedMs: Math.max(0, Date.now() - latest.setStartedAt) }).then(response => {
+      api.next({ turnId: latest.turnId, checkpoint: latest.completedSets + 1,
+        elapsedMs: Math.max(0, Date.now() - latest.setStartedAt) }).then(response => {
         if (current.current?.turnId !== checkpoint.turnId) return;
         if (!response.done && !validSet(response.set)) throw new Error('Invalid set');
         const phase = response.done ? 'finish_pending' : 'reading';
@@ -108,7 +119,8 @@ export function useTurn() {
           phase: response.levelUp ? 'level_up' : phase, afterLevelUp: phase,
           levelUpUntil: response.levelUp ? Date.now() + 2000 : null,
         });
-      }).catch(() => {
+      }).catch(error => {
+        if (unknownTurn(error, checkpoint.turnId)) return;
         if (current.current?.turnId === checkpoint.turnId) store({ ...current.current, phase: 'next_error' });
       });
     } else if (latest.phase === 'finish_pending') {
@@ -116,7 +128,8 @@ export function useTurn() {
       store({ ...latest, phase: 'finishing' });
       api.finish({ turnId: latest.turnId, stars: latest.stars }).then(({ child }) => {
         if (current.current?.turnId === snapshot.turnId) store({ ...current.current, child, phase: 'finished' });
-      }).catch(() => {
+      }).catch(error => {
+        if (unknownTurn(error, snapshot.turnId)) return;
         if (current.current?.turnId === snapshot.turnId) store({ ...current.current, phase: 'finish_error' });
       });
     }

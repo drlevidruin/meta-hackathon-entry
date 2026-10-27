@@ -6,6 +6,7 @@ import { createStore, durable } from './store.js';
 import { buildMap, recordPairs, summaryOnly, totalSummary } from './progress.js';
 import { parentLine } from './hints.js';
 import { makePacket } from './packet.js';
+import { lineStars } from './stars.js';
 import { startTurn as resetTurn, chooseNextSet as ruleChooseNextSet } from '../coach/index.js';
 
 const PRESETS = new Set(['sephardi', 'ashkenazi', 'chassidish']);
@@ -150,6 +151,7 @@ export function createApp({
   const byId = new Map(items.map(item => [item.id, item]));
   const store = createStore(dataDir);
   const turns = new Map();
+  const starts = new Map();
   const traceEnabled = trace === true || trace === '1';
 
   function teacher(req) {
@@ -190,14 +192,28 @@ export function createApp({
     };
   }
 
-  function turnOperation(id, operation) {
+  function invalidateLiveTurns(childId) {
+    const token = Symbol();
+    starts.set(childId, token);
+    for (const [id, turn] of turns) {
+      if (turn.childId === childId && !turn.finished) turns.delete(id);
+    }
+    return token;
+  }
+
+  function checkTurn(turn, allowFinished = false) {
+    if (turns.get(turn.id) !== turn || (!allowFinished && turn.finished)
+      || now() - turn.createdAt >= TURN_TTL) {
+      throw new RequestError(404, 'Unknown turn');
+    }
+    getChild(turn.childId);
+  }
+
+  function turnOperation(id, operation, allowFinished = false) {
     const turn = turns.get(id);
     if (!turn) throw new RequestError(404, 'Unknown turn');
     const result = turn.pending.then(async () => {
-      if (turns.get(id) !== turn || turn.finished || now() - turn.createdAt >= TURN_TTL) {
-        throw new RequestError(404, 'Unknown turn');
-      }
-      getChild(turn.childId);
+      checkTurn(turn, allowFinished);
       return operation(turn);
     });
     turn.pending = result.catch(() => {});
@@ -238,17 +254,23 @@ export function createApp({
         const id = childRoute[1];
         getChild(id);
         const fields = childFields(await jsonBody(req), true);
-        const child = await store.update(state => {
+        const { child, levelChanged } = await store.update(state => {
           const current = childIn(state, id);
+          const levelChanged = Object.hasOwn(fields, 'level') && fields.level !== current.level;
+          if (levelChanged) {
+            current.profile = startProfile({ level: fields.level });
+          }
           Object.assign(current, fields);
-          if (Object.hasOwn(fields, 'level')) current.profile = startProfile({ level: fields.level });
-          return current;
+          return { child: current, levelChanged };
         });
+        if (levelChanged) invalidateLiveTurns(id);
         json(res, 200, childView(child));
       } else if (req.method === 'DELETE' && childRoute && !childRoute[2]) {
         const id = childRoute[1];
         await store.update(state => {
           childIn(state, id);
+          invalidateLiveTurns(id);
+          starts.delete(id);
           delete state.children[id];
           delete state.turns[id];
         });
@@ -256,18 +278,22 @@ export function createApp({
         json(res, 200, { ok: true });
       } else if (req.method === 'POST' && pathname === '/api/start') {
         const { childId } = await jsonBody(req);
+        // A teacher edit or finish may still be committing its new profile.
+        await store.ready();
         const child = getChild(childId);
+        const token = invalidateLiveTurns(childId);
         const profile = startTurn(child.profile || startProfile({ level: child.level }));
         let next = await chooseNextSet(profile, [], items, { useModel: false });
         if (next.done) next = await ruleChooseNextSet(profile, [], items, { useModel: false });
         const set = selected(next);
         const entry = decisionEntry(next, 0);
         getChild(childId);
+        if (starts.get(childId) !== token) throw new RequestError(404, 'Unknown turn');
         const turnId = randomUUID();
         turns.set(turnId, {
           id: turnId, childId, preset: child.preset, createdAt: now(), startLevel: child.level,
           level: next.level, profile: next.profile, set, results: new Map(), completed: [],
-          decisions: [entry], done: false, finished: false, pending: Promise.resolve(),
+          decisions: [entry], checkpoint: 0, checkpointResponse: null, done: false, finished: false, pending: Promise.resolve(),
         });
         json(res, 200, { turnId, level: next.level, set });
       } else if (req.method === 'POST' && url.pathname === '/api/grade') {
@@ -284,19 +310,36 @@ export function createApp({
           } finally {
             data = null;
           }
+          checkTurn(turn);
           const grade = await gradeLine({ heard: heard.words, text: item.text, preset: turn.preset });
           const result = { itemId: item.id, summary: summaryOnly(grade.summary), verdicts: grade.verdicts };
-          await store.update(state => recordPairs(childIn(state, turn.childId).pairs, result.verdicts));
+          const earnedStars = lineStars(grade, item.source?.challenge === true);
+          await store.update(state => {
+            checkTurn(turn);
+            recordPairs(childIn(state, turn.childId).pairs, result.verdicts);
+          });
+          checkTurn(turn);
+          result.earnedStars = earnedStars;
           turn.results.set(item.id, result);
           json(res, 200, { itemId: item.id, words: grade.words, summary: result.summary });
         });
       } else if (req.method === 'POST' && url.pathname === '/api/next') {
-        const { turnId, elapsedMs } = await jsonBody(req);
+        const { turnId, elapsedMs, checkpoint } = await jsonBody(req);
         if (!Number.isFinite(elapsedMs) || elapsedMs < 0) throw new RequestError(400, 'Invalid elapsed time');
         await turnOperation(turnId, async turn => {
+          if (!Number.isSafeInteger(checkpoint) || checkpoint < 1
+            || (checkpoint !== turn.checkpoint && checkpoint !== turn.checkpoint + 1)) {
+            throw new RequestError(409, 'Invalid checkpoint');
+          }
+          if (checkpoint === turn.checkpoint) {
+            json(res, 200, turn.checkpointResponse);
+            return;
+          }
           if (turn.done) throw new RequestError(400, 'Turn is complete');
           const results = turn.set.flatMap(item => turn.results.has(item.id) ? [turn.results.get(item.id)] : []);
-          const next = await chooseNextSet(turn.profile, results, items, { useModel: coachModel !== 'off', elapsedMs });
+          const next = await chooseNextSet(turn.profile, results.map(({ itemId, summary, verdicts }) =>
+            ({ itemId, summary, verdicts })), items, { useModel: coachModel !== 'off', elapsedMs });
+          checkTurn(turn);
           if (!Number.isInteger(next.level) || next.level < 1 || next.level > 6 || !next.profile) throw new Error('Invalid progress');
           const set = next.done ? [] : selected(next);
           const entry = decisionEntry(next, turn.decisions.length);
@@ -304,21 +347,28 @@ export function createApp({
           const facts = next.done ? factsView(turnFacts(next.profile)) : null;
           // Earlier sets need only summaries for finish. Keep full verdicts
           // only while the coach still needs the current set's results.
-          turn.completed.push(...results.map(({ itemId, summary }) => ({ itemId, summary })));
+          turn.completed.push(...results.map(({ itemId, summary, earnedStars }) => ({ itemId, summary, earnedStars })));
           turn.results = new Map();
           turn.profile = next.profile;
           turn.level = next.level;
           turn.set = set;
           turn.done = Boolean(next.done);
           turn.decisions.push(entry);
-          json(res, 200, next.done ? { done: true, level: next.level, levelUp, facts }
-            : { done: false, level: next.level, levelUp, set });
+          turn.checkpoint = checkpoint;
+          turn.checkpointResponse = next.done ? { done: true, level: next.level, levelUp, facts }
+            : { done: false, level: next.level, levelUp, set };
+          json(res, 200, turn.checkpointResponse);
         });
       } else if (req.method === 'POST' && pathname === '/api/finish') {
-        const { turnId, stars } = await jsonBody(req);
-        if (!Number.isSafeInteger(stars) || stars < 0) throw new RequestError(400, 'Invalid stars');
+        const { turnId, stars: requestedStars } = await jsonBody(req);
         await turnOperation(turnId, async turn => {
+          if (turn.finished) {
+            json(res, 200, turn.receipt);
+            return;
+          }
+          if (!Number.isSafeInteger(requestedStars) || requestedStars < 0) throw new RequestError(400, 'Invalid stars');
           const results = [...turn.completed, ...turn.results.values()];
+          const stars = Math.min(requestedStars, results.reduce((total, result) => total + result.earnedStars, 0));
           const summary = totalSummary(results);
           const record = {
             id: turn.id, date: new Date(now()).toISOString(), startLevel: turn.startLevel, endLevel: turn.level,
@@ -328,6 +378,7 @@ export function createApp({
             decisions: turn.decisions.map(({ checkpoint, source, decision, explain: line }) => ({ checkpoint, source, decision, explain: line })),
           };
           const child = await store.update(state => {
+            checkTurn(turn);
             const current = childIn(state, turn.childId);
             if (!Number.isSafeInteger(current.stars + stars)) throw new RequestError(400, 'Invalid stars');
             current.profile = turn.profile;
@@ -340,8 +391,9 @@ export function createApp({
           turn.finished = true;
           turn.results.clear();
           turn.completed = [];
-          json(res, 200, { child: childView(child) });
-        });
+          turn.receipt = { child: childView(child) };
+          json(res, 200, turn.receipt);
+        }, true);
       } else if (req.method === 'GET' && pathname === '/api/class') {
         const state = store.read();
         const groups = new Map();

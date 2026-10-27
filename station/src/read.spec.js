@@ -74,7 +74,7 @@ it('finishes when the server says done, saves line and bonus stars, and replaces
   expect(saved.completedSets).toBe(3);
   expect(saved.attempts).toHaveLength(6);
   expect(choose).toHaveBeenCalledTimes(3);
-  expect(choose.mock.calls[0][0]).toEqual({ turnId: saved.turnId, elapsedMs: expect.any(Number) });
+  expect(choose.mock.calls[0][0]).toEqual({ turnId: saved.turnId, elapsedMs: expect.any(Number), checkpoint: 1 });
   expect(finish).toHaveBeenCalledWith({ turnId: saved.turnId, stars: 9 });
   fireEvent.click(screen.getByRole('button', { name: 'Next friend' }));
   expect(await screen.findByRole('heading', { name: 'Who’s reading?' })).toBeTruthy();
@@ -113,7 +113,7 @@ it('advances immediately, scores resolved grades in reading order, and sends no 
   expect(result.current.turn.bestStreak).toBe(1);
   expect(result.current.turn.stars).toBe(2);
   expect(result.current.turn.set[0].id).toBe(items[2].id);
-  expect(Object.keys(choose.mock.calls[0][0]).sort()).toEqual(['elapsedMs', 'turnId']);
+  expect(Object.keys(choose.mock.calls[0][0]).sort()).toEqual(['checkpoint', 'elapsedMs', 'turnId']);
 });
 
 it('awards a star at 80 percent and a bonus only for a perfect challenge', () => {
@@ -266,4 +266,59 @@ it('uses no error red on read, recording, marked pairs, or done', () => {
   view.unmount();
   render(React.createElement(DoneScreen, { turn: turn({ stars: 4 }), onNext: vi.fn() })); check();
   expect(style.sheet.cssRules.length).toBeGreaterThan(50);
+});
+
+
+it('server and station line star rules agree on the same grade fixtures', async () => {
+  const { lineStars: serverStars } = await import('../../server/stars.js');
+  const { starFixtures } = await import('../../server/stars.fixtures.js');
+  for (const fixture of starFixtures) {
+    expect(lineStars(fixture.grade, fixture.challenge), fixture.name).toBe(fixture.stars);
+    expect(serverStars(fixture.grade, fixture.challenge), fixture.name).toBe(lineStars(fixture.grade, fixture.challenge));
+  }
+});
+
+it('retries a lost checkpoint response with the same completed-set count after reload', async () => {
+  const choose = vi.spyOn(api, 'next').mockRejectedValueOnce(new Error('Offline'))
+    .mockResolvedValue({ done: false, level: 1, set: items.slice(2, 4) });
+  sessionStorage.setItem(TURN_KEY, JSON.stringify(turn({ phase: 'checkpoint', lineIndex: 2, completedSets: 2 })));
+  const first = renderHook(useTurn);
+  await waitFor(() => expect(first.result.current.turn.phase).toBe('next_error'));
+  first.unmount();
+  const second = renderHook(useTurn);
+  await act(async () => second.result.current.retryNext());
+  await waitFor(() => expect(second.result.current.turn.phase).toBe('reading'));
+  expect(choose.mock.calls.map(([data]) => data.checkpoint)).toEqual([3, 3]);
+  expect(second.result.current.turn.completedSets).toBe(3);
+});
+
+it.each(['grade', 'next', 'finish'])('clears an unknown saved turn on %s 404 and returns to Who’s reading', async call => {
+  window.history.replaceState(null, '', '/#/read');
+  vi.spyOn(api, 'children').mockResolvedValue([child]);
+  vi.spyOn(api, 'config').mockResolvedValue({ trace: false });
+  vi.spyOn(api, 'isMockMode').mockReturnValue(true);
+  vi.spyOn(api, call).mockRejectedValue(Object.assign(new Error('Unknown turn'), { status: 404 }));
+  const phase = call === 'next' ? 'choosing' : call === 'finish' ? 'finishing' : 'reading';
+  sessionStorage.setItem(TURN_KEY, JSON.stringify(turn({ phase })));
+  render(React.createElement(App));
+  if (call === 'grade') {
+    fireEvent.click(await screen.findByRole('button', { name: 'Record' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Stop recording' }));
+  }
+  expect(await screen.findByRole('heading', { name: 'Who’s reading?' })).toBeTruthy();
+  expect(sessionStorage.getItem(TURN_KEY)).toBeNull();
+  expect(window.location.hash).toBe('#/');
+});
+
+it('a late unknown-turn response does not clear a newer turn', async () => {
+  let reject;
+  vi.spyOn(api, 'grade').mockReturnValue(new Promise((_resolve, fail) => { reject = fail; }));
+  const { result } = renderHook(useTurn);
+  await act(async () => result.current.start(child));
+  let upload;
+  act(() => { upload = result.current.record(null); });
+  await act(async () => result.current.start(child));
+  const newer = result.current.turn.turnId;
+  await act(async () => { reject(Object.assign(new Error('Unknown turn'), { status: 404 })); await upload; });
+  expect(result.current.turn.turnId).toBe(newer);
 });
