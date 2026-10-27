@@ -710,6 +710,32 @@ for (const change of ['clear', 'skip', 'vowel change', 'preset change']) {
   });
 }
 
+test('a start waiting on a refused voice upload still starts the turn', async t => {
+  const { app } = setup();
+  const child = await add(app);
+  const realRename = fs.promises.rename;
+  const writing = deferred(), release = deferred();
+  let held = false;
+  t.mock.method(fs.promises, 'rename', async function(...args) {
+    if (!held) { held = true; writing.resolve(); await release.promise; }
+    return realRename.apply(this, args);
+  });
+  const first = voice(app, child);
+  await writing.promise;
+  // This upload waits behind the first and is refused once the first replaces the card.
+  const second = voice(app, child);
+  const started = request(app, '/api/start', { data: { childId: child.id } });
+  for (let round = 0; round < 5; round += 1) await new Promise(resolve => setImmediate(resolve));
+  release.resolve();
+  assert.equal((await first).status, 200);
+  const refused = await second;
+  assert.equal(refused.status, 409);
+  assert.deepEqual(refused.json, { error: 'Voice card changed' });
+  const response = await started;
+  assert.equal(response.status, 200, response.body);
+  assert.ok(response.json.turnId);
+});
+
 test('Voice card changed leaves a newer in-memory recording and profile unchanged', async () => {
   const { app, dataDir, listen } = setup();
   const child = await add(app);

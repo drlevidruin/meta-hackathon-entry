@@ -406,7 +406,8 @@ export function createApp({
         const { childId } = await jsonBody(req);
         // A teacher edit or finish may still be committing its new profile.
         await store.ready();
-        await voiceChanges.get(childId);
+        // Wait for a voice change to settle; its failure belongs to that request.
+        await voiceChanges.get(childId)?.catch(() => {});
         const child = getChild(childId);
         const token = invalidateLiveTurns(childId);
         const profile = startTurn(child.profile || startProfile({ level: child.level }));
