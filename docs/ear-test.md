@@ -2,7 +2,7 @@
 
 The ear must report the sounds that were spoken, including mistakes. It receives audio and a sound alphabet. It never sees the printed line. It can still mishear or replace a mistake with a familiar word.
 
-Muse Wonder 1.0 was chosen after the synthetic trials below. The adult round ran on October 27 and did not pass: Wonder kept the planted consonants, syllables and words, but wrote Israeli vowels for an Ashkenazi reading. The child round has not run.
+Muse Wonder 1.0 was chosen after the synthetic trials below. The adult round ran on October 27 and did not pass with either ear. Wonder kept the planted consonants, syllables and words, but wrote Israeli vowels for an Ashkenazi reading. Muse Spark Open did worse and filled in a skipped word of Shema from memory. The child round has not run.
 
 ## Round 0: synthetic voices
 
@@ -40,7 +40,7 @@ With those made-up examples, the notes report two runs per model:
 | Muse Spark 1.2 | 2 and 2 | 3 and 2 prose answers; 4 `?` clips per run. |
 | Muse Spark 1.3 | 1 and 4 | 7 and 4 `?` clips; 0 and 1 empty answers. |
 
-These are the notes' counts, not a complete per-clip record. Wonder was chosen as the fallback. Muse Spark Open on Baseten is wired as the primary ear and has not run.
+These are the notes' counts, not a complete per-clip record. Wonder was chosen as the fallback. Muse Spark Open on Baseten is wired as the primary ear. It first ran on October 27, on the adult clips.
 
 ### Speed: reasoning effort
 
@@ -102,7 +102,9 @@ Two more runs on the committed prompt, one at minimal and one at low reasoning, 
 
 Two prompt changes were tried in a scratch copy and not committed: a sentence telling the ear never to change vowels to Israeli or any other pronunciation, and an added `aw` vowel. Neither changed the vowels.
 
-Round 1 does not pass for Ashkenazi vowels. The next test sends the same clips to Muse Spark Open on Baseten, the primary ear. Sephardi readings have not been tested.
+Muse Spark Open, the primary ear, then heard the same 12 clips once through Baseten. It was the first time it had run. It did worse than Wonder: the grader marked 6 of the 10 planted mistakes, the strict check passed 2 of 12, and there were 23 false marks. It wrote the same Israeli vowels, including a-do-nay where Levi said a-do-noy. It often split syllables with spaces instead of hyphens, which the parser reads as separate words. On the Shema line Levi skipped אֱלֹהֵינוּ, and Spark Open wrote e-lo-hey-nu anyway: without seeing the text, it filled in the verse from memory.
+
+Round 1 does not pass for Ashkenazi vowels with either ear. Sephardi readings have not been tested.
 
 ## Round 2: a child's voice
 

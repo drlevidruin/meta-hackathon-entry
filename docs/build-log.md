@@ -18,7 +18,7 @@ AI reviewers checked every distinct siddur word in all three traditions. A secon
 
 `489c17d` added the synthetic clip script. `660e482` recorded the first test notes. `dd3e3cd` corrected the recorded counts. Levi asked whether Muse Voice Transcribe 1.0 had been tried. That trial ruled it out and showed that minimal reasoning cut Muse Wonder 1.0 from about 15 seconds a clip to 2.4, so `ca9b59b` set minimal reasoning effort for the fallback ear.
 
-The script defines 13 clips: 7 planted mistakes and 6 clean controls. The notes report that Muse Wonder 1.0 wrote the plant on 5 of the 7 plants in each of two runs. Complete per-run output is not in the repository. Wonder was chosen after trials of Muse Spark 1.2, Muse Spark 1.3 and Muse Voice Transcribe 1.0. Muse Spark Open through Baseten is wired and has never run. [Ear test](ear-test.md).
+The script defines 13 clips: 7 planted mistakes and 6 clean controls. The notes report that Muse Wonder 1.0 wrote the plant on 5 of the 7 plants in each of two runs. Complete per-run output is not in the repository. Wonder was chosen after trials of Muse Spark 1.2, Muse Spark 1.3 and Muse Voice Transcribe 1.0. Muse Spark Open through Baseten was wired but did not run until the adult round. [Ear test](ear-test.md).
 
 ## Grader
 
@@ -58,4 +58,4 @@ The current offline root and station test suites pass. Their synthetic inputs an
 
 ## Adult round
 
-On October 27 Levi recorded the 12 adult clips. In each of three runs the grader marked 9 of the 10 planted mistakes from Muse Wonder 1.0's answers, but the ear wrote Israeli vowels for his Ashkenazi reading, so correct kamatz, tzere and sheva sounds were marked wrong. More reasoning and two prompt changes did not fix it. The round did not pass. [Results](ear-test.md#round-1-results-october-27).
+On October 27 Levi recorded the 12 adult clips. In each of three runs the grader marked 9 of the 10 planted mistakes from Muse Wonder 1.0's answers, but the ear wrote Israeli vowels for his Ashkenazi reading, so correct kamatz, tzere and sheva sounds were marked wrong. More reasoning and two prompt changes did not fix it. Muse Spark Open on Baseten, the primary ear, ran for the first time on the same clips and did worse: 6 of 10, and it filled in a skipped word of Shema from memory. The round did not pass. [Results](ear-test.md#round-1-results-october-27).

@@ -4,7 +4,7 @@ This folder contains the synthetic clip script and recording instructions. No au
 
 `make-synthetic.sh` uses the macOS Carmit and Samantha voices to create 13 WAV clips in `recordings/synthetic/`. Seven contain planted mistakes and six are clean controls. It removes each intermediate AIFF after conversion. The [ear test](../docs/ear-test.md) lists the clips and recorded observations.
 
-Only Muse Wonder 1.0 through the Meta Model API has run as the ear. Muse Spark Open through Baseten is wired and has never run. The adult and child rounds have not run.
+The adult round ran on October 27 with Muse Wonder 1.0 and Muse Spark Open, and did not pass with either; see the [results](../docs/ear-test.md#round-1-results-october-27). The child round has not run.
 
 The separate [local recorder](../tools/clip-recorder/README.md) saves mono WAVs in gitignored `recordings/private/`. Adult files use the names in the ear-test table. Child files add `child_` to those names. Re-recording replaces the file. Closing the page or server does not delete saved clips.
 
