@@ -1,4 +1,4 @@
-import { readFile, realpath } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { gradeLine } from '../../grader/index.js';
@@ -255,13 +255,14 @@ export async function main(argv = process.argv.slice(2)) {
       console.log(usage);
       return 0;
     }
-    const filesByRealPath = new Map();
+    const filesByIdentity = new Map();
     for (const file of options.files) {
-      const realFile = await realpath(file);
-      if (filesByRealPath.has(realFile)) {
-        throw new Error(`Run arguments ${filesByRealPath.get(realFile)} and ${file} resolve to the same file.`);
+      const { dev, ino } = await stat(file, { bigint: true });
+      const identity = `${dev}:${ino}`;
+      if (filesByIdentity.has(identity)) {
+        throw new Error(`Run arguments ${filesByIdentity.get(identity)} and ${file} resolve to the same file.`);
       }
-      filesByRealPath.set(realFile, file);
+      filesByIdentity.set(identity, file);
     }
     const clips = await loadClips('adult');
     const runs = [];

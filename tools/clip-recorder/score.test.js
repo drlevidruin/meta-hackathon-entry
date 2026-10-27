@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { linkSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
@@ -597,6 +597,19 @@ for (const spelling of ['same path', 'dot component', 'symlink']) {
       assert.equal(result.stdout, '');
     });
   }
+}
+
+for (const flags of [[], ['--max-uncertain', '0', '--runs-needed', '2']]) {
+  test(`CLI rejects a hard link to a run ${flags.length ? 'with' : 'without'} pass flags`, t => {
+    const [file] = savedRuns(t, [completePassing]);
+    const alias = join(dirname(file), 'hard-linked.tsv');
+    linkSync(file, alias);
+    const result = cli(...flags, file, alias);
+    assert.equal(result.status, 2, result.stdout);
+    assert.ok(result.stderr.includes(`${file} and ${alias}`));
+    assert.match(result.stderr, /same file/);
+    assert.equal(result.stdout, '');
+  });
 }
 
 test('CLI checks for duplicate files before parsing any run', t => {
