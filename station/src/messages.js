@@ -1,31 +1,46 @@
 const letters = {
-  alef: 'א', bet: 'בּ', vet: 'ב', gimel: 'ג', dalet: 'ד', hei: 'ה', vav: 'ו', zayin: 'ז',
-  chet: 'ח', tet: 'ט', yud: 'י', kaf: 'כּ', chaf: 'כ', lamed: 'ל', mem: 'מ', nun: 'נ',
-  samech: 'ס', ayin: 'ע', pei: 'פּ', fei: 'פ', tzadi: 'צ', kuf: 'ק', resh: 'ר',
-  shin: 'שׁ', sin: 'שׂ', tav: 'תּ', sav: 'ת', final_chaf: 'ך', final_kaf: 'ךּ',
-  final_mem: 'ם', final_nun: 'ן', final_fei: 'ף', final_tzadi: 'ץ',
+  alef: ['alef', 'א'], bet: ['bet with a dot', 'בּ'], vet: ['vet', 'ב'], gimel: ['gimel', 'ג'],
+  dalet: ['dalet', 'ד'], hei: ['hei', 'ה'], vav: ['vav', 'ו'], zayin: ['zayin', 'ז'], chet: ['chet', 'ח'],
+  tet: ['tet', 'ט'], yud: ['yud', 'י'], kaf: ['kaf with a dot', 'כּ'], chaf: ['chaf', 'כ'], lamed: ['lamed', 'ל'],
+  mem: ['mem', 'מ'], nun: ['nun', 'נ'], samech: ['samech', 'ס'], ayin: ['ayin', 'ע'],
+  pei: ['pei with a dot', 'פּ'], fei: ['fei', 'פ'], tzadi: ['tzadi', 'צ'], kuf: ['kuf', 'ק'], resh: ['resh', 'ר'],
+  shin: ['shin', 'שׁ'], sin: ['sin', 'שׂ'], tav: ['tav with a dot', 'תּ'], sav: ['sav', 'ת'],
+  final_chaf: ['final chaf', 'ך'], final_kaf: ['final kaf with a dot', 'ךּ'], final_mem: ['final mem', 'ם'],
+  final_nun: ['final nun', 'ן'], final_fei: ['final fei', 'ף'], final_tzadi: ['final tzadi', 'ץ'],
 };
-const vowels = new Set(['kamatz', 'kamatz_katan', 'patach', 'chataf_patach', 'chataf_kamatz',
-  'segol', 'chataf_segol', 'tzere', 'chirik', 'cholam', 'kubutz', 'shuruk', 'sheva_na']);
+const vowels = {
+  kamatz: 'kamatz', kamatz_katan: 'small kamatz', patach: 'patach', chataf_patach: 'chataf patach',
+  chataf_kamatz: 'chataf kamatz', segol: 'segol', chataf_segol: 'chataf segol', tzere: 'tzere',
+  chirik: 'chirik', cholam: 'cholam', kubutz: 'kubutz', shuruk: 'shuruk',
+  sheva: 'sheva', sheva_na: 'sheva', sheva_nach: 'quiet sheva', none: 'quiet letter',
+};
+const patterns = {
+  closed_syllable: 'closed syllable', two_shevas: 'two shevas', chirik_male: 'chirik with a yud',
+  tzere_male: 'tzere with a yud', segol_yud: 'segol with a yud', ai: 'patach with a yud',
+  silent_alef: 'quiet alef', silent_hei: 'quiet hei', silent_ayin: 'quiet ayin',
+  patach_genuva: 'patach at the end', patach_genuvah: 'patach at the end', dagesh_chazak: 'strong dot',
+  cholam_male: 'cholam with a vav', av: 'kamatz with a yud and vav',
+  mappik: 'hei with a dot', vav_consonant: 'vav sound',
+};
 
 export function skillName(skill) {
-  const [kind, name] = String(skill).split(':');
-  if (kind === 'letter' && letters[name]) return `the letter ${letters[name]}`;
-  if (kind === 'vowel' && vowels.has(name)) return `the vowel ${name.replaceAll('_', ' ')}`;
+  const [kind, name] = String(skill || '').split(':');
+  if (kind === 'letter' && letters[name]) return `the ${letters[name][0]} (${letters[name][1]})`;
+  if (kind === 'vowel' && vowels[name]) return `the ${vowels[name]}`;
+  if (kind === 'pattern' && patterns[name]) return `the ${patterns[name]}`;
   return null;
 }
 
-export function turnMessage(summaries) {
-  const pairs = summaries.reduce((sum, summary) => sum + (summary.pairs || 0), 0);
-  const ok = summaries.reduce((sum, summary) => sum + (summary.ok || 0), 0);
-  const mistakes = summaries.some(summary => ['wrong_letter', 'wrong_vowel', 'skipped', 'extra', 'uncertain', 'not_decoded']
-    .some(key => summary[key] > 0));
-  if (pairs > 0 && ok === pairs && !mistakes) return 'You read every sound just right!';
-  const counts = new Map();
-  summaries.flatMap(summary => summary.missedSkills || []).forEach(skill => counts.set(skill, (counts.get(skill) || 0) + 1));
-  const practice = [...counts].sort((a, b) => b[1] - a[1]).map(([skill]) => skillName(skill)).find(Boolean);
-  if (pairs > 0 && ok / pairs >= 0.7) {
-    return practice ? `Great reading, and keep practicing ${practice}!` : 'You read so many sounds just right!';
-  }
-  return practice ? `Keep trying, and let's practice ${practice} together!` : 'Every try helps you grow!';
+export function skillLabel(skill) {
+  const name = skillName(skill)?.replace(/^the /, '');
+  return name ? name[0].toUpperCase() + name.slice(1) : 'Practice';
+}
+
+export function turnMessage(facts = {}) {
+  const best = skillName(facts?.best);
+  const next = skillName(facts?.next);
+  if (best && next) return `You nailed ${best} today! Next time we practice ${next}.`;
+  if (best) return `You nailed ${best} today!`;
+  if (next) return `Next time we practice ${next}.`;
+  return 'You read so well today!';
 }
