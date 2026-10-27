@@ -176,7 +176,8 @@ export function buildVoiceProfile(data, labels) {
   return { version: 2, vowels, spread };
 }
 
-export function meterDecision(earVowel, point, profile, { margin = 0.75, radius = 0.75, minGap = 0.8, gapFactor = 3 } = {}) {
+export function meterDecision(earVowel, point, profile, { margin = 0.75, minGap = 0.8, gapFactor = 3 } = {}) {
+  if (!Object.hasOwn(profile.vowels, earVowel)) return null;
   const candidates = earVowel === 'a' ? ['a', 'o', 'e'] : earVowel === 'e' ? ['e', 'i'] : [];
   const available = candidates.filter(v => Object.hasOwn(profile.vowels, v));
   if (!available.some(v => v !== earVowel)) return null;
@@ -187,7 +188,6 @@ export function meterDecision(earVowel, point, profile, { margin = 0.75, radius 
   const [best, second] = distances;
   if (best.v === earVowel) return null;
   if (second && !(best.d / second.d < margin)) return null;
-  if (available.length < candidates.length && !(best.d <= radius)) return null;
   const cb = profile.vowels[best.v];
   for (const { v } of distances.slice(1)) {
     const cy = profile.vowels[v];
@@ -222,7 +222,8 @@ export function applyMeter(words, data, profile, options = {}) {
       const match = /oy|ey|a|e|i|o|u/.exec(from);
       const earVowel = match?.[0];
       const candidates = earVowel === 'a' ? ['a', 'o', 'e'] : earVowel === 'e' ? ['e', 'i'] : [];
-      if (!candidates.some(v => v !== earVowel && Object.hasOwn(profile.vowels, v))) continue;
+      if (!Object.hasOwn(profile.vowels, earVowel)
+        || !candidates.some(v => v !== earVowel && Object.hasOwn(profile.vowels, v))) continue;
       const { start, end } = islands[index];
       const value = measureVowel(samples, rate, start, end);
       if (!value) continue;

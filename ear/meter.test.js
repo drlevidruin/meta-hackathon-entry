@@ -251,21 +251,61 @@ test('meterDecision equals the old rule across the full Bark grid for a well-sep
   }
 });
 
-test('meterDecision with only o corrects a only within the radius', () => {
+test('meterDecision with only o leaves every ear a unchanged across the Bark grid', () => {
   const voice = { version: 2, vowels: { o: { f1: 4, f2: 8, n: 3 } }, spread: 0.3 };
-  assert.equal(meterDecision('a', { f1: 4.5, f2: 8 }, voice), 'o');
-  assert.equal(meterDecision('a', { f1: 4.75, f2: 8 }, voice), 'o');
-  assert.equal(meterDecision('a', { f1: 5.1, f2: 8 }, voice), null);
-  assert.equal(meterDecision('a', { f1: 5.1, f2: 8 }, voice, { radius: 1.2 }), 'o');
+  for (let f1 = 10; f1 <= 90; f1 += 1) {
+    for (let f2 = 70; f2 <= 150; f2 += 1) {
+      const point = { f1: f1 / 10, f2: f2 / 10 };
+      assert.equal(meterDecision('a', point, voice), null, `ear a at ${point.f1}, ${point.f2}`);
+    }
+  }
 });
 
-test('meterDecision with o and e requires both radius and margin when a is missing', () => {
+test('meterDecision with o and a corrects a near o and beyond 0.75 Bark', () => {
+  const voice = { version: 2, vowels: {
+    o: { f1: 4, f2: 8, n: 3 }, a: { f1: 7, f2: 8, n: 3 },
+  }, spread: 0.3 };
+  assert.equal(meterDecision('a', voice.vowels.o, voice), 'o');
+  assert.equal(meterDecision('a', { f1: 4.5, f2: 8 }, voice), 'o');
+  assert.equal(meterDecision('a', { f1: 4, f2: 9 }, voice), 'o');
+});
+
+test('meterDecision with o and e leaves a unchanged when a is missing', () => {
   const voice = { version: 2, vowels: {
     o: { f1: 4, f2: 8, n: 3 }, e: { f1: 4, f2: 11, n: 3 },
   }, spread: 0.3 };
+  assert.equal(meterDecision('a', voice.vowels.o, voice), null);
+  assert.equal(meterDecision('a', voice.vowels.e, voice), null);
   assert.equal(meterDecision('a', { f1: 5, f2: 8 }, voice), null);
-  assert.equal(meterDecision('a', { f1: 4.5, f2: 8 }, voice), 'o');
-  assert.equal(meterDecision('a', { f1: 4, f2: 9.5 }, voice, { radius: 2 }), null);
+  assert.equal(meterDecision('a', { f1: 4.5, f2: 8 }, voice), null);
+  assert.equal(meterDecision('a', { f1: 4, f2: 9.5 }, voice, { margin: 2 }), null);
+});
+
+test('meterDecision with o and i leaves ears a and e unchanged across the Bark grid', () => {
+  const voice = { version: 2, vowels: {
+    o: { f1: 4, f2: 8, n: 3 }, i: { f1: 2, f2: 14, n: 3 },
+  }, spread: 0.3 };
+  for (let f1 = 10; f1 <= 90; f1 += 1) {
+    for (let f2 = 70; f2 <= 150; f2 += 1) {
+      const point = { f1: f1 / 10, f2: f2 / 10 };
+      for (const earVowel of ['a', 'e']) {
+        assert.equal(meterDecision(earVowel, point, voice), null,
+          `ear ${earVowel} at ${point.f1}, ${point.f2}`);
+      }
+    }
+  }
+});
+
+test('meterDecision leaves a unchanged across the Bark grid when kamatz was read as patach', () => {
+  const voice = { version: 2, vowels: {
+    o: { f1: 4, f2: 8, n: 3 }, a: { f1: 4.2, f2: 8, n: 3 },
+  }, spread: 0.336 };
+  for (let f1 = 10; f1 <= 90; f1 += 1) {
+    for (let f2 = 70; f2 <= 150; f2 += 1) {
+      const point = { f1: f1 / 10, f2: f2 / 10 };
+      assert.equal(meterDecision('a', point, voice), null, `ear a at ${point.f1}, ${point.f2}`);
+    }
+  }
 });
 
 test('meterDecision blocks targets whose available centroids are only 0.5 Bark apart', () => {
@@ -274,7 +314,7 @@ test('meterDecision blocks targets whose available centroids are only 0.5 Bark a
   }, spread: 0.01 };
   assert.equal(meterDecision('a', voice.vowels.o, voice), null);
   const closeToE = { version: 2, vowels: {
-    e: { f1: 4.5, f2: 8, n: 3 }, o: { f1: 4, f2: 8, n: 3 },
+    a: { f1: 7, f2: 8, n: 3 }, e: { f1: 4.5, f2: 8, n: 3 }, o: { f1: 4, f2: 8, n: 3 },
   }, spread: 0.01 };
   assert.equal(meterDecision('a', closeToE.vowels.e, closeToE), null);
 });
@@ -305,9 +345,10 @@ test('meterDecision checks every available centroid and each class token count',
   assert.equal(meterDecision('a', moreTokens.vowels.o, moreTokens), 'o');
 });
 
-test('meterDecision with only i corrects e only within the radius', () => {
+test('meterDecision with only i leaves e unchanged when e is missing', () => {
   const voice = { version: 2, vowels: { i: { f1: 2, f2: 14, n: 3 } }, spread: 0.3 };
-  assert.equal(meterDecision('e', { f1: 2.5, f2: 14 }, voice), 'i');
+  assert.equal(meterDecision('e', voice.vowels.i, voice), null);
+  assert.equal(meterDecision('e', { f1: 2.5, f2: 14 }, voice), null);
   assert.equal(meterDecision('e', { f1: 3.1, f2: 14 }, voice), null);
 });
 
@@ -323,10 +364,10 @@ test('meterDecision leaves a unchanged for a Sephardi-style card with only a', (
 
 test('meterDecision keeps candidate order for ties and rejects a zero second distance', () => {
   const voice = { version: 2, vowels: {
-    o: { f1: 4, f2: 8, n: 3 }, e: { f1: 4, f2: 10, n: 3 },
+    o: { f1: 4, f2: 8, n: 3 }, e: { f1: 4, f2: 10, n: 3 }, a: { f1: 8, f2: 12, n: 3 },
   }, spread: 0 };
-  assert.equal(meterDecision('a', { f1: 4, f2: 9 }, voice, { margin: 2, radius: 2 }), 'o');
-  const coincident = { ...voice, vowels: { o: voice.vowels.o, e: { ...voice.vowels.o } } };
+  assert.equal(meterDecision('a', { f1: 4, f2: 9 }, voice, { margin: 2 }), 'o');
+  const coincident = { ...voice, vowels: { ...voice.vowels, e: { ...voice.vowels.o } } };
   assert.equal(meterDecision('a', coincident.vowels.o, coincident,
     { margin: 2, minGap: 0, gapFactor: 0 }), null);
 });
@@ -390,22 +431,34 @@ test('applyMeter skips classes with no possible correction and unmeasurable isla
   assert.deepEqual(applyMeter([['ba']], wav(unmeasurable), voiceProfile()), { words: [['ba']], changes: [], applied: true });
 });
 
-test('applyMeter accepts one-vowel profiles and forwards radius and separation options', () => {
+test('applyMeter accepts one-vowel profiles unchanged and forwards margin and separation options', () => {
   const data = wav(utterance(['o']));
   const o = voiceProfile().vowels.o;
   const onlyO = { version: 2, vowels: { o }, spread: 0.2 };
   const corrected = { words: [['bo']], changes: [{ index: 0, from: 'ba', to: 'bo' }], applied: true };
   const unchanged = { words: [['ba']], changes: [], applied: true };
-  assert.deepEqual(applyMeter([['ba']], data, onlyO), corrected);
-  const shifted = { ...onlyO, vowels: { o: { ...o, f1: o.f1 + 1 } } };
-  assert.deepEqual(applyMeter([['ba']], data, shifted), unchanged);
-  assert.deepEqual(applyMeter([['ba']], data, shifted, { radius: 1.1 }), corrected);
+  assert.deepEqual(applyMeter([['ba']], data, onlyO), unchanged);
+  const separated = { ...onlyO, vowels: { o, a: { ...o, f1: o.f1 + 2 } } };
+  assert.deepEqual(applyMeter([['ba']], data, separated), corrected);
+  assert.deepEqual(applyMeter([['ba']], data, separated, { margin: 0 }), unchanged);
   const close = { ...onlyO, vowels: { o, a: { ...o, f1: o.f1 + 0.5 } }, spread: 0.1 };
   assert.deepEqual(applyMeter([['ba']], data, close), unchanged);
   assert.deepEqual(applyMeter([['ba']], data, close, { minGap: 0.4 }), corrected);
   const wide = { ...onlyO, vowels: { o, a: { ...o, f1: o.f1 + 1 } }, spread: 0.6 };
   assert.deepEqual(applyMeter([['ba']], data, wide), unchanged);
   assert.deepEqual(applyMeter([['ba']], data, wide, { gapFactor: 1 }), corrected);
+});
+
+test('applyMeter leaves syllables unchanged when their ear vowel classes are missing', () => {
+  const words = [['ba'], ['be']];
+  const before = structuredClone(words);
+  const { o, i } = voiceProfile().vowels;
+  const voice = { version: 2, vowels: { o, i }, spread: 0.2 };
+  const result = applyMeter(words, wav(utterance(['o', 'i'])), voice);
+  assert.deepEqual(result.words, before);
+  assert.deepEqual(result.changes, []);
+  assert.equal(result.applied, true);
+  assert.deepEqual(words, before);
 });
 
 test('applyMeter corrects a to o when F2 is closer under Euclidean Bark distance', () => {
