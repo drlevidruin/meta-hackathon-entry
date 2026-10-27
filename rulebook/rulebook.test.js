@@ -160,3 +160,44 @@ test('all consonants, finals, rafe, mappik and dagesh variants', () => {
   assert.ok(!tagSkills('הַהְּלָה').includes('pattern:mappik'));
   assert.equal(expectedSounds('הַהְּלָה', 'sephardi').pairs[1].vowel, 'sheva_na');
 });
+
+for (const preset of presets) {
+  test(`merged cholam keeps printed text and preset readings: ${preset}`, () => {
+    const cases = [
+      ['משֶׁה', ['mo', 'she'], 'moshe'],
+      ['קְדשִׁים', ['ke', 'do', 'shi', 'm'], 'kedoshim'],
+      ['וְתִירשְׁךָ', ['ve', preset === 'sephardi' ? 'ti' : 'si', 'ro', 'she', preset === 'sephardi' ? 'cha' : 'cho'],
+        preset === 'sephardi' ? 'vetiroshecha' : 'vesiroshecho'],
+      ['שׂנְאַי', ['so', 'ne', 'a', 'y'], 'sonay'],
+    ];
+    for (const [word, primary, reading] of cases) {
+      const result = expectedSounds(word, preset);
+      assert.ok(!result.flags.includes('unpointed'), word);
+      assert.deepEqual(result.pairs.map(pair => pair.sounds[0]), primary, word);
+      assert.equal(result.pairs.map(pair => pair.text).join(''), cleanWord(word));
+      const cholam = result.pairs.find(pair => pair.vowel === 'cholam');
+      assert.ok(cholam, word);
+      assert.deepEqual(cholam.vowels, PRESETS[preset].cholam);
+      assert.ok(!cholam.text.includes('ֹ'), word);
+      const readings = result.pairs.reduce((before, pair) => before.flatMap(prefix => pair.sounds.map(sound => prefix + sound)), ['']);
+      assert.ok(readings.includes(reading), word);
+      assert.ok(result.skills.includes('vowel:cholam'));
+    }
+  });
+}
+
+test('merged cholam leaves matres, silent alef, explicit vowels and unpointed remainders alone', () => {
+  for (const word of ['בִּישֶׁ', 'בּוּשֶׁ', 'בּוֹשֶׁ', 'בֵאשֶׁ']) {
+    const result = expectedSounds(word, 'sephardi');
+    assert.equal(result.pairs.length, 2, word);
+    assert.equal(result.pairs[0].text, cleanWord(word).slice(0, -cleanWord('שֶׁ').length));
+    assert.equal(result.pairs.at(-1).sounds[0], 'she');
+  }
+  for (const word of ['מְשֶׁה', 'מַשֶׁה', 'שְׂמַ', 'שַׂמַ', 'מַשׂ', 'מַשׁ']) {
+    assert.ok(!expectedSounds(word, 'sephardi').pairs.some(pair => pair.vowel === 'cholam'), word);
+  }
+  for (const word of ['משֶׁהמל', 'קְדשִׁיםמל', 'יחיד', 'משר']) {
+    assert.ok(expectedSounds(word, 'sephardi').flags.includes('unpointed'), word);
+  }
+  assert.equal(expectedSounds('וּשֶׁ', 'sephardi').pairs[0].vowel, 'shuruk');
+});

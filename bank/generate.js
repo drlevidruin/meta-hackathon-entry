@@ -1,11 +1,12 @@
 import { cleanWord, expectedSounds, formatReading, tagSkills } from '../rulebook/index.js';
-import { allowedGeneratedWord } from './blocking.js';
+import { allowedGeneratedWord, foldedSkeleton } from './blocking.js';
 import { shuffled } from './random.js';
+import { legalGeneratedWord } from './orthography.js';
+import { segmentWords, siddur } from './corpus.js';
 
 export const LETTERS = [
-  'א', 'ב', 'בּ', 'ג', 'גּ', 'ד', 'דּ', 'ה', 'הּ', 'ו', 'וּ', 'ז', 'זּ', 'ח',
-  'ט', 'טּ', 'י', 'יּ', 'כ', 'כּ', 'ל', 'לּ', 'מ', 'מּ', 'נ', 'נּ', 'ס', 'סּ',
-  'ע', 'פ', 'פּ', 'צ', 'צּ', 'ק', 'קּ', 'ר', 'שׁ', 'שּׁ', 'שׂ', 'שּׂ', 'ת', 'תּ',
+  'א', 'ב', 'בּ', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י', 'כ', 'כּ',
+  'ל', 'מ', 'נ', 'ס', 'ע', 'פ', 'פּ', 'צ', 'ק', 'ר', 'שׁ', 'שׂ', 'ת', 'תּ',
 ];
 export const VOWELS = {
   kamatz: 'ָ', patach: 'ַ', tzere: 'ֵ', segol: 'ֶ', chirik: 'ִ', cholam: 'ֹ',
@@ -19,17 +20,21 @@ function record(word) {
 }
 
 export function pairPool() {
-  return LETTERS.flatMap((letter) => Object.values(VOWELS).map((mark) => record(letter + mark)))
-    .filter(({ word, result }) => result.pairs.length === 1 && allowedGeneratedWord(word));
+  // Matres let a mem, nun, kaf or pei be practiced in one sounding pair
+  // without printing a medial form at the end of the word.
+  return LETTERS.flatMap((letter) => [...Object.values(VOWELS), 'ִי', 'ֵי', 'ֶי', 'וֹ']
+    .map((mark) => record(letter + mark)))
+    .filter(({ word, result }) => result.pairs.length === 1
+      && legalGeneratedWord(word, 1) && allowedGeneratedWord(word));
 }
 
 function syllablePool(pairs) {
-  const endings = ['ת', 'תּ', 'ם', 'ן', 'ךְ', 'ף', 'ץ', 'ל', 'ר', 'ס'];
+  const endings = ['ת', 'ם', 'ן', 'ךְ', 'ף', 'ץ', 'ל', 'ר', 'ס'];
   const matres = LETTERS.flatMap((letter) => ['ִי', 'ֵי', 'ֶי', 'וֹ'].map((mark) => record(letter + mark)));
   const closed = pairs.flatMap(({ word }) => endings.map((ending) => record(word + ending)));
   const unique = new Map([...pairs, ...matres, ...closed].map((entry) => [entry.word, entry]));
   return [...unique.values()].filter(({ word, result }) =>
-    formatReading(result).split('-').length === 1 && allowedGeneratedWord(word));
+    formatReading(result).split('-').length === 1 && legalGeneratedWord(word, 2) && allowedGeneratedWord(word));
 }
 
 function focusPlans(vowelRepeats, letterCount) {
@@ -44,8 +49,8 @@ function drillLines(pool, focuses, length, random) {
   const seenLines = new Set();
   const uses = new Map();
   for (const [index, focus] of focuses.entries()) {
-    const size = typeof length === 'function' ? length(index) : length;
     const candidates = shuffled(pool.filter((entry) => entry.skills.includes(focus)), random);
+    const size = typeof length === 'function' ? length(index, candidates.length) : length;
     // Prefer less-practiced pairs while keeping seeded variety within each focus.
     candidates.sort((left, right) => (uses.get(left.word) ?? 0) - (uses.get(right.word) ?? 0));
     if (candidates.length < size) throw new Error(`Too few words for ${focus}`);
@@ -65,30 +70,85 @@ export function generatedDrills(random) {
   const pairs = pairPool();
   return {
     pairs,
-    level1: drillLines(pairs, focusPlans(3, 33), (index) => index % 2 ? 5 : 6, random),
+    level1: drillLines(pairs, focusPlans(3, 33), (index, available) => Math.min(index % 2 ? 5 : 6, available), random),
     level2: drillLines(syllablePool(pairs), focusPlans(2, 22), 5, random),
   };
 }
 
-export function nonsenseLines(pairs, corpusWords, random) {
-  const focuses = focusPlans(2, 22);
-  const ordinary = pairs.filter(({ result }) => result.pairs[0].vowel !== 'sheva_na');
-  const used = new Set();
-  const choose = (values) => values[Math.floor(random() * values.length)];
-  return focuses.map((focus) => {
-    const focused = pairs.filter((entry) => entry.skills.includes(focus));
-    const words = [];
-    for (let attempt = 0; words.length < 4; attempt++) {
-      if (attempt >= 10000) throw new Error(`Cannot build nonsense words for ${focus}`);
-      const syllables = random() < 0.5 ? 2 : 3;
-      const units = [choose(focused), ...Array.from({ length: syllables - 1 }, () => choose(ordinary))];
-      const word = cleanWord(units.map((entry) => entry.word).join(''));
-      if (corpusWords.has(word) || used.has(word) || !allowedGeneratedWord(word)) continue;
-      const result = expectedSounds(word, 'sephardi');
-      if (!result.skills.includes(focus) || formatReading(result).split('-').length !== syllables) continue;
-      used.add(word);
-      words.push(word);
+export function commonConsonants() {
+  const counts = new Map();
+  for (const section of siddur.sections) for (const segment of section.segments) {
+    for (const word of segmentWords(segment)) for (const letter of foldedSkeleton(word)) {
+      counts.set(letter, (counts.get(letter) ?? 0) + 1);
     }
-    return { words, focus };
+  }
+  return [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'he'))
+    .slice(0, 12).map(([letter]) => letter);
+}
+
+function wordBuilder(corpusWords, random) {
+  const used = new Set();
+  const choose = values => values[Math.floor(random() * values.length)];
+  const consonants = [...new Set(LETTERS.map(letter => letter.replaceAll('ּ', '')))];
+  const vowels = Object.keys(VOWELS).filter(vowel => vowel !== 'sheva_na');
+  const finalForms = { כ: 'ך', מ: 'ם', נ: 'ן', פ: 'ף', צ: 'ץ' };
+  return (focus, syllables, alphabet = null, maxSkills = Infinity) => {
+    // Include pei only in its contrast lessons when it falls outside the
+    // corpus's twelve most common letters.
+    const bases = alphabet ? [...new Set([...alphabet, ...(['letter:pei', 'letter:fei'].includes(focus) ? ['פ'] : [])])] : null;
+    const letters = bases ? consonants.filter(letter => bases.includes(letter[0])) : consonants;
+    const closed = focus === 'pattern:closed_syllable';
+    for (let attempt = 0; attempt < 100000; attempt++) {
+      let word = '';
+      let previousClosure = null;
+      for (let index = 0; index < syllables; index++) {
+        const letter = choose(letters.filter(letter => (index === 0 || letter !== 'א')
+          && letter[0] !== previousClosure));
+        const vowel = choose(vowels.filter(vowel =>
+          (letter !== 'ו' || ['patach', 'kamatz', 'segol', 'tzere', 'chirik'].includes(vowel))
+          && (!closed || index !== 0 || ['patach', 'segol', 'chirik', 'kubutz'].includes(vowel))));
+        const dot = 'בכפת'.includes(letter) && (index === 0 || previousClosure) ? 'ּ' : '';
+        word += letter + dot + VOWELS[vowel];
+        previousClosure = null;
+        if (closed && index === 0) {
+          const closure = choose(letters.filter(letter => !'אהחערו'.includes(letter[0])));
+          word += closure + 'ְ';
+          previousClosure = closure[0];
+        }
+      }
+      // A final consonant provides a legal ending even when the last
+      // sounded vowel sits on a medial-form letter or a hei.
+      const last = word.match(/([א-ת])[^א-ת]*$/u)[1];
+      if ('כמנפצה'.includes(last) || random() < 0.25) {
+        const ending = choose(letters.filter(letter => !'אהעו'.includes(letter[0])))[0];
+        word += finalForms[ending] ?? ending;
+      }
+      word = cleanWord(word);
+      if (!legalGeneratedWord(word, 4, focus) || corpusWords.has(word) || used.has(word)) continue;
+      const result = expectedSounds(word, 'sephardi');
+      if (result.skills.length > maxSkills || !result.skills.includes(focus)
+        || formatReading(result).split('-').length !== syllables || !allowedGeneratedWord(word)) continue;
+      used.add(word);
+      return word;
+    }
+    throw new Error(`Cannot build nonsense word for ${focus}`);
+  };
+}
+
+export function nonsenseLines(corpusWords, random) {
+  const buildWord = wordBuilder(corpusWords, random);
+  const focuses = focusPlans(2, 22).map(focus => focus === 'vowel:sheva_na' ? 'pattern:closed_syllable' : focus);
+  const lines = focuses.map((focus, index) => ({
+    focus, words: Array.from({ length: index % 2 ? 2 : 3 }, () => buildWord(focus, random() < 0.5 ? 2 : 3)),
+  }));
+  const challengeFocuses = [
+    ...Object.keys(VOWELS).filter(vowel => vowel !== 'sheva_na').map(vowel => `vowel:${vowel}`),
+    ...['bet', 'vet', 'kaf', 'chaf', 'pei', 'fei', 'shin', 'sin'].map(letter => `letter:${letter}`),
+  ];
+  const alphabet = commonConsonants();
+  const challenges = Array.from({ length: 150 }, (_, index) => {
+    const focus = index < 30 ? 'pattern:closed_syllable' : challengeFocuses[(index - 30) % challengeFocuses.length];
+    return { focus, words: [buildWord(focus, index % 4 === 0 ? 3 : 2, alphabet, 6)] };
   });
+  return { lines, challenges };
 }

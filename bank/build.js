@@ -59,18 +59,25 @@ export function buildBank({ seed = 5787 } = {}) {
   const drills = generatedDrills(random);
   const levels = [[], [], [], [], [], []];
   const ids = new Set();
+  const wordUses = new Map();
   const add = (level, words, focus, source) => {
+    if (level === 3 && words.some(word => (wordUses.get(word) ?? 0) >= 2)) return;
     const item = makeItem(level, words, focus, source);
     if (ids.has(item.id)) return;
     ids.add(item.id);
     levels[level - 1].push(item);
+    if (level === 3) for (const word of words) wordUses.set(word, (wordUses.get(word) ?? 0) + 1);
   };
   for (const { words, focus } of drills.level1) add(1, words, focus, { generated: true });
   for (const { words, focus } of drills.level2) add(2, words, focus, { generated: true });
   const corpusWords = new Set(siddur.sections.flatMap((section) => section.segments.flatMap(segmentWords))
     .filter((word) => pointedWord(word)).map(cleanWord));
-  for (const { words, focus } of nonsenseLines(drills.pairs, corpusWords, random)) {
+  const nonsense = nonsenseLines(corpusWords, random);
+  for (const { words, focus } of nonsense.lines) {
     add(4, words, focus, { generated: true });
+  }
+  for (const { words, focus } of nonsense.challenges) {
+    add(4, words, focus, { generated: true, challenge: true });
   }
   for (const section of siddur.sections) {
     const source = { section: section.id, ref: section.ref };
@@ -85,6 +92,8 @@ export function buildBank({ seed = 5787 } = {}) {
       }
     }
   }
+  const phraseTexts = new Set(levels[4].map(item => item.text));
+  levels[5] = levels[5].filter(item => !phraseTexts.has(item.text));
   return levels.flat();
 }
 

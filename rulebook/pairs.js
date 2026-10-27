@@ -53,11 +53,19 @@ export function formPairs(word) {
       joinMater(before, group);
       continue;
     }
+    // A printed shin/sin dot can double as the missing cholam dot. Resolve
+    // vowel carriers and silent letters first, and never alter the printed text.
+    const next = groups[index + 1];
+    if (bare && !silent && !isShuruk(group) && next
+      && ((next.letter === 'ש' && next.marks.includes('\u05c1'))
+        || (group.letter === 'ש' && group.marks.includes('\u05c2')))) {
+      group.vowel = 'cholam';
+    }
     pairs.push({
       ...group, index, vowel: isShuruk(group) ? 'shuruk' : group.vowel,
       shuruk: isShuruk(group), silent, flags: [], skills: [],
       mappik: group.letter === 'ה' && index === groups.length - 1 && hasDagesh(group),
-      closingYud: group.letter === 'י' && bare && ['patach', 'kamatz'].includes(before?.vowel),
+      closingYud: group.letter === 'י' && group.vowel === 'none' && ['patach', 'kamatz'].includes(before?.vowel),
     });
   }
   return { groups, pairs };
