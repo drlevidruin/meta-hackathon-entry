@@ -341,7 +341,8 @@ export function createApp({
           json(res, 200, { voiceCheck: true });
         } catch (error) {
           if (!(error instanceof VoiceCheckError)) throw error;
-          if (error.code === 'count') json(res, 422, { error: 'count', heard: error.heard, expected: card.length });
+          if (error.code === 'card') json(res, 409, { error: 'No voice check' });
+          else if (error.code === 'count') json(res, 422, { error: 'count', heard: error.heard, expected: card.length });
           else if (error.code === 'quiet') json(res, 422, { error: 'quiet' });
           else throw new RequestError(415, 'Use 16 kHz mono WAV');
         } finally {

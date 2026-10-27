@@ -1,4 +1,5 @@
 import { expectedSounds } from './index.js';
+import { hasUsablePair } from '../ear/pairs.js';
 
 export const VOICE_CARD = Object.freeze(['בָּ', 'בַּ', 'בֶּ', 'בִּ', 'בֹּ', 'דָ', 'דַ', 'דֶ', 'דִ', 'דֹ', 'מָ', 'מַ', 'מֶ', 'מִ', 'מֹ']);
 
@@ -23,5 +24,5 @@ export function cardLabels(preset, card = VOICE_CARD) {
 
 export function voiceCardFor(vowels, preset) {
   const card = voiceCard(vowels);
-  return cardLabels(preset, card).some(label => label !== null) ? card : [];
+  return hasUsablePair(cardLabels(preset, card)) ? card : [];
 }

@@ -1,3 +1,5 @@
+import { hasUsablePair } from './pairs.js';
+
 export class VoiceCheckError extends Error {
   constructor(code, heard) {
     super(`Voice check: ${code}`);
@@ -147,8 +149,7 @@ function bark(hz) {
 }
 
 export function buildVoiceProfile(data, labels) {
-  const required = Math.min(2, new Set(labels.filter(label => label !== null)).size);
-  if (required === 0) throw new VoiceCheckError('card');
+  if (!hasUsablePair(labels)) throw new VoiceCheckError('card');
   const { samples, rate } = decodeWav(data);
   const islands = soundIslands(samples, rate);
   if (islands.length !== labels.length) throw new VoiceCheckError('count', islands.length);
@@ -171,7 +172,7 @@ export function buildVoiceProfile(data, labels) {
     for (const value of values) squaredDeviations += (value.f1 - f1) ** 2 + (value.f2 - f2) ** 2;
     degreesOfFreedom += 2 * (values.length - 1);
   }
-  if (Object.keys(vowels).length < required) throw new VoiceCheckError('quiet');
+  if (!hasUsablePair(Object.keys(vowels))) throw new VoiceCheckError('quiet');
   const spread = Math.round(Math.sqrt(squaredDeviations / degreesOfFreedom) * 1000) / 1000;
   return { version: 2, vowels, spread };
 }

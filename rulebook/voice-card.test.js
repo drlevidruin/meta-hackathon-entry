@@ -30,7 +30,33 @@ test('subset voice cards use learned columns, enough rows, and the original Unic
   assert.deepEqual(cardLabels('ashkenazi', cards.voiceCard(['kamatz'])), Array(6).fill('o'));
   assert.deepEqual(cards.voiceCardFor(['cholam'], 'ashkenazi'), []);
   assert.deepEqual(cards.voiceCardFor(['kamatz'], 'chassidish'), []);
-  assert.deepEqual(cards.voiceCardFor(['cholam'], 'sephardi'), cards.voiceCard(['cholam']));
+  assert.deepEqual(cards.voiceCardFor(['cholam'], 'sephardi'), []);
+});
+
+test('voice cards require a usable pair for the preset', () => {
+  const cases = [
+    ['ashkenazi', ['kamatz'], 0, ['o']],
+    ['ashkenazi', ['kamatz', 'patach'], 12, ['o', 'a']],
+    ['ashkenazi', ['patach', 'segol'], 12, ['a', 'e']],
+    ['ashkenazi', ['segol', 'chirik'], 12, ['e', 'i']],
+    ['ashkenazi', ['kamatz', 'chirik'], 0, ['o', 'i']],
+    ['ashkenazi', ['kamatz', 'cholam'], 0, ['o', null]],
+    ['ashkenazi', ['kamatz', 'patach', 'chirik'], 9, ['o', 'a', 'i']],
+    ['ashkenazi', cards.CARD_VOWELS, 15, ['o', 'a', 'e', 'i', null]],
+    ['sephardi', ['kamatz', 'patach'], 0, ['a']],
+    ['sephardi', ['kamatz', 'segol'], 12, ['a', 'e']],
+    ['chassidish', ['kamatz', 'patach'], 0, [null, 'a']],
+    ['chassidish', ['patach', 'segol'], 12, ['a', 'e']],
+  ];
+  for (const [preset, vowels, length, labels] of cases) {
+    const message = `${preset}: ${vowels.join(', ')}`;
+    const card = cards.voiceCard(vowels);
+    assert.deepEqual([...new Set(cardLabels(preset, card))], labels, message);
+    const actual = cards.voiceCardFor(vowels, preset);
+    assert.equal(actual.length, length, message);
+    assert.deepEqual(actual, length ? card : [], message);
+  }
+  assert.deepEqual(cards.voiceCardFor(cards.CARD_VOWELS, 'ashkenazi'), VOICE_CARD);
 });
 
 test('voice card is frozen and has three rows of five syllables', () => {

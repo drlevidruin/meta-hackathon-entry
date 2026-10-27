@@ -35,10 +35,12 @@ no learned-vowel field also use all ten. Invalid stored arrays are dropped on
 load or update. `voiceSkipped` is stored only when exactly true; it is not a
 public field.
 
-`voiceStatus` is `none` when the child's learned vowels and preset have no
-measurable voice card, otherwise `done` when a voice profile is saved, otherwise
-`skipped` when the teacher skipped the check, otherwise `needed`. `voiceCheck`
-is `voiceStatus !== 'needed'`, so only `needed` routes to the check.
+`voiceStatus` is `none` when the child's learned vowels and preset give the meter
+no pair to compare, for example kamatz alone without patach in the Ashkenazi
+preset. The usable pairs are `a` and `o`, `a` and `e`, and `e` and `i`. Otherwise
+it is `done` when a voice profile is saved, otherwise `skipped` when the teacher
+skipped the check, otherwise `needed`. `voiceCheck` is `voiceStatus !== 'needed'`,
+so only `needed` routes to the check.
 
 An Item is an unchanged bank item:
 
@@ -89,12 +91,13 @@ candidates use that level and its nearest available neighbors.
 The voice card uses learned kamatz, patach, segol, chirik and cholam columns,
 in that order. Five columns use the original 15 syllables on בּ ד מ. Three or
 four columns use those three rows. One or two columns use six rows, בּ ד מ ג תּ ק.
-No shown columns, or no measurable labels for the preset, gives no card. For
-example, cholam alone has no card for Ashkenazi. `POST /api/voice` then returns
+No shown columns, or labels with no usable pair for the preset, gives no card.
+For example, kamatz alone has no card for Ashkenazi. `POST /api/voice` then returns
 409 `{ error: "No voice check" }` before consuming audio. Otherwise it builds
 the profile using the child's card and preset. A count mismatch returns 422
 `{ error: "count", heard, expected }`, where `expected` is the card's length.
-Unmeasurable audio returns 422 `{ error: "quiet" }`; malformed WAV or a WAV
+Measured classes with at least two tokens each must also hold a usable pair,
+otherwise the audio returns 422 `{ error: "quiet" }`. Malformed WAV or a WAV
 outside 16 kHz mono returns 415 `{ error: "Use 16 kHz mono WAV" }`. Success
 clears `voiceSkipped`. Audio is never saved. Grading uses the saved profile
 when present and the ear alone when there is none, including after a skip.

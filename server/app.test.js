@@ -242,7 +242,9 @@ test('full-set and legacy children receive the original start and next sets', as
 
 test('voice status, skip, delete and successful subset recording follow the learned card', async () => {
   const { app, dataDir } = setup();
-  const child = await add(app, { vowels: ['kamatz'] });
+  const child = await add(app, { preset: 'ashkenazi', vowels: ['kamatz', 'patach'] });
+  assert.equal(child.voiceStatus, 'needed');
+  assert.equal(child.voiceCheck, false);
   const route = `/api/children/${child.id}/voice`;
   for (const headers of [{}, { 'x-teacher-pin': '9999' }]) {
     assert.equal((await request(app, route, { method: 'PUT', headers, data: { skipped: true } })).status, 403);
@@ -256,8 +258,11 @@ test('voice status, skip, delete and successful subset recording follow the lear
   assert.equal(skipped.json.voiceStatus, 'skipped');
   assert.equal(skipped.json.voiceCheck, true);
   assert.equal(disk(dataDir).children[child.id].voiceSkipped, true);
-  const data = wav(utterance(cardLabels(child.preset, voiceCardFor(child.vowels, child.preset))));
+  const card = voiceCardFor(child.vowels, child.preset);
+  assert.equal(card.length, 12);
+  const data = wav(utterance(cardLabels(child.preset, card)));
   assert.equal((await voice(app, child, { data })).status, 200);
+  assert.deepEqual(Object.keys(disk(dataDir).children[child.id].voice.vowels).sort(), ['a', 'o']);
   assert.equal(Object.hasOwn(disk(dataDir).children[child.id], 'voiceSkipped'), false);
   assert.equal((await get(app, '/api/children')).json[0].voiceStatus, 'done');
   await skip();
@@ -267,7 +272,8 @@ test('voice status, skip, delete and successful subset recording follow the lear
   assert.equal(cleared.json.voiceCheck, false);
   assert.equal(Object.hasOwn(disk(dataDir).children[child.id], 'voiceSkipped'), false);
   const mismatch = await voice(app, child, { data: wav(utterance(['a', 'a'])) });
-  assert.deepEqual(mismatch.json, { error: 'count', heard: 2, expected: 6 });
+  assert.equal(mismatch.status, 422);
+  assert.deepEqual(mismatch.json, { error: 'count', heard: 2, expected: 12 });
 });
 
 test('a child with no measurable card returns 409 without consuming the audio', async () => {
@@ -284,6 +290,24 @@ test('a child with no measurable card returns 409 without consuming the audio', 
   assert.deepEqual(body, { error: 'No voice check' });
 });
 
+test('an Ashkenazi kamatz-only child needs no voice check and returns 409 without consuming the audio', async () => {
+  const { app, dataDir, listen } = setup();
+  const child = await add(app, { preset: 'ashkenazi', vowels: ['kamatz'] });
+  assert.equal(child.voiceStatus, 'none');
+  assert.equal(child.voiceCheck, true);
+  assert.deepEqual((await get(app, '/api/children')).json, [child]);
+  const read = mock.fn(() => { throw new Error('Audio must not be read'); });
+  const req = new Readable({ read });
+  Object.assign(req, { method: 'POST', url: `/api/voice?child=${child.id}`, headers: { 'content-type': 'audio/wav' } });
+  let status, body;
+  await app(req, { writeHead(code) { status = code; }, end(value) { body = JSON.parse(value); } });
+  assert.equal(status, 409);
+  assert.deepEqual(body, { error: 'No voice check' });
+  assert.equal(read.mock.callCount(), 0);
+  assert.equal(listen.mock.callCount(), 0);
+  assert.equal(disk(dataDir).children[child.id].voice, null);
+});
+
 test('a vowel change clears voice and live turns, keeps skip, and the same normalized set preserves them', async () => {
   const { app, dataDir } = setup();
   const child = await add(app);
@@ -298,7 +322,8 @@ test('a vowel change clears voice and live turns, keeps skip, and the same norma
   await request(app, `/api/children/${child.id}/voice`, { method: 'PUT', headers: auth, data: { skipped: true } });
   const live = await start(app, child.id);
   const changed = await patch(app, child.id, { vowels: ['patach'] });
-  assert.equal(changed.json.voiceStatus, 'skipped');
+  assert.equal(changed.json.voiceStatus, 'none');
+  assert.equal(changed.json.voiceCheck, true);
   assert.equal(disk(dataDir).children[child.id].voiceSkipped, true);
   assert.equal((await next(app, live.turnId)).status, 404);
 });
