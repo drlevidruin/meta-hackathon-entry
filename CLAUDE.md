@@ -19,11 +19,11 @@ A classroom reading station. A child reads one line of Hebrew with nekudos from 
 
 | Job | Model ID | Host |
 | --- | --- | --- |
-| The ear | `meta-models/muse-spark-open-1026` | Baseten, OpenAI-compatible, base URL `https://inference.baseten.co/v1` |
-| The ear, fallback | `muse-wonder-1.0` | Meta Model API |
+| The ear | `muse-wonder-1.0` | Meta Model API |
+| The ear, fallback | `meta-models/muse-spark-open-1026` | Baseten, OpenAI-compatible, base URL `https://inference.baseten.co/v1` |
 | The coach | `muse-spark-1.3` | Meta Model API |
 
-Muse Wonder 1.0 through the Meta Model API has run as the ear on synthetic clips and, on 2026-10-27, on Levi's adult clips, where it wrote Israeli vowels for an Ashkenazi reading. Muse Spark Open through Baseten ran once on the same adult clips and did worse (docs/ear-test.md). The coach ran live through the server on 2026-10-26 (docs/live-run.md) after max_tokens went to 16000 with minimal reasoning.
+Muse Wonder 1.0 through the Meta Model API has run as the ear on synthetic clips and, on 2026-10-27, on Levi's adult clips, where it wrote Israeli vowels for an Ashkenazi reading. Muse Spark Open through Baseten ran once on the same adult clips and did worse, so Wonder became the primary ear (docs/ear-test.md). The vowel meter (`ear/meter.js`) is not a model: it measures vowels in the audio against the child's voice check, and it never sees the text. The coach ran live through the server on 2026-10-26 (docs/live-run.md) after max_tokens went to 16000 with minimal reasoning.
 
 Notes on Spark Open: it always reasons. The reasoning comes back in `reasoning_content`, the answer in `content`. `max_tokens` caps both together, so keep it high. There is no JSON mode; ask for one line per word and parse. Audio goes in as an `audio_url` content part, as a `data:` URL. The client accepts WAV, MP3, FLAC, OGG, or M4A, up to 25 MiB per file. Audio is billed as input tokens.
 

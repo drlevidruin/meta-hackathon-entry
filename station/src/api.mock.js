@@ -1,7 +1,7 @@
 import { readSession, writeSession } from './storage.js';
 import { skillLabel } from './messages.js';
 import { voiceCardFor } from '../../rulebook/voice-card.js';
-import { normalizeVowels, VOWEL_IDS } from '../../rulebook/vowels.js';
+import { itemsForVowels, normalizeVowels, VOWEL_IDS } from '../../rulebook/vowels.js';
 
 const KEY = 'kriah.mock.v5';
 const initialChildren = [
@@ -21,15 +21,28 @@ const initialChildren = [
 ].map(child => ({ ...child, vowels: child.id === 'plo' ? ['kamatz', 'patach'] : [...VOWEL_IDS],
   voice: !['pippa', 'plo'].includes(child.id) }));
 const lines = ['בָּ בַּ בֵּ', 'מָ מַ מִ', 'לָ לַ לִ', 'בִּ בֵּ בֻּ', 'שָׁ שַׁ שִׁ', 'נָ נַ נִ'];
-export const items = lines.map((text, index) => ({
+export const items = [...lines.map((text, index) => ({
   id: `mock-${index}`, level: 1, text, words: text.split(' '),
   skills: ['vowel:kamatz', 'vowel:patach', 'vowel:chirik'], focus: 'vowel:kamatz',
   source: { generated: true, challenge: index % 2 === 1 },
-}));
+})), ...['בָּ בַּ מָ', 'מַ לָ לַ', 'שָׁ שַׁ נָ', 'נַ בָּ מַ'].map((text, index) => ({
+  id: `mock-${lines.length + index}`, level: 1, text, words: text.split(' '),
+  skills: ['vowel:kamatz', 'vowel:patach'], focus: 'vowel:kamatz',
+  source: { generated: true, beginner: true, challenge: index % 2 === 1 },
+}))];
 const clone = value => JSON.parse(JSON.stringify(value));
 const database = () => readSession(KEY) || { children: clone(initialChildren), turns: {} };
 const save = db => writeSession(KEY, db);
-const setFor = round => clone(items.slice(round * 2, round * 2 + 2));
+const itemsFor = child => {
+  const eligible = itemsForVowels(items, child?.vowels);
+  return eligible.length ? eligible : itemsForVowels(items, VOWEL_IDS);
+};
+const setFor = (child, round) => {
+  const eligible = itemsFor(child);
+  const set = [...new Set([eligible[(round * 2) % eligible.length], eligible[(round * 2 + 1) % eligible.length]])];
+  // A challenge line ends its set, as on the real server.
+  return clone(set.sort((a, b) => Number(Boolean(a.source?.challenge)) - Number(Boolean(b.source?.challenge))));
+};
 const findChild = (db, id) => {
   const child = db.children.find(child => child.id === id);
   if (!child) throw new Error('Child not found');
@@ -84,7 +97,7 @@ export async function start({ childId }) {
   const turnId = `mock-turn-${crypto.randomUUID()}`;
   db.turns[turnId] = { childId, checkpoint: 0, level: child.level, startLevel: child.level, grades: {}, date: new Date().toISOString() };
   save(db);
-  return { turnId, level: child.level, set: setFor(0) };
+  return { turnId, level: child.level, set: setFor(child, 0) };
 }
 export async function grade({ turnId, itemId }) {
   const item = items.find(item => item.id === itemId);
@@ -114,7 +127,7 @@ export async function next({ turnId }) {
   save(db);
   return turn.checkpoint >= 3
     ? { done: true, level: turn.level, levelUp, facts: { best: 'letter:bet', next: 'vowel:sheva_na', proven: ['letter:bet'] } }
-    : { done: false, level: turn.level, levelUp, set: setFor(turn.checkpoint) };
+    : { done: false, level: turn.level, levelUp, set: setFor(findChild(db, turn.childId), turn.checkpoint) };
 }
 export async function finish({ turnId, stars }) {
   const db = database();
@@ -204,10 +217,12 @@ export async function deleteChild(id) {
   save(db); return { ok: true };
 }
 export async function packet({ childId, skillId }) {
-  return { title: childId ? findChild(database(), childId).name : skillLabel(skillId), sections: [
-    { heading: 'Warm up', items: clone(items.slice(0, 2)) },
-    { heading: 'Practice', items: clone(items) },
-    { heading: 'Challenge', items: clone([items[5]]) },
+  const child = childId ? findChild(database(), childId) : null;
+  const eligible = itemsFor(child);
+  return { title: child ? child.name : skillLabel(skillId), sections: [
+    { heading: 'Warm up', items: clone(eligible.slice(0, 2)) },
+    { heading: 'Practice', items: clone(eligible) },
+    { heading: 'Challenge', items: clone(eligible.filter(item => item.source?.challenge).slice(-1)) },
   ] };
 }
 export async function trace() {

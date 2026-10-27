@@ -95,9 +95,13 @@ in that order. Five columns use the original 15 syllables on בּ ד מ. Three o
 four columns use those three rows. One or two columns use six rows, בּ ד מ ג תּ ק.
 No shown columns, or labels with no usable pair for the preset, gives no card.
 For example, kamatz alone has no card for Ashkenazi. `POST /api/voice` then returns
-409 `{ error: "No voice check" }` before consuming audio. Otherwise it builds
-the profile using the child's card and preset. A count mismatch returns 422
-`{ error: "count", heard, expected }`, where `expected` is the card's length.
+409 `{ error: "No voice check" }` before consuming audio, or if the card is
+removed during upload. If the card's syllables or preset labels change during
+upload, or the voice check is cleared, skipped or replaced, it returns 409
+`{ error: "Voice card changed" }` without saving a profile, changing
+`voiceSkipped` or changing the recording. Otherwise it builds the profile using the captured
+card and labels. A count mismatch returns 422 `{ error: "count", heard, expected }`,
+where `expected` is the captured card's length.
 Measured classes with at least two tokens each must also hold a usable pair,
 otherwise the audio returns 422 `{ error: "quiet" }`. Malformed WAV or a WAV
 outside 16 kHz mono returns 415 `{ error: "Use 16 kHz mono WAV" }`. Success
@@ -116,10 +120,7 @@ Chassidish, where kamatz can be `o` or `u` and is not measured, and a card with
 kamatz but no patach. Otherwise the ear hears only the reading.
 Grading also uses the saved profile for the vowel meter when present and the ear
 alone when there is none, including after a skip. A failed voice check leaves
-any earlier profile and recording unchanged. A voice check cleared, skipped,
-replaced or made stale while its upload is open returns 409
-`{ error: "Voice card changed" }`, or `{ error: "No voice check" }` if the child
-no longer has a card. Neither response saves a profile or changes the recording.
+any earlier profile and recording unchanged.
 
 Grade accepts an item only from the turn's current set. An unknown or expired
 turn, a finished turn, or an item outside the current set returns 404. The ear

@@ -30,15 +30,15 @@ function setLatinText(element, text) {
   }));
 }
 
-// The voice check card reads as rows of five syllables, one consonant per row.
-const cardRows = (text) => text.split(/\s+/).reduce((rows, syllable, index) =>
-  `${rows}${index && index % 5 === 0 ? '\n' : index ? ' ' : ''}${syllable}`, '');
+// The 15 syllable voice check reads as rows of five, one consonant per row. Shorter cards read as one row.
+const cardRows = (text) => text.split(/\s+/).reduce((rows, syllable, index, all) =>
+  `${rows}${all.length === 15 && index && index % 5 === 0 ? '\n' : index ? ' ' : ''}${syllable}`, '');
 
 function render() {
   byId('child-actions').hidden = set !== 'child';
   const clip = clips[current];
   if (!clip) return;
-  const card = clip.kind === 'voice';
+  const card = clip.kind !== 'reading';
   byId('hebrew').textContent = card ? cardRows(clip.hebrew) : clip.hebrew;
   setLatinText(byId('say'), card ? cardRows(clip.say) : clip.say);
   for (const id of ['hebrew', 'say']) byId(id).classList.toggle('card', card);

@@ -116,7 +116,7 @@ Round 1 does not pass for Ashkenazi vowels with either ear. Sephardi readings ha
 
 ## Round 1b: new words
 
-Read each clip once, after the voice check, in Ashkenazi pronunciation. None of these words was used to choose the vowel meter's settings.
+Read each clip once, after the voice check, in Ashkenazi pronunciation. None of these words was used to choose the vowel meter's first settings. Their results then led to a fix, so Round 1b is no longer a fair test (see the next section).
 
 | File name | Hebrew | Say | Planted | The ear should write |
 | --- | --- | --- | --- | --- |
@@ -131,6 +131,36 @@ Read each clip once, after the voice check, in Ashkenazi pronunciation. None of 
 | kovod_patach-for-kamatz | כָּבוֹד | ka-voyd | kamatz read as patach | ka-voyd |
 | sheym_chirik-for-tzere | שֵׁם | shim | tzere read as chirik | shim |
 | ato_kamatz-for-patach | אַתָּה | o-to | patach read as kamatz | o-to |
+
+## Vowel meter results, October 27
+
+The ear's Israeli vowels led to the vowel meter ([README](../README.md), step 2). The meter measures each vowel in the audio and compares it with the reader's own vowels from the voice check card. It changes the ear's a or e only when another of the reader's vowels fits clearly better. Like the ear, it never sees the text.
+
+Levi read the voice check card and Round 1b at 9:49 AM, after the Round 1 clips from 8:15 AM. Muse Wonder 1.0 then heard all 23 clips once. The first meter weighed the second formant at half. It helped, but not enough:
+
+| Round | Clips | With the meter | Ear alone |
+| --- | --- | --- | --- |
+| Round 1 | 12 | 9 of 10 plants marked, 9 false marks | 8 of 10 plants marked, 16 false marks |
+| Round 1b | 11 | 3 of 4 plants marked, 7 false marks | 3 of 4 plants marked, 11 false marks |
+
+Measuring Levi's card showed why. His kamatz and patach differ by about the same amount in both formants, so the half weight left them nearly tied. Short unvoiced bursts also counted as syllables and broke the syllable count. Commit `90658ef` weighs both formants equally and drops sound islands that are mostly unvoiced. Applied to the same saved answers:
+
+| Round | Clips | With the meter | Ear alone |
+| --- | --- | --- | --- |
+| Round 1 | 12 | 10 of 10 plants marked, 4 false marks | 8 of 10 plants marked, 16 false marks |
+| Round 1b | 11 | 4 of 4 plants marked, 3 false marks | 3 of 4 plants marked, 11 false marks |
+
+These numbers are not a fair test. Round 1 runs were used to choose the settings, and Round 1b was used to find the fix. That is why Round 1c exists: its answers stay unread until the settings are final.
+
+The false marks that remain:
+
+- Yisroel, in its own clip: the ear wrote yesh and el. Its chirik and tzere both came back as e, and the meter does not handle ey.
+- Yisroel, in the Shema line: the kamatz stayed ra and the tzere came back as e.
+- Shomayim: the first kamatz came back as she. After sh, Levi's unstressed o sits close to his e.
+- Dovor: the first kamatz stayed da.
+- Toyro: the kamatz stayed ra.
+
+In ato the plant was marked, but the meter wrote e where Levi said o.
 
 ## Round 1c: sealed test
 
@@ -149,6 +179,158 @@ Read each clip once, after Round 1b, in Ashkenazi pronunciation. Their results s
 | bayis_kamatz-for-patach | בַּיִת | bo-yis | patach read as kamatz | bo-yis |
 | leyv_chirik-for-tzere | לֵב | liv | tzere read as chirik | liv |
 | beney_patach-for-sheva | בְּנֵי | ba-ney | sheva read as patach | ba-ney |
+
+## Round 1c results, October 27
+
+Levi read Round 1c at 11:25 AM, after the settings were frozen at `d109049`. Muse Wonder 1.0 heard each clip once between 11:28 and 11:36 AM, with the meter from `90658ef` and his voice check. Nobody read these answers before the run.
+
+| Round | Clips | With the meter | Ear alone |
+| --- | --- | --- | --- |
+| Round 1c | 11 | 4 of 4 plants marked, 15 false marks | 3 of 4 plants marked, 17 false marks |
+
+The meter caught every plant, but it did not carry over to new words. On the words it was built on, it cut false marks from 16 to 4 and from 11 to 3. Here it cut them from 17 to 15. Only one of the seven clean words came out clean.
+
+| File name | Say | Ear wrote | With the meter |
+| --- | --- | --- | --- |
+| odom_clean | o-dom | a-dam | e-dam, 3 false marks |
+| chochom_clean | cho-chom | cha-cham | unchanged, 2 false marks |
+| neshomo_clean | ne-sho-mo | ne-sha-ma | unchanged, 2 false marks |
+| tzedoko_clean | tze-do-ko | tse-da-ka | unchanged, 3 false marks |
+| shono_clean | sho-no | sha-na | unchanged, 2 false marks |
+| bonim_clean | bo-nim | ba-nim | bo-nim, clean |
+| kosuv_clean | ko-suv | ka-sov | unchanged, 3 false marks |
+| cholov_patach-for-kamatz | cha-lov | cha-lav | cha-lov, plant marked |
+| bayis_kamatz-for-patach | bo-yis | ba yes | bo yis, plant marked |
+| leyv_chirik-for-tzere | liv | liv | liv, plant marked |
+| beney_patach-for-sheva | ba-ney | ba-ney | ba-ney, plant marked |
+
+Every syllable formed its own sound island, so the meter measured every vowel. It left the ear's a in place because most of Levi's kamatz vowels in these words measured next to his patach from the card. In tzedoko, the do measured 0.12 Bark from his card patach and 1.25 from his card kamatz. After b and l, kamatz still measured as o, which is why bonim and cholov came out right. On the card he read each kamatz on its own. Inside words the same vowel came out more open. The card did not predict how he reads kamatz in words.
+
+Some false marks are not kamatz at all. The ear wrote ts for tz in tzedoko and o for the shuruk in kosuv. The meter does not handle either.
+
+The meter on the beginner-vowels branch gives the same numbers on these answers: 4 of 4 plants, 15 false marks. Round 1c has now been read, so it no longer counts as a sealed test. A change made from here needs new words.
+
+## Card tests
+
+Read these after Round 1c, syllable by syllable, with a short pause between syllables. The first is the voice check for a reader who has learned only kamatz. The other two are read wrong on purpose, every kamatz as patach, to test that a wrong voice check cannot hide a mistake.
+
+| File name | Hebrew | Say | Planted | The ear should write |
+| --- | --- | --- | --- | --- |
+| kamatz-card_clean | בָּ דָ מָ גָ תָּ קָ | bo do mo go to ko | nothing | not graded |
+| kamatz-card_patach-for-kamatz | בָּ דָ מָ גָ תָּ קָ | ba da ma ga ta ka | every kamatz read as patach | not graded |
+| voice-check_patach-for-kamatz | בָּ בַּ בֶּ בִּ בֹּ דָ דַ דֶ דִ דֹ מָ מַ מֶ מִ מֹ | ba ba be bi boy da da de di doy ma ma me mi moy | every kamatz read as patach | not graded |
+
+## Card test results, October 27
+
+The live ear wrote ba da ma ga ta ka for the kamatz-only card in 20 of 20 runs. On that card it hears Levi's kamatz as patach every time, so a kamatz-only voice check gives the ear nothing to compare.
+
+A lab copy of the ear had one more vowel to write, aw, for a rounded open o. Each card ran five times.
+
+| Card | Read | The lab ear wrote | Runs |
+| --- | --- | --- | --- |
+| kamatz-card_clean | bo do mo go to ko | ba da ma ga ta ka | 5 of 5 |
+| kamatz-card_patach-for-kamatz | ba da ma ga ta ka | ba da ma ka ta ka | 5 of 5 |
+| voice-check | bo ba be bi boy, and so on | baw ba be bi boy daw da de di doy maw ma me mi moy | 4 of 5; the fifth swapped baw and ba |
+| voice-check_patach-for-kamatz | ba ba be bi boy, and so on | ba ba be bi boy ta ta de di doy ma ma me mi moy | 5 of 5 |
+
+The ear heard the open o only when a patach was there to compare it with. It never wrote aw for a patach read in its place.
+
+The meter was also run with the card read wrong, every kamatz as patach. On the saved Round 1 and Round 1b answers it marked 10 of 10 and 3 of 4 plants, with 8 and 10 false marks. With the real card it marked 10 of 10 and 4 of 4, with 4 and 3. The ear alone marked 8 of 10 and 3 of 4, with 16 and 11. A card read wrong costs accuracy, but it did not hide a planted mistake that the ear alone caught.
+
+## Sheva tests
+
+Levi found that the sound alphabet writes a sheva as e, the same letter as segol, so a quick sheva and a full eh look alike. An apostrophe now marks a sheva: n'-sho-mo is a quick n with no full vowel. Each word is read three ways: with a quick sheva, with the sheva as a full segol, and with the sheva as patach. These test whether the ear and the meter can tell a sheva from a full vowel.
+
+| File name | Hebrew | Say | Planted | The ear should write |
+| --- | --- | --- | --- | --- |
+| sheva-brocho_clean | בְּרָכָה | b'-ro-cho | nothing | not graded |
+| sheva-brocho_segol-for-sheva | בְּרָכָה | be-ro-cho | sheva read as a full segol | not graded |
+| sheva-brocho_patach-for-sheva | בְּרָכָה | ba-ro-cho | sheva read as patach | not graded |
+| sheva-neshomo_clean | נְשָׁמָה | n'-sho-mo | nothing | not graded |
+| sheva-neshomo_segol-for-sheva | נְשָׁמָה | ne-sho-mo | sheva read as a full segol | not graded |
+| sheva-neshomo_patach-for-sheva | נְשָׁמָה | na-sho-mo | sheva read as patach | not graded |
+| sheva-shema_clean | שְׁמַע | sh'-ma | nothing | not graded |
+| sheva-shema_segol-for-sheva | שְׁמַע | she-ma | sheva read as a full segol | not graded |
+| sheva-shema_patach-for-sheva | שְׁמַע | sha-ma | sheva read as patach | not graded |
+| sheva-zman_clean | זְמַן | z'-man | nothing | not graded |
+| sheva-zman_segol-for-sheva | זְמַן | ze-man | sheva read as a full segol | not graded |
+| sheva-zman_patach-for-sheva | זְמַן | za-man | sheva read as patach | not graded |
+
+## Sheva test results, October 27
+
+Levi recorded the twelve sheva clips at 11:43 AM. He wants a sheva read as a full eh marked wrong, once a test shows the system can hear the difference. These results say it cannot yet.
+
+The live ear heard each clip four times. This is what it wrote for the first syllable.
+
+| Word | Quick sheva | Full eh | Patach |
+| --- | --- | --- | --- |
+| brocho | be, 4 of 4 | be, 4 of 4 | ba, 4 of 4 |
+| neshomo | ne, 4 of 4 | ne, 4 of 4 | na, 4 of 4 |
+| shema | she, 4 of 4 | she, 4 of 4 | sha, 4 of 4 |
+| zman | za 2, ze 2 | ze, 4 of 4 | za, 4 of 4 |
+
+A lab copy of the ear was told to write a vowel too short to have a full sound as an apostrophe, like k'-lo. It wrote the apostrophe once in 48 answers.
+
+| Word | Quick sheva | Full eh | Patach |
+| --- | --- | --- | --- |
+| brocho | be, 4 of 4 | ba, 4 of 4 | ba, 4 of 4 |
+| neshomo | ne, 4 of 4 | ne, 4 of 4 | na, 4 of 4 |
+| shema | she, 4 of 4 | she 3, sha 1 | sha, 4 of 4 |
+| zman | za 3, z' 1 | ze, 4 of 4 | za, 4 of 4 |
+
+The ear writes the same e for a quick sheva and a full eh. A patach read for a sheva is caught every time. In zman the live ear also wrote a for a correct quick sheva in 2 of 4 runs, which marks a right reading wrong.
+
+The meter does find a difference in Levi's voice. His full eh is more open than his quick sheva in all four words, by 0.35 to 1.19 Bark in the first formant. But his quick sheva sits 0.25 to 0.56 Bark from the segol on his voice card, closer than his full eh does. A rule that called a sheva near the card's segol a mistake would mark his correct shevas wrong. Length does not help either: he held each sheva as its own syllable for 170 to 340 ms, about as long as his full eh, 250 to 360 ms.
+
+So a sheva read as a full eh is still accepted. Marking it needs a measure that tells a quick sheva from a full eh in the reader's own voice, and a test on fresh recordings that shows it.
+
+## Voice card to the ear, October 27
+
+The card tests showed the ear hears Levi's kamatz as an open o only when a patach is in the same recording to compare. So the lab played the ear his voice card first, as its own recording, then the reading. It also let the ear write aw for a rounded open o, which is read as o.
+
+The ear heard the 34 clips of Rounds 1, 1b and 1c three times in each setup. They hold 18 plants. Each cell lists the three runs.
+
+| Setup | Plants caught of 18 | False marks | False marks in Round 1c |
+| --- | --- | --- | --- |
+| Live ear | 14, 14, 15 | 41, 40, 41 | 16, 16, 17 |
+| aw, no card | 12, 13, 14 | 48, 43, 41 | 17, 16, 17 |
+| Card first, with aw | 15, 17, 18 | 28, 25, 26 | 11, 11, 12 |
+
+The same answers with the vowel meter:
+
+| Setup | Plants caught of 18 | False marks | False marks in Round 1c |
+| --- | --- | --- | --- |
+| Live ear | 17, 18, 18 | 23, 21, 23 | 14, 14, 15 |
+| aw, no card | 16, 17, 18 | 29, 23, 22 | 15, 14, 15 |
+| Card first, with aw | 17, 18, 18 | 18, 15, 17 | 9, 9, 11 |
+
+The card caught as many plants and cut false marks by about a quarter with the meter, and by about a third without it. The aw letter alone made things worse. Most false marks left with the card and the meter come from a kamatz written as a, in neshomo, tzedoko, kosuv, odom, toyro, shono, dovor and yisroel. In tzedoko and kosuv that vowel, with ts for tz or o for the shuruk, leaves too few right syllables, so the whole word is marked. Most of the rest are in yisroel, where the ear wrote e for the tzere and for the chirik. In one run the meter moved the ear's sha in shomayim to she instead of sho.
+
+Two other tries failed:
+
+- Playing the reading to the ear cut into single syllables, in order or shuffled. The ear joined the syllables back into words.
+- Telling kamatz from patach by measuring them inside words. There Levi's kamatz overlaps his patach: first formant 4.8 to 7.3 Bark for kamatz, 6.8 to 7.6 for patach. Even a line drawn knowing the answers misplaced 5 of 41 vowels.
+
+Levi also read the card wrong on purpose, with every kamatz as a patach, and the ear heard the 34 clips twice with that card first. With the meter it caught 14 and 16 of 18 plants, about what the live ear catches with no card. But plant by plant it hid two mistakes the live ear never missed. Once in two runs it wrote cho-lov for the planted cha-lov. In both runs it wrote ha-mo-kom for ha-ma-kom, so the wrong word still got marks, but not on the syllable the plant needs. A wrong card teaches the ear that this reader's kamatz sounds like a patach.
+
+## Round 1d: sealed test
+
+Read each clip once, after the sheva tests, in Ashkenazi pronunciation. Round 1c has been read, so these twelve words take its place as the sealed test. Nobody reads the ear's answers on them until the next ear change is final.
+
+| File name | Hebrew | Say | Planted | The ear should write |
+| --- | --- | --- | --- | --- |
+| yod_clean | יָד | yod | nothing | yod |
+| gomol_clean | גָּמָל | go-mol | nothing | go-mol |
+| dogim_clean | דָּגִים | do-gim | nothing | do-gim |
+| koton_clean | קָטָן | ko-ton | nothing | ko-ton |
+| noshim_clean | נָשִׁים | no-shim | nothing | no-shim |
+| seyfer_clean | סֵפֶר | sey-fer | nothing | sey-fer |
+| chalo_clean | חַלָּה | cha-lo | nothing | cha-lo |
+| ovinu_clean | אָבִינוּ | o-vi-nu | nothing | o-vi-nu |
+| zohov_patach-for-kamatz | זָהָב | za-hov | the first kamatz read as patach | za-hov |
+| yom_patach-for-kamatz | יָם | yam | kamatz read as patach | yam |
+| abo_kamatz-for-patach | אַבָּא | o-bo | patach read as kamatz | o-bo |
+| nachal_kamatz-for-patach | נַחַל | no-chal | the first patach read as kamatz | no-chal |
 
 ## Round 2: a child's voice
 

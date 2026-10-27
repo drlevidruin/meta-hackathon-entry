@@ -132,7 +132,7 @@ function rulePlan(profile, levels) {
     return { level: current, target: weak[0] || null, why: 'start', misses: 0 };
   }
   if (profile.cleanAtLevel.clean) {
-    return { level: levels.find(level => level > profile.level) ?? current, target: weak[0] || null, why: 'clean', misses: 0 };
+    return { level: levels.find(level => level > current) ?? current, target: weak[0] || null, why: 'clean', misses: 0 };
   }
   const twice = weak.find(skill => {
     const record = profile.skills[skill];
@@ -141,7 +141,7 @@ function rulePlan(profile, levels) {
       && recent.length >= 2 && recent.at(-1) === 1 && recent.at(-2) === 1;
   });
   return twice
-    ? { level: levels.findLast(level => level < profile.level) ?? current, target: twice, why: 'missed_twice', misses: 2 }
+    ? { level: levels.findLast(level => level < current) ?? current, target: twice, why: 'missed_twice', misses: 2 }
     : { level: current, target: weak[0] || null, why: 'mixed', misses: 0 };
 }
 
@@ -226,10 +226,11 @@ function heldLongEnough(profile) {
 
 function decisionFor(profile, picked, items, plan) {
   const first = items.find(item => item.id === picked.itemIds[0]);
-  const move = picked.level > profile.level ? 'up' : picked.level < profile.level ? 'down'
+  const current = snapLevel(profile.level, availableLevels(items));
+  const move = picked.level > current ? 'up' : picked.level < current ? 'down'
     : profile.checkpoints ? 'stay' : 'start';
   return {
-    move, from: profile.level, level: picked.level, target: plan.target,
+    move, from: current, level: picked.level, target: plan.target,
     focus: first?.focus || null,
     recentMisses: plan.target && profile.skills[plan.target] ? misses(profile.skills[plan.target]) : 0,
     why: move === 'start' ? 'start'

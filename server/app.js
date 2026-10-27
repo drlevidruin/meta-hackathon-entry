@@ -365,7 +365,8 @@ export function createApp({
       } else if (req.method === 'POST' && pathname === '/api/voice') {
         const id = url.searchParams.get('child');
         const child = getChild(id);
-        let card = voiceCardFor(child.vowels, child.preset);
+        const card = voiceCardFor(child.vowels, child.preset);
+        const labels = cardLabels(child.preset, card);
         if (!card.length) throw new RequestError(409, 'No voice check');
         if (contentType(req) !== 'audio/wav') throw new RequestError(415, 'Use audio/wav');
         const version = voiceVersions.get(id);
@@ -375,10 +376,15 @@ export function createApp({
           await voiceOperation(id, async () => {
             const child = await store.update(state => {
               const child = childIn(state, id);
-              card = voiceCardFor(child.vowels, child.preset);
-              if (!card.length) throw new RequestError(409, 'No voice check');
-              if (voiceVersions.get(id) !== version) throw new RequestError(409, 'Voice card changed');
-              child.voice = buildVoiceProfile(data, cardLabels(child.preset, card));
+              const currentCard = voiceCardFor(child.vowels, child.preset);
+              const currentLabels = cardLabels(child.preset, currentCard);
+              if (!currentCard.length) throw new RequestError(409, 'No voice check');
+              if (voiceVersions.get(id) !== version
+                || currentCard.length !== card.length
+                || currentCard.some((syllable, index) => syllable !== card[index] || currentLabels[index] !== labels[index])) {
+                throw new RequestError(409, 'Voice card changed');
+              }
+              child.voice = buildVoiceProfile(data, labels);
               delete child.voiceSkipped;
               return child;
             });

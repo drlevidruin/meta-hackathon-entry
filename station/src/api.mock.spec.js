@@ -6,6 +6,8 @@ import { VOWEL_IDS } from '../../rulebook/vowels.js';
 
 beforeEach(() => sessionStorage.clear());
 
+const beginnerLines = ['בָּ בַּ מָ', 'מַ לָ לַ', 'שָׁ שַׁ נָ', 'נַ בָּ מַ'];
+
 it('gives each line the same marks across turns, children and random values', async () => {
   const random = vi.spyOn(Math, 'random').mockReturnValue(0);
   const first = await mock.start({ childId: 'bim' });
@@ -20,7 +22,8 @@ it('gives each line the same marks across turns, children and random values', as
 });
 
 it('keeps most lines correct and puts one or two amber marks on a third of the lines', async () => {
-  const grades = await Promise.all(mock.items.map(item => mock.grade({ itemId: item.id })));
+  const fullSet = mock.items.filter(item => !item.source?.beginner);
+  const grades = await Promise.all(fullSet.map(item => mock.grade({ itemId: item.id })));
   const marked = grades.filter(grade => grade.summary.ok < grade.summary.pairs);
   expect(marked).toHaveLength(2);
   for (const grade of grades) {
@@ -48,6 +51,59 @@ it('places at most one challenge at the end of every mock set', async () => {
     }
     expect(sets).toBe(3);
   }
+});
+
+it('serves only the four beginner lines to Plo and wraps later sets', async () => {
+  const beginner = mock.items.filter(item => item.source?.beginner);
+  expect(beginner.map(item => item.text)).toEqual(beginnerLines);
+  for (const [index, item] of beginner.entries()) {
+    expect(item).toMatchObject({ level: 1, skills: ['vowel:kamatz', 'vowel:patach'], focus: 'vowel:kamatz',
+      source: { generated: true, beginner: true, challenge: index % 2 === 1 } });
+  }
+  let response = await mock.start({ childId: 'plo' });
+  const { turnId } = response;
+  for (const expected of [beginnerLines.slice(0, 2), beginnerLines.slice(2), beginnerLines.slice(0, 2)]) {
+    expect(response.set.map(item => item.text)).toEqual(expected);
+    response = await mock.next({ turnId });
+  }
+  expect(response.done).toBe(true);
+});
+
+it('keeps the original six lines and sets for a full-set child', async () => {
+  const original = mock.items.slice(0, 6);
+  expect(original.map(item => item.text)).toEqual(['בָּ בַּ בֵּ', 'מָ מַ מִ', 'לָ לַ לִ', 'בִּ בֵּ בֻּ', 'שָׁ שַׁ שִׁ', 'נָ נַ נִ']);
+  let response = await mock.start({ childId: 'bim' });
+  const { turnId } = response;
+  for (let round = 0; round < 3; round++) {
+    expect(response.set).toEqual(original.slice(round * 2, round * 2 + 2));
+    response = await mock.next({ turnId });
+  }
+  expect(response.done).toBe(true);
+});
+
+it('filters child packets and keeps full-set child and class packets unchanged', async () => {
+  const plo = await mock.packet({ childId: 'plo' });
+  expect(plo.sections[0].items.map(item => item.text)).toEqual(beginnerLines.slice(0, 2));
+  expect(plo.sections[1].items.map(item => item.text)).toEqual(beginnerLines);
+  expect(plo.sections[2].items.map(item => item.text)).toEqual([beginnerLines[3]]);
+  for (const fields of [{ childId: 'bim' }, { skillId: 'vowel:kamatz' }]) {
+    const packet = await mock.packet(fields);
+    expect(packet.sections.map(section => section.items)).toEqual([
+      mock.items.slice(0, 2), mock.items.slice(0, 6), [mock.items[5]],
+    ]);
+  }
+});
+
+it('falls back to the original lines for every round and packet when no lines fit', async () => {
+  const child = await mock.addChild({ name: 'Mippo', avatar: 'koala', preset: 'sephardi', vowels: ['tzere'] });
+  let response = await mock.start({ childId: child.id });
+  const { turnId } = response;
+  for (let round = 0; round < 3; round++) {
+    expect(response.set).toEqual(mock.items.slice(round * 2, round * 2 + 2));
+    response = await mock.next({ turnId });
+  }
+  expect(response.done).toBe(true);
+  expect((await mock.packet({ childId: child.id })).sections[1].items).toEqual(mock.items.slice(0, 6));
 });
 
 it('seeds thirteen distinct avatars, four levels, all presets and six varied practice groups', async () => {
@@ -191,4 +247,17 @@ it('ignores mock sessions from the previous storage key', async () => {
   expect(await mock.children()).toHaveLength(13);
   await mock.skipVoice('bim');
   expect(JSON.parse(sessionStorage.getItem('kriah.mock.v5')).children).toHaveLength(13);
+});
+
+it('ends every set with its challenge line for a child with some of the vowels', async () => {
+  const child = (await mock.children()).find(child => child.id === 'bim');
+  await mock.editChild(child.id, { vowels: ['kamatz', 'patach', 'chirik'] });
+  let response = await mock.start({ childId: child.id });
+  const { turnId } = response;
+  while (!response.done) {
+    const flags = response.set.map(item => Boolean(item.source?.challenge));
+    expect(flags).toEqual([...flags].sort((a, b) => Number(a) - Number(b)));
+    expect(new Set(response.set.map(item => item.id)).size).toBe(response.set.length);
+    response = await mock.next({ turnId });
+  }
 });
