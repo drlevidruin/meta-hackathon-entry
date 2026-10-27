@@ -239,6 +239,25 @@ Levi found that the sound alphabet writes a sheva as e, the same letter as segol
 | sheva-zman_segol-for-sheva | זְמַן | ze-man | sheva read as a full segol | not graded |
 | sheva-zman_patach-for-sheva | זְמַן | za-man | sheva read as patach | not graded |
 
+## Round 1d: sealed test
+
+Read each clip once, after the sheva tests, in Ashkenazi pronunciation. Round 1c has been read, so these twelve words take its place as the sealed test. Nobody reads the ear's answers on them until the next ear change is final.
+
+| File name | Hebrew | Say | Planted | The ear should write |
+| --- | --- | --- | --- | --- |
+| yod_clean | יָד | yod | nothing | yod |
+| gomol_clean | גָּמָל | go-mol | nothing | go-mol |
+| dogim_clean | דָּגִים | do-gim | nothing | do-gim |
+| koton_clean | קָטָן | ko-ton | nothing | ko-ton |
+| noshim_clean | נָשִׁים | no-shim | nothing | no-shim |
+| seyfer_clean | סֵפֶר | sey-fer | nothing | sey-fer |
+| chalo_clean | חַלָּה | cha-lo | nothing | cha-lo |
+| ovinu_clean | אָבִינוּ | o-vi-nu | nothing | o-vi-nu |
+| zohov_patach-for-kamatz | זָהָב | za-hov | the first kamatz read as patach | za-hov |
+| yom_patach-for-kamatz | יָם | yam | kamatz read as patach | yam |
+| abo_kamatz-for-patach | אַבָּא | o-bo | patach read as kamatz | o-bo |
+| nachal_kamatz-for-patach | נַחַל | no-chal | the first patach read as kamatz | no-chal |
+
 ## Round 2: a child's voice
 
 The adult round must pass first. Recording a child requires written parent consent. Turn Meta Model API free credits off and use a paid plan before sending children's audio. Meta's free-credit terms allow content to be used for product improvement.
