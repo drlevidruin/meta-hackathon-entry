@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { linkSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { checkPass, parseRun, scoreMarks, scoreRun, summarizeRows } from './score.js';
@@ -132,11 +132,59 @@ test('5-, 6- and 7-column rows preserve their scored columns and ignore result a
 test('status lines, blank lines and the clip header are ignored, including CRLF input', async () => {
   const rows = await parseRun([
     'Ear model: primary', '', 'clip\tsaid\theard\tresult\tear\tmetered\tvotes',
-    row('shabbos', 'sha-bos'), 'Phoneme referee: on', '',
+    row('shabbos', 'sha-bos', 'sha-bos', { metered: 'sha-bos', votes: '' }), 'Phoneme referee: on', '',
   ].join('\r\n'), { clips, file: 'status.tsv' });
   assert.equal(rows.length, 1);
   assert.equal(rows[0].clip, 'shabbos');
   assert.equal(rows[0].line, 4);
+});
+
+for (const [count, lastRow] of [
+  [5, row('shabbos', 'sha-bos')],
+  [6, row('shabbos', 'sha-bos', 'sha-bos', { metered: 'sha-bos' })],
+  [8, `${row('shabbos', 'sha-bos', 'sha-bos', { metered: 'sha-bos', votes: '[]' })}\textra`],
+]) {
+  test(`${count}-cell last rows under a 7-column header are errors naming their file and line`, async () => {
+    const source = [
+      'Ear model: primary', 'clip\tsaid\theard\tresult\tear\tmetered\tvotes',
+      row('shabbos', 'sha-bos', 'sha-bos', { metered: 'sha-bos', votes: '[]' }),
+      'Phoneme referee: on', lastRow,
+    ].join('\r\n');
+    await assert.rejects(parseRun(source, { clips, file: 'columns.tsv' }), {
+      message: `columns.tsv:5: Expected 7 tab-separated cells; found ${count}.`,
+    });
+  });
+}
+
+test('a 5-column header accepts 5-cell rows', async () => {
+  const rows = await parseRun([
+    'clip\tsaid\theard\tresult\tear', row('shabbos', 'sha-bos'), row('line', 'sha-bos e-chod'),
+  ].join('\n'), { clips });
+  assert.equal(rows.length, 2);
+  assert.ok(rows.every(entry => !Object.hasOwn(entry, 'metered')));
+});
+
+test('headers set the row width until the next header, leaving earlier headerless rows valid', async () => {
+  const sevenCells = row('shabbos', 'sha-bos', 'sha-bos', { metered: 'sha-bos', votes: '[]' });
+  const source = [
+    sevenCells,
+    'clip\tsaid\theard\tresult\tear', row('shabbos', 'sha-bos'),
+    'clip\tsaid\theard\tresult\tear\tmetered',
+    row('shabbos', 'sha-bos', 'sha-bos', { metered: 'sha-bos' }),
+    'clip\tsaid\theard\tresult\tear\tmetered\tvotes', sevenCells,
+    'clip\tsaid\theard\tresult\tear', row('shabbos', 'sha-bos'),
+  ].join('\n');
+  const rows = await parseRun(source, { clips, file: 'headers.tsv' });
+  assert.deepEqual(rows.map(entry => entry.line), [1, 3, 5, 7, 9]);
+  await assert.rejects(parseRun(`${source}\n${sevenCells}`, { clips, file: 'headers.tsv' }), {
+    message: 'headers.tsv:10: Expected 5 tab-separated cells; found 7.',
+  });
+});
+
+test('a 4-column header is an error naming its file and line even without rows', async () => {
+  await assert.rejects(parseRun('status\nclip\tsaid\theard\tresult', { clips, file: 'header.tsv' }), {
+    message: 'header.tsv:2: Expected at least 5 tab-separated cells in header; found 4.',
+  });
 });
 
 test('a status line containing a clip name after its first token is still ignored', async () => {
@@ -530,6 +578,56 @@ test('the pass rule exits 1 when fewer than K files pass', t => {
   assert.equal(result.status, 1, result.stderr);
   assert.equal(result.stderr, '');
   assert.match(result.stdout, /All rounds: 1 of 2 runs pass; 2 needed: FAIL\n$/);
+});
+
+for (const spelling of ['same path', 'dot component', 'symlink']) {
+  for (const flags of [[], ['--max-uncertain', '0', '--runs-needed', '2']]) {
+    test(`CLI rejects the same file via ${spelling} ${flags.length ? 'with' : 'without'} pass flags`, t => {
+      const [file] = savedRuns(t, [completePassing]);
+      let alias = file;
+      if (spelling === 'dot component') alias = `${dirname(file)}/./${basename(file)}`;
+      if (spelling === 'symlink') {
+        alias = join(dirname(file), 'linked.tsv');
+        symlinkSync(file, alias);
+      }
+      const result = cli(...flags, file, alias);
+      assert.equal(result.status, 2, result.stdout);
+      assert.ok(result.stderr.includes(`${file} and ${alias}`));
+      assert.match(result.stderr, /same file/);
+      assert.equal(result.stdout, '');
+    });
+  }
+}
+
+for (const flags of [[], ['--max-uncertain', '0', '--runs-needed', '2']]) {
+  test(`CLI rejects a hard link to a run ${flags.length ? 'with' : 'without'} pass flags`, t => {
+    const [file] = savedRuns(t, [completePassing]);
+    const alias = join(dirname(file), 'hard-linked.tsv');
+    linkSync(file, alias);
+    const result = cli(...flags, file, alias);
+    assert.equal(result.status, 2, result.stdout);
+    assert.ok(result.stderr.includes(`${file} and ${alias}`));
+    assert.match(result.stderr, /same file/);
+    assert.equal(result.stdout, '');
+  });
+}
+
+test('CLI checks for duplicate files before parsing any run', t => {
+  const [invalid, good] = savedRuns(t, ['unknown\tx\tx\tPASS\tx', completePassing]);
+  const result = cli(invalid, good, good);
+  assert.equal(result.status, 2);
+  assert.ok(result.stderr.includes(`${good} and ${good}`));
+  assert.match(result.stderr, /same file/);
+  assert.equal(result.stdout, '');
+});
+
+test('two different files with identical contents count as two passing runs', t => {
+  const files = savedRuns(t, [completePassing, completePassing]);
+  const result = cli('--max-uncertain', '0', '--runs-needed', '2', ...files);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stderr, '');
+  for (const file of files) assert.ok(result.stdout.includes(`${file}: PASS;`));
+  assert.match(result.stdout, /All rounds: 2 of 2 runs pass; 2 needed: PASS\n$/);
 });
 
 test('the uncertain cap is inclusive and the pass rule uses final only', t => {

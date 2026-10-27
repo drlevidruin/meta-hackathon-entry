@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { gradeLine } from '../../grader/index.js';
@@ -17,14 +17,24 @@ const wordsHeard = sounds => sounds.trim()
 export async function parseRun(source, { file = '<input>', clips = loadClips('adult') } = {}) {
   const byName = new Map((await clips).map(clip => [clip.name, clip]));
   const rows = [];
+  let expectedCells;
   for (const [index, line] of source.split(/\r?\n/u).entries()) {
-    if (line.startsWith('clip\t')) continue;
+    const at = `${file}:${index + 1}`;
+    if (line.startsWith('clip\t')) {
+      expectedCells = line.split('\t').length;
+      if (expectedCells < 5) {
+        throw new Error(`${at}: Expected at least 5 tab-separated cells in header; found ${expectedCells}.`);
+      }
+      continue;
+    }
     if (!line.includes('\t')) {
       const name = line.trim().split(/\s+/u, 1)[0].replace(/^child_/u, '');
       if (!byName.has(name)) continue;
     }
     const cells = line.split('\t');
-    const at = `${file}:${index + 1}`;
+    if (expectedCells !== undefined && cells.length !== expectedCells) {
+      throw new Error(`${at}: Expected ${expectedCells} tab-separated cells; found ${cells.length}.`);
+    }
     if (cells.length < 5) throw new Error(`${at}: Expected at least 5 tab-separated cells.`);
     const [name, said, heard, , ear, metered] = cells;
     const clip = byName.get(name.replace(/^child_/u, ''));
@@ -244,6 +254,15 @@ export async function main(argv = process.argv.slice(2)) {
     if (options.help) {
       console.log(usage);
       return 0;
+    }
+    const filesByIdentity = new Map();
+    for (const file of options.files) {
+      const { dev, ino } = await stat(file, { bigint: true });
+      const identity = `${dev}:${ino}`;
+      if (filesByIdentity.has(identity)) {
+        throw new Error(`Run arguments ${filesByIdentity.get(identity)} and ${file} resolve to the same file.`);
+      }
+      filesByIdentity.set(identity, file);
     }
     const clips = await loadClips('adult');
     const runs = [];
