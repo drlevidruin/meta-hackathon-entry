@@ -1,16 +1,41 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import os from 'node:os';
 import path from 'node:path';
 import { createStore } from './store.js';
 import { startProfile } from '../coach/index.js';
 
 function fixture(t) {
-  const directory = fs.mkdtempSync(path.join(fileURLToPath(new URL('.', import.meta.url)), '.test-store-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'kriah-store-test-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   return { directory, store: createStore(directory) };
 }
+
+test('store fixtures use the system temp folder and clean up', async () => {
+  let cleanup;
+  const { directory } = fixture({ after: callback => { cleanup = callback; } });
+  try {
+    assert.equal(fs.realpathSync(path.dirname(directory)), fs.realpathSync(os.tmpdir()));
+  } finally {
+    await cleanup();
+  }
+  assert.equal(fs.existsSync(directory), false);
+});
+
+for (const turns of [{}, 7]) {
+  test(`a malformed turn list (${typeof turns}) gives a controlled load error`, t => {
+    const { directory } = fixture(t);
+    fs.writeFileSync(path.join(directory, 'store.json'), JSON.stringify({ version: 1, children: {}, turns: { sprout: turns } }));
+    assert.throws(() => createStore(directory), { name: 'Error', message: 'Could not load store' });
+  });
+}
+
+test('a null child gives a controlled load error', t => {
+  const { directory } = fixture(t);
+  fs.writeFileSync(path.join(directory, 'store.json'), JSON.stringify({ version: 1, children: { sprout: null }, turns: {} }));
+  assert.throws(() => createStore(directory), { name: 'Error', message: 'Could not load store' });
+});
 
 test('profile persistence allows only coach fields at every profile depth', async t => {
   const { directory, store } = fixture(t);

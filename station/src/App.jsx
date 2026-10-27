@@ -56,7 +56,7 @@ export default function App() {
   }
   if (['teacher', 'detail', 'roster', 'packet'].includes(route.screen)) return <TeacherGate>
     {route.screen === 'teacher' && <ClassView />}
-    {route.screen === 'detail' && <ChildDetail childId={route.childId} />}
+    {route.screen === 'detail' && <ChildDetail childId={route.childId} trace={configuration.data?.trace === true} />}
     {route.screen === 'roster' && <Roster />}
     {route.screen === 'packet' && <Packet childId={route.childId} skillId={route.skillId} level={route.level} />}
   </TeacherGate>;

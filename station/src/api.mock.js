@@ -105,14 +105,14 @@ const sampleTurns = {
   fuzzle: { daysAgo: 4, startLevel: 2, endLevel: 3, ok: 29, pairs: 33, stars: 7 },
 };
 function turnsFor(db, childId) {
-  const saved = Object.values(db.turns).filter(turn => turn.childId === childId && turn.finished).reverse().map(turn => ({
-    date: turn.date, startLevel: turn.startLevel, endLevel: turn.level, stars: turn.stars,
+  const saved = Object.entries(db.turns).filter(([, turn]) => turn.childId === childId && turn.finished).reverse().map(([id, turn]) => ({
+    id, date: turn.date, startLevel: turn.startLevel, endLevel: turn.level, stars: turn.stars,
     ok: Object.values(turn.grades).reduce((n, grade) => n + grade.summary.ok, 0),
     pairs: Object.values(turn.grades).reduce((n, grade) => n + grade.summary.pairs, 0),
     log: ['Held the level at the first checkpoint.', 'Advanced after the second checkpoint.'],
   }));
   const sample = sampleTurns[childId];
-  return [...saved, ...(sample ? [{ ...sample, date: new Date(Date.now() - sample.daysAgo * 86400000).toISOString(),
+  return [...saved, ...(sample ? [{ ...sample, id: `mock-history-${childId}`, date: new Date(Date.now() - sample.daysAgo * 86400000).toISOString(),
     log: sample.log || ['Practiced the current skill.', 'Kept steady reading through the last line.'],
   }] : [])].slice(0, 20);
 }

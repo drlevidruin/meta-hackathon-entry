@@ -81,8 +81,10 @@ The 30 second timeout covers both fetch and body parsing, including a replacemen
 fetch that ignores abort signals.
 Provider errors are discarded, and failures use the deterministic rule.
 
-`reason` is private developer trace data. It must never be rendered in child,
-teacher or parent views. `explain` reads only the structured `decision`, and
+`reason` is private developer trace data. It appears only in the PIN-protected
+trace when enabled. Teachers can open that trace from a saved turn. Child
+screens, ordinary teacher logs and parent lines use templates. `explain` reads
+only the structured `decision`, and
 uses fixed templates and known skill labels. `turnFacts` returns skill ids for
 the station's end-of-turn templates, with clean totals and recent misses used
 to select best and next respectively. `next` is null when no skill has a recent

@@ -269,11 +269,11 @@ export function createApp({
         const id = childRoute[1];
         await store.update(state => {
           childIn(state, id);
-          invalidateLiveTurns(id);
-          starts.delete(id);
           delete state.children[id];
           delete state.turns[id];
         });
+        invalidateLiveTurns(id);
+        starts.delete(id);
         for (const [turnId, turn] of turns) if (turn.childId === id) turns.delete(turnId);
         json(res, 200, { ok: true });
       } else if (req.method === 'POST' && pathname === '/api/start') {
@@ -415,8 +415,8 @@ export function createApp({
         const child = childIn(state, childRoute[1]);
         const history = state.turns[child.id] || [];
         const lastSummary = history[0] ? totalSummary(history[0].summaries) : totalSummary([]);
-        const historyView = history.slice(0, 20).map(({ date, startLevel, endLevel, ok, pairs, stars, log }) =>
-          ({ date, startLevel, endLevel, ok, pairs, stars, log }));
+        const historyView = history.slice(0, 20).map(({ id, date, startLevel, endLevel, ok, pairs, stars, log }) =>
+          ({ id, date, startLevel, endLevel, ok, pairs, stars, log }));
         json(res, 200, { child: childView(child), map: buildMap(items, child), turns: historyView,
           parentLine: parentLine(child.name, lastSummary, child.preset, factsFor(child).next) });
       } else if (req.method === 'GET' && pathname === '/api/packet') {

@@ -177,12 +177,13 @@ group size, then by the skill's label from `SKILLS`.
     cells: { '<letterSkill>|<vowelSkill>': 'solid' /* or shaky, untested */ },
     sample: { '<letterSkill>|<vowelSkill>': '<pointed pair text>' }
   },
-  turns: [{ date, startLevel, endLevel, ok, pairs, stars, log: [string] }],
+  turns: [{ id, date, startLevel, endLevel, ok, pairs, stars, log: [string] }],
   parentLine: '...'
 }
 ```
 
-Turns are newest first, limited to 20. Dates are ISO 8601 UTC strings from the
+Turns are newest first, limited to 20. Each `id` is the stored turn UUID used by
+the trace route. Dates are ISO 8601 UTC strings from the
 finish time. Log entries are the coach's English `explain(decision)` sentences,
 including the initial selection. Model reason text never appears here.
 
@@ -259,7 +260,9 @@ focus, and `recentMisses` counts target misses in the last six reads. Teacher
 retry and practice wording names a target only when it has a recent miss.
 Only this response includes the coach's `reason`. Reasons remain in memory,
 including after finish until expiry, and disappear on restart. This developer
-route is never linked from child or teacher screens.
+route is linked as Coach trace under each teacher Turns entry when `/api/config`
+reports `trace: true`. Child screens have no trace links. An expired trace shows
+`This trace is no longer available.` in the station.
 
 ## Persistence and configuration
 
@@ -292,10 +295,15 @@ apply when loading a store. Read histories keep at most six entries per cell.
 
 `server/index.js` loads `ear/env.js`, imports the real ear, grader and coach,
 serves `station/dist` and listens on `HOST` (default `127.0.0.1`) and `PORT`
-(default 8787). Set `HOST=0.0.0.0` for a classroom tablet on the same network.
-After listening, startup prints one plain line for each missing `META_API_KEY`
-(the ear cannot hear and lines show gray) and missing `station/dist` (run
-`cd station && npm run build`), plus the actual address and port it listens on.
+(default 8787). Browsers allow the microphone only on https or localhost. The
+server speaks plain http. For a classroom tablet on the same network, set
+`HOST=0.0.0.0` and put an https address in front of the server. Open that https
+address on the tablet. On the server computer, use http://localhost:8787.
+This tablet setup has not been tested.
+After listening, startup warns only when both `BASETEN_API_KEY` and
+`META_API_KEY` are blank: the ear cannot hear and lines show gray. A missing
+`station/dist` prints `station/dist is missing; run npm run build.` Startup
+also prints the actual address and port it listens on.
 No key or part of a key is printed. Configuration:
 
 | Variable | Meaning |
@@ -305,7 +313,7 @@ No key or part of a key is printed. Configuration:
 | `COACH_MODEL` | Exactly `off` disables model calls at next checkpoints |
 | `COACH_REASONING_EFFORT` | Coach reasoning effort, default `minimal`; requests allow 16000 tokens and time out after 30 seconds |
 | `DATA_DIR` | Store directory, default `<repo>/data` |
-| `HOST` | Listen address, default `127.0.0.1`; use `0.0.0.0` for other devices |
+| `HOST` | Listen address, default `127.0.0.1`; network tablets need `0.0.0.0` and https in front of this plain http server. Use http://localhost:8787 on the server computer. |
 | `PORT` | HTTP port, default 8787 |
 
 The ear refuses any configured `EAR_PRIMARY_MODEL` or `EAR_FALLBACK_MODEL` id

@@ -21,7 +21,7 @@ One full turn through the real server with the coach model on, run at 22:50 East
 | Coach reasons outside the developer trace | none |
 | Files in the data folder afterwards | `store.json` only, no audio |
 
-The model's reasons named the child's actual confusions. For example: "Misses cluster on chirik and chirik-male across varied letters so these lines rebuild that vowel-pattern skill at level 1." Teachers never see these reasons. They see the templated log line, here "Held level 1 and gave the pattern chirik with a mater yud another try."
+The model's reasons named the child's actual confusions. For example: "Misses cluster on chirik and chirik-male across varied letters so these lines rebuild that vowel-pattern skill at level 1." Reasons appear only in the protected trace. The ordinary teacher turn log uses the templated line, here "Held level 1 and gave the pattern chirik with a mater yud another try."
 
 ## What it does not show
 

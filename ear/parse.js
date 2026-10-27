@@ -33,10 +33,17 @@ function soundLines(text) {
 }
 
 export function parseEarOutput(text) {
-  return soundLines(text).flatMap((line) => line.toLowerCase().split(/\s+/).map((word) => (
-    unwrap(word).split(/-+/).filter(Boolean)
+  return soundWords(text).map((word) => (
+    word.toLowerCase().split(/-+/).filter(Boolean)
       .map((syllable) => (tokenize(syllable) ? syllable : '?'))
-  )).filter((word) => word.length));
+  )).filter((word) => word.length);
+}
+
+function soundWords(text) {
+  const words = soundLines(text).flatMap(line => line.split(/\s+/)).map(unwrap).filter(Boolean);
+  // Lowercase sound lists may copy the prompt's commas and final period.
+  // Keep punctuation inside a word, or alongside capitals, for the prose check.
+  return words.some(word => /[A-Z]/.test(word)) ? words : words.map(word => word.replace(/[,.]+$/, ''));
 }
 
 // The models sometimes answer in English prose instead of sounds ("I don't have the
@@ -44,13 +51,14 @@ export function parseEarOutput(text) {
 // Single letters such as "i" are real vowels, so they never count as prose.
 const proseWords = /\b(?:audio|hear|heard|ability|upload|sorry|cannot|unable|file|sound|alphabet|please|recording|transcribe)\b/gi;
 const prosePhrase = /\b(?:i (?:can'?t|cannot|don'?t|do not|am (?:not |un)able)|i'?m (?:sorry|unable|not able)|as an ai)\b/i;
+const refusalWord = /\b(?:audio|hear|heard|sorry|cannot|unable|silent|silence|inaudible|speech|nothing|unclear|detected|transcribe|recording|sound)\b/i;
 
-// Once that formatting is removed, a sound answer holds only letters, hyphens,
-// slashes and "?". Punctuation means a sentence: "I can't hear audio." Capitals
+// Once formatting and lowercase separators are removed, a sound answer holds
+// only letters, hyphens, slashes and "?". Apostrophes mean prose. Capitals
 // are a reading only when every syllable is a real sound, so "Sha-vos" counts
 // and "No speech detected" does not.
 function sentenceShaped(raw) {
-  const words = soundLines(raw).flatMap((line) => line.split(/\s+/)).map(unwrap).filter(Boolean);
+  const words = soundWords(raw);
   if (words.some((word) => !/^[a-z/?-]*$/.test(word.toLowerCase()))) return true;
   return words.some((word) => word !== word.toLowerCase())
     && words.some((word) => word.toLowerCase().split(/[-/]+/).filter(Boolean)
@@ -59,6 +67,7 @@ function sentenceShaped(raw) {
 
 export function looksLikeProse(raw) {
   if (sentenceShaped(raw)) return true;
+  if (refusalWord.test(soundWords(raw).join(' '))) return true;
   const tokens = raw.trim().split(/\s+/).filter(Boolean);
   if (tokens.length <= 6) return false;
   if (prosePhrase.test(raw)) return true;

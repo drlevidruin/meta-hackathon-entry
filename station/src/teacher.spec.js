@@ -1,4 +1,5 @@
 import React from 'react';
+import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import App from './App.jsx';
@@ -107,6 +108,58 @@ it('redirects a trace bookmark home when trace is off', async () => {
   render(React.createElement(App));
   expect(await screen.findByRole('heading', { name: 'Who’s reading?' })).toBeTruthy();
   expect(window.location.hash).toBe('#/'); expect(trace).not.toHaveBeenCalled();
+});
+
+it.each([true, false])('links every teacher turn to its stored id only with trace enabled: %s', async enabled => {
+  window.history.replaceState(null, '', '/?mock#/teacher/child/bim');
+  savePin('2468');
+  vi.spyOn(api, 'config').mockResolvedValue({ trace: enabled });
+  const detail = await api.childDetail('bim');
+  detail.turns = ['stored-turn-1', 'stored-turn-2'].map(id => ({ ...detail.turns[0], id }));
+  vi.spyOn(api, 'childDetail').mockResolvedValue(detail);
+  const trace = vi.spyOn(api, 'trace');
+  render(React.createElement(App));
+  await screen.findByRole('heading', { name: 'Turns' });
+  await waitFor(() => {
+    const links = screen.queryAllByRole('link', { name: 'Coach trace' });
+    expect(links.map(link => link.getAttribute('href'))).toEqual(enabled ?
+      ['#/trace/stored-turn-1', '#/trace/stored-turn-2'] : []);
+  });
+  expect(trace).not.toHaveBeenCalled();
+});
+
+it('shows a plain message when a saved turn trace has left memory', async () => {
+  window.history.replaceState(null, '', '/?mock#/trace/expired-turn');
+  savePin('2468');
+  vi.spyOn(api, 'trace').mockRejectedValue(Object.assign(new Error('Unknown turn'), { status: 404 }));
+  render(React.createElement(App));
+  expect(await screen.findByText('This trace is no longer available.')).toBeTruthy();
+  expect(screen.queryByRole('alert')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
+  expect(document.body.textContent).not.toMatch(/Unknown turn|Error:| at Trace/);
+});
+
+it.each(['#/', '#/child/bim', '#/done'])('keeps coach trace links off child screens: %s', async hash => {
+  window.history.replaceState(null, '', `/?mock${hash}`);
+  vi.spyOn(api, 'config').mockResolvedValue({ trace: true });
+  render(React.createElement(App));
+  await screen.findByRole('link', { name: 'Kriah Listener home' });
+  expect(screen.queryByRole('link', { name: 'Coach trace' })).toBeNull();
+});
+
+it.each(['#/', '#/teacher'])('has compact header classes and styles for 320 px on %s (jsdom has no layout)', async hash => {
+  window.history.replaceState(null, '', `/?mock${hash}`);
+  savePin('2468');
+  render(React.createElement(App));
+  if (hash.includes('teacher')) await screen.findByRole('button', { name: 'Lock' });
+  const header = document.querySelector(hash.includes('teacher') ? '.teacher-header' : '.child-header');
+  expect(header.querySelector('.wordmark .brand-mark')).toBeTruthy();
+  expect(header.querySelector('.demo-badge').textContent).toBe('Demo');
+  // jsdom cannot measure wrapping or overflow. Check the actual responsive CSS.
+  const css = readFileSync('src/styles.css', 'utf8').split('@media (max-width: 370px) {')[1].split('@media')[0];
+  expect(css).toMatch(/\.child-header, \.teacher-header\s*\{[^}]*flex-wrap:\s*nowrap/);
+  expect(css).toMatch(/\.child-header \.brand-mark, \.teacher-header \.brand-mark\s*\{[^}]*width:\s*32px/);
+  expect(css).toMatch(/\.level-badge\.demo-badge\s*\{[^}]*font-size:\s*12px/);
 });
 
 it('opens child and done mock bookmarks without a server', async () => {

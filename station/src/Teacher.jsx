@@ -127,7 +127,7 @@ function ParentLine({ text }) {
   return <section className="parent-line"><h2>Parent line</h2><p ref={line}>{text}</p><button className="secondary" onClick={copy}>{state}</button></section>;
 }
 
-export function ChildDetail({ childId }) {
+export function ChildDetail({ childId, trace = false }) {
   const resource = useResource(() => api.childDetail(childId), childId);
   return <section className="page detail-page"><Resource resource={resource}>{data => <>
     <div className="page-heading"><div className="child-title"><Avatar name={data.child.avatar} small /><h1>{data.child.name}</h1><span className="level-badge">Level {data.child.level}</span></div>
@@ -135,7 +135,8 @@ export function ChildDetail({ childId }) {
     <div className="detail-layout"><SkillMap map={data.map} /><section className="turn-log"><h2>Turns</h2>
       {data.turns.map((turn, index) => <article className="turn-card" key={`${turn.date}-${index}`}>
         <h3><time dateTime={turn.date}>{dateLabel(turn.date)}</time></h3>
-        <div className="turn-meta"><span>Level {turn.startLevel} → {turn.endLevel}</span><span>{turn.ok} of {turn.pairs} sounds</span><span>{turn.stars} stars</span></div>
+        <div className="turn-meta"><span>Level {turn.startLevel} → {turn.endLevel}</span><span>{turn.ok} of {turn.pairs} sounds</span><span>{turn.stars} stars</span>
+          {trace && turn.id && <a href={`#/trace/${encode(turn.id)}`}>Coach trace</a>}</div>
         {turn.log.map((line, index) => <p key={index}>{line}</p>)}
       </article>)}
     </section></div>{data.parentLine && <ParentLine text={data.parentLine} />}
@@ -225,9 +226,10 @@ export function Roster() {
 export function Trace({ turnId }) {
   const resource = useResource(() => api.trace(turnId), turnId);
   const plain = value => Array.isArray(value) ? value.join('\n') : typeof value === 'string' ? value : JSON.stringify(value);
-  return <section className="page trace-page"><h1>Coach trace</h1><Resource resource={resource}>{data => <div className="table-scroll">
+  return <section className="page trace-page"><h1>Coach trace</h1>{resource.error?.status === 404 ?
+    <p role="status">This trace is no longer available.</p> : <Resource resource={resource}>{data => <div className="table-scroll">
     <table className="trace-table"><thead><tr>{['Checkpoint', 'Source', 'Explain', 'Reason'].map(label => <th key={label} scope="col">{label}</th>)}</tr></thead><tbody>
       {data.decisions.map((decision, index) => <tr key={index}><td data-label="Checkpoint">{decision.checkpoint}</td><td data-label="Source">{decision.source}</td><td data-label="Explain">{plain(decision.explain)}</td><td data-label="Reason">{plain(decision.reason)}</td></tr>)}
     </tbody></table>
-  </div>}</Resource></section>;
+  </div>}</Resource>}</section>;
 }

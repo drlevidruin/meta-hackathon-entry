@@ -23,7 +23,8 @@ const server = http.createServer(createApp({
 }));
 server.listen(port, host, () => {
   for (const line of startupMessages({
-    metaApiKey: process.env.META_API_KEY, hasStation: fs.existsSync(staticDir),
+    basetenApiKey: process.env.BASETEN_API_KEY, metaApiKey: process.env.META_API_KEY,
+    hasStation: fs.existsSync(staticDir),
     host: server.address().address, port: server.address().port,
   })) console.log(line);
 });

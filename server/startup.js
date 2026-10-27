@@ -10,10 +10,11 @@ export function listenOptions(env = process.env) {
   return { host: env.HOST || '127.0.0.1', port: Number(env.PORT || 8787) };
 }
 
-export function startupMessages({ metaApiKey, hasStation, host, port }) {
+export function startupMessages({ basetenApiKey, metaApiKey, hasStation, host, port }) {
   return [
-    ...(!metaApiKey?.trim() ? ['META_API_KEY is missing; the ear cannot hear and lines show gray.'] : []),
-    ...(!hasStation ? ['station/dist is missing; run cd station && npm run build.'] : []),
+    ...(!basetenApiKey?.trim() && !metaApiKey?.trim()
+      ? ['BASETEN_API_KEY and META_API_KEY are missing; the ear cannot hear and lines show gray.'] : []),
+    ...(!hasStation ? ['station/dist is missing; run npm run build.'] : []),
     `Kriah Listener: http://${host.includes(':') ? `[${host}]` : host}:${port}`,
   ];
 }

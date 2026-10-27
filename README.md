@@ -8,6 +8,8 @@ A child reads one line of Hebrew aloud and sees, letter by letter, what they rea
 </p>
 <img src="docs/images/class-desktop.png" width="100%" alt="Teacher class screen with practice groups, child avatars and reading results">
 
+Screenshots from mock mode: invented children and simulated grades.
+
 ## Why kriah
 
 Kriah is learning to decode Hebrew with its vowel marks, called nekudos. It is taught in the first years of Jewish day school. One teacher cannot listen to every child read every day. The mistakes that matter are small: a missed dagesh, a sheva read wrong, a kamatz katan. Children read aloud in three pronunciation traditions: Sephardi, Ashkenazi and Chassidish. A generic speech tool can mark a correct reading wrong when it expects another tradition.
@@ -33,8 +35,8 @@ flowchart LR
 ```
 
 1. **Ear.** A child taps an animal and reads a line. The model gets audio and a sound alphabet. It never sees the printed line, so the line cannot steer its answer. If the child says `sha-vos`, the ear writes `sha-vos`. It can still mishear. Prose, including short refusals, counts as a failed call; syllables outside the sound alphabet become `?`.
-2. **Rulebook and grader.** Plain code defines expected sounds in all three traditions. The grader compares `sha-vos` with what שַׁבָּת should sound like in the child's tradition. In Ashkenazi pronunciation the bet should be b, so the amber mark lands under the bet. The previous line shows green and amber marks while the child reads the next line. Flagged cases accept alternative readings.
-3. **Coach.** The server runs the coach at each checkpoint to pick the next bank ids. Code checks the ids and allowed levels, then resolves them to bank lines. A rule selects lines when the model is unavailable or its answer fails validation.
+2. **Rulebook and grader.** Plain code defines expected sounds in all three traditions. The [grader](grader/README.md) compares `sha-vos` with what שַׁבָּת should sound like in the child's tradition. In Ashkenazi pronunciation the bet should be b, so the amber mark lands under the bet. The previous line shows green and amber marks while the child reads the next line. Flagged cases accept alternative readings.
+3. **Coach.** The server runs the [coach](coach/README.md) at each checkpoint to pick the next bank ids. Code checks the ids and allowed levels, then resolves them to bank lines. A rule selects lines when the model is unavailable or its answer fails validation.
 
 ## Meta models, and what we learned
 
@@ -42,9 +44,9 @@ The [ear test notes](docs/ear-test.md) record the synthetic trials. The [live ru
 
 | Job | Meta model | What happened |
 | --- | --- | --- |
-| Ear | Muse Spark 1.3 | Corrected readings toward real words. Mostly returned `?` in the later synthetic trials. |
-| Ear | Muse Spark 1.2 | Answered in prose on about a third of the clips. Those answers count as failed calls. |
-| Ear | Muse Wonder 1.0 (`muse-wonder-1.0`), Meta Model API | Chosen fallback. Reported 5 of 7 planted mistakes in each of two runs, with no prose. Minimal reasoning took about 2 seconds a line instead of 15. Used as the ear in the full server run. |
+| Ear | Muse Spark 1.3 | Corrected children toward real words: it heard `sha-vos` and wrote `sha-bos`. With made-up example sounds in the prompt, it wrote the planted mistake on 1 and then 4 of the 7 plants, and wrote `?` on 7 and then 4 of the 13 clips. |
+| Ear | Muse Spark 1.2 | Answered in English prose on about a third of the clips with the first prompt. With made-up example sounds, it wrote 2 of the 7 plants in each run and answered in prose on 3 and then 2 of the 13 clips. Prose counts as a failed call. |
+| Ear | Muse Wonder 1.0 (`muse-wonder-1.0`), Meta Model API | Chosen. Wrote the planted mistake on 5 of the 7 plants in each of two runs, with no prose. Minimal reasoning brought it to 2.4 seconds a clip, from about 15. Used as the ear in the full server run. |
 | Ear | Muse Voice Transcribe 1.0, Meta transcription API | Tried and rejected. Fast, but writes words, corrects toward real ones and drops nikud. |
 | Ear | Muse Spark Open (`meta-models/muse-spark-open-1026`), Baseten | Wired as the primary ear, not yet run. |
 | Coach | Muse Spark 1.3 (`muse-spark-1.3`), Meta Model API | First failed live by spending its whole 2,000 token limit on reasoning. With 16,000 tokens and minimal reasoning, answered 7 of 7 checkpoints in the live run. All picks passed validation. |
@@ -58,7 +60,7 @@ Meta may train on content sent in contributor mode, so only standard tier is use
 - **Rulebook.** AI reviewers checked every distinct siddur word in all three traditions. A second AI review confirmed each finding. Fixes have regression tests and a before and after comparison of every word. No human kriah teacher has reviewed it yet. [Review](docs/check/rulebook-review.md) and [Shema page for the hand check](docs/check/shema.md).
 - **Synthetic ear test.** The script defines 13 clips: 7 planted mistakes and 6 clean controls. Wonder reported 5 of the 7 plants in each of two recorded runs. The saved notes do not support a complete grader accuracy rate. [Results and limits](docs/ear-test.md).
 - **Live server run.** Synthetic speech completed 25 of 25 lines. The coach answered 7 of 7 checkpoints with valid picks. This checks the full path through the server, not accuracy on real voices. [Run record](docs/live-run.md).
-- **Offline tests.** 510 root tests and 79 station tests pass. They cover sheva na and nach, kamatz katan, dagesh, silent letters, the divine names, restarts and rereads in the alignment, and all three traditions. They also check server retries, saved progress, packet selection and station screens. Synthetic inputs and model substitutes do not establish accuracy on real voices.
+- **Offline tests.** 553 root tests and 88 station tests pass. They cover sheva na and nach, kamatz katan, dagesh, silent letters, the divine names, restarts and rereads in the alignment, and all three traditions. They also check server retries, saved progress, packet selection and station screens. Synthetic inputs and model substitutes do not establish accuracy on real voices.
 - **Real voices.** Neither the adult nor child round has run. The real-voice test is still the go or no-go.
 
 ### Before the child round
@@ -103,9 +105,9 @@ Set the API key and `TEACHER_PIN` in `.env`, then run:
 npm start
 ```
 
-`npm start` runs `node server/index.js`. Open http://127.0.0.1:8787. The server binds to `127.0.0.1` unless `HOST` is set. For a classroom tablet on the same network, set `HOST=0.0.0.0` and open the server computer's address on that tablet.
+`npm start` runs `node server/index.js`. On the computer running the server, open http://localhost:8787. The server binds to `127.0.0.1` unless `HOST` is set. Browsers allow the microphone only on https or localhost. The server speaks plain http. For a classroom tablet on the same network, set `HOST=0.0.0.0` and put an https address in front of the server. Open that https address on the tablet. This tablet setup has not been tested.
 
-The first screen is empty until a teacher adds children: tap Teacher, enter the PIN, open Roster, and add a child. `TEACHER_PIN` must contain 4 to 12 digits. Missing or invalid values stop startup before the server listens. The PIN pad accepts digits and caps input at 12. Startup reports a missing Meta key or station build without printing a key.
+The first screen is empty until a teacher adds children: tap Teacher, enter the PIN, open Roster, and add a child. `TEACHER_PIN` must contain 4 to 12 digits. Missing or invalid values stop startup before the server listens. The PIN pad accepts digits and caps input at 12. Startup reports when both ear keys or the station build are missing, without printing a key.
 
 | Environment variable | Purpose |
 | --- | --- |
@@ -116,7 +118,7 @@ The first screen is empty until a teacher adds children: tap Teacher, enter the 
 | `COACH_MODEL` | Set to `off` to use the rule alone; otherwise model calls are enabled. |
 | `COACH_REASONING_EFFORT` | Coach reasoning effort; defaults to `minimal`. |
 | `DATA_DIR` | Store directory; defaults to `./data`. |
-| `HOST` | Listen address; defaults to `127.0.0.1`. Use `0.0.0.0` for classroom tablets. |
+| `HOST` | Listen address; defaults to `127.0.0.1`. Network tablets need `0.0.0.0` and an https address in front of the plain http server. Use http://localhost:8787 on the server computer. |
 | `PORT` | Server port; defaults to `8787`. |
 | `EAR_PRIMARY_MODEL` | Baseten model id; defaults to `meta-models/muse-spark-open-1026`. |
 | `EAR_FALLBACK_MODEL` | Meta ear model id; defaults to `muse-wonder-1.0`. |
@@ -144,9 +146,9 @@ Other tools, also from the repo root:
 | --- | --- |
 | `rulebook/` | Expected sounds and skill tags. |
 | `bank/` | Generated and committed items, source text and blocklist. |
-| `ear/` | Audio model calls, sound parser and prompt. |
-| `grader/` | Sound alignment and verdicts. |
-| `coach/` | Rule selection and validated model picks. |
+| `ear/` | Audio model calls, sound parser and [the prompt](ear/prompt.md). |
+| `grader/` | Sound alignment and verdicts. See [grader/README.md](grader/README.md). |
+| `coach/` | Rule selection and validated model picks. See [coach/README.md](coach/README.md). |
 | `server/` | API, roster, saved progress, groups and packets. Each packet includes a challenge from the bank's 150 challenge items. |
 | `station/` | [Child and teacher screens](station/README.md). |
 | `tools/` | Local test tools, including `tools/clip-recorder/`. |

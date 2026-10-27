@@ -89,3 +89,12 @@ it('leaves a new child without invented turns until a turn is completed', async 
   expect((await mock.childDetail(child.id)).turns).toHaveLength(1);
   expect((await mock.classView()).children.find(entry => entry.id === child.id).lastTurn.stars).toBe(1);
 });
+
+it('gives saved and sample turns ids for teacher trace links', async () => {
+  const initial = await mock.childDetail('bim');
+  expect(initial.turns[0].id).toBe('mock-history-bim');
+  const { turnId } = await mock.start({ childId: 'bim' });
+  await mock.finish({ turnId, stars: 0 });
+  const detail = await mock.childDetail('bim');
+  expect(detail.turns.map(turn => turn.id)).toEqual([turnId, 'mock-history-bim']);
+});

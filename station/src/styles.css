@@ -155,6 +155,7 @@ table { border-collapse: separate; border-spacing: 0; width: 100%; }
 .turn-card { padding: 24px; background: var(--light); border-radius: 20px; margin-bottom: 16px; }
 .turn-card p { margin: 12px 0 0; font-size: 14px; }
 .turn-meta { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: #657269; }
+.turn-meta a { color: var(--green); text-decoration: underline; }
 .parent-line { margin-top: 36px; padding: 26px; border: 1px solid #dce5dc; border-radius: 24px; }
 .parent-line p { max-width: 960px; }
 .packet-actions { display: flex; gap: 16px; justify-content: space-between; margin-bottom: 34px; }
@@ -259,7 +260,10 @@ legend { font-weight: 700; font-size: 14px; margin-bottom: 14px; }
   .page { padding-inline: 16px; }
   .roster-form { padding: 16px; }
   .avatar-picker { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .teacher-header { padding-inline: 16px; gap: 8px; }
+  .child-header, .teacher-header { padding-inline: 16px; gap: 8px; flex-wrap: nowrap; }
+  .child-header .wordmark, .teacher-header .wordmark { font-size: 14px; gap: 8px; }
+  .child-header .brand-mark, .teacher-header .brand-mark { width: 32px; height: 40px; font-size: 30px; }
+  .level-badge.demo-badge { font-size: 12px; padding: 8px; }
   .teacher-header nav { gap: 0; }
 }
 @media (prefers-reduced-motion: reduce) {

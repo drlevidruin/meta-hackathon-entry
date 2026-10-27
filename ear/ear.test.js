@@ -65,7 +65,8 @@ test('ear fixtures use the system temp folder and remove their files', async () 
   assert.equal(fs.existsSync(directory), false);
 });
 
-for (const raw of ["I can't hear audio.", 'No speech detected', 'Sorry.', "\"I can't hear audio.\"", 'sha,bos', 'sha.bos', 'No Speech Detected', '1. sha-vos.']) {
+for (const raw of ["I can't hear audio.", 'No speech detected', 'Sorry.', "\"I can't hear audio.\"", 'sha,bos', 'sha.bos', 'No Speech Detected',
+  'Sorry, I cannot hear.', 'Silent', 'Inaudible', 'no sound', "i can't hear", 'Sha-vos.', 'SHA-BOS,', "sha'vos", 'sha’vos']) {
   test(`prose characters fail the ear call: ${raw}`, async t => {
     setKeys(t);
     assert.equal(looksLikeProse(raw), true);
@@ -75,6 +76,30 @@ for (const raw of ["I can't hear audio.", 'No speech detected', 'Sorry.', "\"I c
       return answer(raw);
     } }), /answered in prose/);
     assert.equal(calls, 2);
+  });
+}
+
+for (const word of ['audio', 'hear', 'heard', 'sorry', 'cannot', 'unable', 'silent', 'silence', 'inaudible', 'speech',
+  'nothing', 'unclear', 'detected', 'transcribe', 'recording']) {
+  test(`a short refusal word is prose: ${word}`, () => {
+    assert.equal(looksLikeProse(word), true);
+    assert.equal(looksLikeProse(`? ${word} ?`), true);
+  });
+}
+
+for (const [raw, clean] of [
+  ['ko-mi-tav, ve-lush, tzo-ri.', 'ko-mi-tav ve-lush tzo-ri'],
+  ['sha-vos, ba-ruch', 'sha-vos ba-ruch'], ['sha-vos.', 'sha-vos'],
+  ['Sha-vos', 'sha-vos'], ['SHA-BOS', 'sha-bos'],
+  ['1. sha-vos\n2. ba-ruch', 'sha-vos ba-ruch'], ['1. sha-vos.', 'sha-vos'],
+  ['Sounds:\nsha-vos', 'sha-vos'], ['sha-wos', 'sha-wos'],
+]) {
+  test(`reading keeps the clean syllables: ${raw}`, async t => {
+    setKeys(t);
+    assert.equal(looksLikeProse(raw), false);
+    assert.deepEqual(parseEarOutput(raw), parseEarOutput(clean));
+    const result = await listen(audio, { model: 'fallback', fetch: async () => answer(raw) });
+    assert.deepEqual(result.words, parseEarOutput(clean));
   });
 }
 

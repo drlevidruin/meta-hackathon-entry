@@ -503,7 +503,7 @@ test('detail returns the latest twenty turns, templated parent lines and explain
   assert.equal(detail.turns.length, 20);
   assert.deepEqual(detail.turns.map(turn => turn.stars), Array(20).fill(1));
   assert.ok(detail.turns[0].date > detail.turns[1].date);
-  assert.deepEqual(Object.keys(detail.turns[0]).sort(), ['date', 'endLevel', 'log', 'ok', 'pairs', 'stars', 'startLevel']);
+  assert.deepEqual(Object.keys(detail.turns[0]).sort(), ['date', 'endLevel', 'id', 'log', 'ok', 'pairs', 'stars', 'startLevel']);
   assert.deepEqual(detail.turns[0].log, ['Keep practicing these sounds.']);
   assert.equal(detail.parentLine, 'Sprout read 1 of 1 sounds right today. Every sound was right!');
 });
@@ -642,6 +642,39 @@ test('delete removes the child, all saved turns and every live or finished turn'
   assert.deepEqual((await get(app, '/api/children')).json, []);
   assert.equal((await next(app, open.turnId)).status, 404);
   for (const id of [saved.turnId, open.turnId]) assert.equal((await teacherGet(app, `/api/trace?turn=${id}`)).status, 404);
+});
+
+for (const operation of ['writeFile', 'rename']) {
+  test(`a failed delete ${operation} preserves the saved child and its usable live turn`, async t => {
+    const { app, dataDir } = setup({ trace: true });
+    const child = await add(app);
+    const turn = await start(app, child.id);
+    const before = disk(dataDir);
+    const failure = t.mock.method(fs.promises, operation, async () => { throw new Error('offline write failure'); });
+    const response = await request(app, `/api/children/${child.id}`, { method: 'DELETE', headers: auth });
+    assert.equal(response.status, 500);
+    assert.deepEqual(response.json, { error: 'Request failed' });
+    failure.mock.restore();
+    assert.deepEqual(disk(dataDir), before);
+    assert.equal((await teacherGet(app, `/api/trace?turn=${turn.turnId}`)).status, 200);
+    assert.equal((await grade(app, turn.turnId)).status, 200);
+    assert.equal((await next(app, turn.turnId)).status, 200);
+    assert.equal((await finish(app, turn.turnId)).status, 200);
+  });
+}
+
+test('child detail returns the stored turn id for each trace link', async () => {
+  const { app, dataDir } = setup({ trace: true });
+  const child = await add(app);
+  const ids = [];
+  for (let index = 0; index < 2; index++) {
+    const turn = await start(app, child.id);
+    await finish(app, turn.turnId);
+    ids.unshift(turn.turnId);
+  }
+  assert.deepEqual(disk(dataDir).turns[child.id].map(turn => turn.id), ids);
+  const detail = await teacherGet(app, `/api/children/${child.id}/detail`);
+  assert.deepEqual(detail.json.turns.map(turn => turn.id), ids);
 });
 
 test('the store survives an app reload but open turns and private trace reasons do not', async () => {

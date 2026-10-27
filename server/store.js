@@ -48,8 +48,18 @@ function coachProfile(profile) {
 }
 
 function safeState(state) {
-  for (const child of Object.values(state.children)) child.profile = coachProfile(child.profile);
-  for (const id of Object.keys(state.turns)) state.turns[id] = state.turns[id].slice(0, 60);
+  const record = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+  if (!record(state) || state.version !== 1 || !record(state.children) || !record(state.turns)) {
+    throw new Error('Invalid store');
+  }
+  for (const child of Object.values(state.children)) {
+    if (!record(child)) throw new Error('Invalid child');
+    child.profile = coachProfile(child.profile);
+  }
+  for (const id of Object.keys(state.turns)) {
+    if (!Array.isArray(state.turns[id])) throw new Error('Invalid turn list');
+    state.turns[id] = state.turns[id].slice(0, 60);
+  }
   return durable(state);
 }
 
@@ -57,13 +67,11 @@ export function createStore(dataDir = DEFAULT_DATA_DIR) {
   const file = path.join(dataDir, 'store.json');
   let state;
   try {
-    state = JSON.parse(fs.readFileSync(file, 'utf8'));
-    if (state.version !== 1 || !state.children || !state.turns) throw new Error('Invalid store');
+    state = safeState(JSON.parse(fs.readFileSync(file, 'utf8')));
   } catch (error) {
     if (error.code !== 'ENOENT') throw new Error('Could not load store');
     state = { version: 1, children: {}, turns: {} };
   }
-  state = safeState(state);
   let pending = Promise.resolve();
   return {
     read: () => structuredClone(state),

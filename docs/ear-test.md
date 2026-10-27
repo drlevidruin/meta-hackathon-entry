@@ -58,7 +58,7 @@ The ear now requests `minimal`; `EAR_REASONING_EFFORT` overrides it. At minimal 
 
 Meta's transcription endpoint, `POST /v1/asr/transcribe`, was tried with and without a Hebrew language hint. Every clip answered in under a second, but it writes words rather than raw sounds. The planted English `va-ruk` became Baruch without the hint; a clean `sha-bos` became Shabbat with it. Hebrew output dropped nikud, including ברוך and שלום. It also invented words on two clips and answered one in Arabic script. It was rejected as the ear.
 
-The current prose check unwraps the answer, then rejects characters outside the sound alphabet, spaces, hyphens, slashes, `?` and line breaks. This catches short refusals such as "I can't hear audio." For answers longer than six whitespace tokens, a listed refusal phrase or two distinct listed prose words also causes a failure. A prose answer is retried once, then counts as a failed call. Prose made entirely of allowed characters can still escape these checks.
+The prose check removes outer wrappers, list markers and a known heading such as `Sounds:`. In lowercase readings, trailing commas and periods separate words and are stripped before parsing. Capitals with punctuation, internal apostrophes and other punctuation count as prose. Capitals alone can be readings, such as `Sha-vos` or `SHA-BOS`. Listed English refusal words count as prose at any length, including `silent`, `inaudible` and `unclear`. Longer answers also fail on a listed refusal phrase or two distinct listed prose words. A prose answer is retried once, then counts as a failed call. Prose made entirely of allowed characters can still escape these checks.
 
 ## Round 1: an adult voice
 
