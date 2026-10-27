@@ -8,7 +8,7 @@ Read each clip once, at a normal pace, in Ashkenazi pronunciation. One clip per 
 
 | File name | Hebrew | Say | Planted | The ear should write |
 | --- | --- | --- | --- | --- |
-| shabbos_va-for-ba | שַׁבָּת | sha-vos | ב read as ו | sha-vos |
+| shabbos_va-for-ba | שַׁבָּת | sha-vos | בּ read as v | sha-vos |
 | baruch_clean | בָּרוּךְ | bo-ruch | nothing | bo-ruch |
 | shalom_patach-for-kamatz | שָׁלוֹם | sha-loym | kamatz read as patach | sha-loym |
 | melech_skipped-syllable | מֶלֶךְ | mech | לֶ skipped | mech |
