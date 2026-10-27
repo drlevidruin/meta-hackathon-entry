@@ -236,11 +236,12 @@ it('uses an AnalyserNode to stop after speech and 1.2 seconds of quiet and relea
   expect(trackStop).toHaveBeenCalledOnce(); expect(close).toHaveBeenCalledOnce();
 });
 
-it('preserves Hebrew pairs and uses a dot for an extra word', () => {
+it('preserves Hebrew pairs and marks an extra word with a dot only, never what the ear heard', () => {
   render(React.createElement(GradedLine, { attempt: { status: 'graded', grade: { words: [
     { text: 'בָּרָ', verdict: null, pairs: [{ text: 'בָּ', verdict: 'ok' }, { text: 'רָ', verdict: 'wrong_vowel' }] },
-    { text: 'מִי', verdict: 'extra', pairs: [] },
+    { text: 'ba', verdict: 'extra', pairs: [] },
   ] } } }));
+  expect(document.querySelector('.previous-line').textContent).not.toContain('ba');
   expect(document.querySelector('.pair-ok').textContent).toBe('בָּ');
   expect(document.querySelector('.pair-wrong_vowel').textContent).toBe('רָ');
   expect(screen.getByLabelText('Extra word').className).toBe('extra-dot');

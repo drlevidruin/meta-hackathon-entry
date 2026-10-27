@@ -22,7 +22,7 @@ export function GradedLine({ attempt }) {
   let pairCount = 0;
   return <div className="previous-line" dir="rtl" lang="he" aria-label="Previous line">
     {attempt.grade.words.map((word, index) => <span key={index} className={`graded-word word-${word.verdict || 'paired'}`}>
-      {word.verdict === 'extra' ? <><span className="extra-dot" aria-label="Extra word" /><span>{word.text}</span></> :
+      {word.verdict === 'extra' ? <span className="extra-dot" aria-label="Extra word" /> :
         word.pairs?.length ? word.pairs.map((pair, pairIndex) => <span key={pairIndex}
           style={{ animationDelay: `${pairCount++ * 70}ms` }}
           className={`pair pair-${['not_decoded', 'skipped'].includes(word.verdict) ? word.verdict : pair.verdict}`}>

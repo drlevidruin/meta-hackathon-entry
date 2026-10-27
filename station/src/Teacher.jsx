@@ -88,7 +88,7 @@ export function ClassView() {
       <section className="class-children"><h2>Children</h2><div className="child-rows">{data.children.map(child =>
         <a className="child-row" key={child.id} href={`#/teacher/child/${encode(child.id)}`}>
           <Avatar name={child.avatar} small /><strong>{child.name}</strong><span className="level-badge">Level {child.level}</span>
-          <span>{child.next ? skillLabel(child.next) : 'All practiced'}</span>
+          <span>{child.next ? skillLabel(child.next) : child.lastTurn ? 'All practiced' : ''}</span>
           <span className="last-turn">{child.lastTurn ? `${child.lastTurn.ok} of ${child.lastTurn.pairs} sounds` : 'No turns yet'}</span>
         </a>)}</div></section>
     </div>}</Resource>
@@ -138,7 +138,7 @@ export function ChildDetail({ childId }) {
         <div className="turn-meta"><span>Level {turn.startLevel} → {turn.endLevel}</span><span>{turn.ok} of {turn.pairs} sounds</span><span>{turn.stars} stars</span></div>
         {turn.log.map((line, index) => <p key={index}>{line}</p>)}
       </article>)}
-    </section></div><ParentLine text={data.parentLine} />
+    </section></div>{data.parentLine && <ParentLine text={data.parentLine} />}
   </>}</Resource></section>;
 }
 

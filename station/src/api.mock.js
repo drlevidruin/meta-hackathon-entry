@@ -14,7 +14,7 @@ const initialChildren = [
   { id: 'yibo', name: 'Yibo', avatar: 'cat', preset: 'chassidish', level: 4, stars: 63, best: 9, next: 'vowel:cholam' },
   { id: 'voppo', name: 'Voppo', avatar: 'dog', preset: 'sephardi', level: 2, stars: 22, best: 6, next: 'vowel:chirik' },
   { id: 'fuzzle', name: 'Fuzzle', avatar: 'frog', preset: 'ashkenazi', level: 3, stars: 43, best: 8, next: 'pattern:closed_syllable' },
-  { id: 'dibbo', name: 'Dibbo', avatar: 'panda', preset: 'chassidish', level: 1, stars: 0, best: 0, next: 'vowel:sheva_na' },
+  { id: 'dibbo', name: 'Dibbo', avatar: 'panda', preset: 'chassidish', level: 1, stars: 0, best: 0, next: null },
 ];
 const lines = ['בָּ בַּ בֵּ', 'מָ מַ מִ', 'לָ לַ לִ', 'בִּ בֵּ בֻּ', 'שָׁ שַׁ שִׁ', 'נָ נַ נִ'];
 export const items = lines.map((text, index) => ({
@@ -117,9 +117,9 @@ function turnsFor(db, childId) {
 export async function classView() {
   const db = database();
   const children = db.children.map(child => ({ ...child,
-    next: child.next || 'vowel:kamatz', lastTurn: turnsFor(db, child.id)[0],
+    next: child.next === undefined ? 'vowel:kamatz' : child.next, lastTurn: turnsFor(db, child.id)[0],
   }));
-  const groups = [...new Set(children.map(child => child.next))].map(skill => ({
+  const groups = [...new Set(children.map(child => child.next).filter(Boolean))].map(skill => ({
     skill, label: skillLabel(skill), childIds: children.filter(child => child.next === skill).map(child => child.id),
   })).sort((a, b) => b.childIds.length - a.childIds.length || a.label.localeCompare(b.label));
   return { children, groups };
