@@ -8,6 +8,26 @@ import { startProfile } from '../coach/index.js';
 import { buildVoiceProfile } from '../ear/meter.js';
 import { utterance, wav } from '../ear/synth-for-tests.js';
 
+test('learned vowels and voice skip are sanitized on update and reload', async t => {
+  const { directory, store } = fixture(t);
+  for (const value of [null, [], ['kamatz', 'kamatz'], ['unknown'], 'kamatz', 1, undefined]) {
+    await store.update(state => { state.children.sprout = { vowels: value, voiceSkipped: value }; });
+    const child = store.read().children.sprout;
+    assert.equal(Object.hasOwn(child, 'vowels'), false);
+    assert.equal(Object.hasOwn(child, 'voiceSkipped'), false);
+  }
+  await store.update(state => { state.children.sprout = { vowels: ['sheva', 'kamatz'], voiceSkipped: true }; });
+  assert.deepEqual(store.read().children.sprout.vowels, ['kamatz', 'sheva']);
+  assert.equal(createStore(directory).read().children.sprout.voiceSkipped, true);
+  const saved = store.read();
+  saved.children.sprout.vowels = ['invalid'];
+  saved.children.sprout.voiceSkipped = 'true';
+  fs.writeFileSync(path.join(directory, 'store.json'), JSON.stringify(saved));
+  const reloaded = createStore(directory).read().children.sprout;
+  assert.equal(Object.hasOwn(reloaded, 'vowels'), false);
+  assert.equal(Object.hasOwn(reloaded, 'voiceSkipped'), false);
+});
+
 function fixture(t) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'kriah-store-test-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));

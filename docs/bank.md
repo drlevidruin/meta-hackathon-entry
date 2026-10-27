@@ -52,6 +52,90 @@ These restrictions apply to every generated word at levels 1, 2 and 4. They are 
 
 The generator checks spelling before accepting a word, then analyzes the complete word in every preset. `bank/orthography.test.js` independently scans every generated item in the checked-in `bank/items.json`, including all challenges, for these rules, syllable counts and repetition limits.
 
+## Beginner lines
+
+Beginner lines are extra generated drills restricted to one vowel or a pair of
+vowels. They are served only to children who have not learned every vowel. The
+rest of the bank is unchanged: the original 675 items retain every field and
+their relative order. The SHA-1 of `JSON.stringify` of that original array is
+`668c9e6eb64bcff149a7f1b0ed5af9d5a56e5277`, checked against the non-beginner bank
+in the tests. Full-set children receive exactly those original items.
+
+Beginner items use `source: { generated: true, beginner: true }` and the usual
+item schema and stable id rule. They follow all generated orthography and
+blocklist rules above. Each level's beginner items follow its original items.
+They use their own random stream, seeded with the build seed plus one, after
+all original generation. No beginner line duplicates another line or an
+existing item, and no line repeats a word. Every beginner nonsense word is new
+across the corpus, original level 4 lines and challenges, and other beginners.
+
+There are 464 beginner lines: 180 at level 1, 180 at level 2, and 104 at level 4.
+Levels 3, 5 and 6 gain none. The complete bank has 1,139 items: 240, 220, 80,
+294, 199 and 106 at levels 1 through 6 respectively. Every requested group
+reached its count; there are no short groups. Groups containing `sheva_na` are
+intentionally omitted at level 4.
+
+Level 1 lines have six one-pair words; level 2 lines have five one-syllable
+words. For pairs, each vowel appears in at least two words. Level 4 lines have
+two or three syllables per word, with three words on even-numbered lines
+(starting at zero within each group) and two on odd-numbered lines. The focus
+is the sole vowel, or the second vowel of a pair in this order: kamatz, patach,
+segol, tzere, chirik, cholam, shuruk, kubutz, sheva_na. Pair words collectively
+cover both vowels; individual words need not share the line's focus.
+`sheva_na` maps to the child's `sheva` id. Final ךְ is part of learning the
+letter and adds no learned-vowel requirement. Chataf remains part of the full
+learned set but is not generated in beginner lines.
+
+Counts per group, with generator vowel names:
+
+| Group | Level 1 | Level 2 | Level 4 |
+| --- | ---: | ---: | ---: |
+| kamatz | 8 | 8 | 6 |
+| patach | 8 | 8 | 6 |
+| segol | 8 | 8 | 6 |
+| tzere | 8 | 8 | 6 |
+| chirik | 8 | 8 | 6 |
+| cholam | 8 | 8 | 6 |
+| shuruk | 8 | 8 | 6 |
+| kubutz | 8 | 8 | 6 |
+| sheva_na | 8 | 8 | 0 |
+| kamatz + patach | 3 | 3 | 2 |
+| kamatz + segol | 3 | 3 | 2 |
+| kamatz + tzere | 3 | 3 | 2 |
+| kamatz + chirik | 3 | 3 | 2 |
+| kamatz + cholam | 3 | 3 | 2 |
+| kamatz + shuruk | 3 | 3 | 2 |
+| kamatz + kubutz | 3 | 3 | 2 |
+| kamatz + sheva_na | 3 | 3 | 0 |
+| patach + segol | 3 | 3 | 2 |
+| patach + tzere | 3 | 3 | 2 |
+| patach + chirik | 3 | 3 | 2 |
+| patach + cholam | 3 | 3 | 2 |
+| patach + shuruk | 3 | 3 | 2 |
+| patach + kubutz | 3 | 3 | 2 |
+| patach + sheva_na | 3 | 3 | 0 |
+| segol + tzere | 3 | 3 | 2 |
+| segol + chirik | 3 | 3 | 2 |
+| segol + cholam | 3 | 3 | 2 |
+| segol + shuruk | 3 | 3 | 2 |
+| segol + kubutz | 3 | 3 | 2 |
+| segol + sheva_na | 3 | 3 | 0 |
+| tzere + chirik | 3 | 3 | 2 |
+| tzere + cholam | 3 | 3 | 2 |
+| tzere + shuruk | 3 | 3 | 2 |
+| tzere + kubutz | 3 | 3 | 2 |
+| tzere + sheva_na | 3 | 3 | 0 |
+| chirik + cholam | 3 | 3 | 2 |
+| chirik + shuruk | 3 | 3 | 2 |
+| chirik + kubutz | 3 | 3 | 2 |
+| chirik + sheva_na | 3 | 3 | 0 |
+| cholam + shuruk | 3 | 3 | 2 |
+| cholam + kubutz | 3 | 3 | 2 |
+| cholam + sheva_na | 3 | 3 | 0 |
+| shuruk + kubutz | 3 | 3 | 2 |
+| shuruk + sheva_na | 3 | 3 | 0 |
+| kubutz + sheva_na | 3 | 3 | 0 |
+
 ## Challenge words
 
 There are 150 single-word level 4 challenges: 112 have two syllables and 38 have three. Each has at most six distinct skills. Thirty focus on `pattern:closed_syllable` and contain an internal sheva nach. The rest distribute focus across kamatz, patach, tzere, segol, chirik, cholam, shuruk and kubutz, and the bet/vet, kaf/chaf, pei/fei and shin/sin contrasts. Each vowel has eight focus items and each consonant variant has seven.

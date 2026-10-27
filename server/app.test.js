@@ -14,6 +14,8 @@ import { gradeLine as realGradeLine } from '../grader/index.js';
 import { cardLabels } from '../rulebook/voice-card.js';
 import { join, silence, utterance, wav } from '../ear/synth-for-tests.js';
 import { measureVowel, soundIslands } from '../ear/meter.js';
+import { VOWEL_IDS, fitsVowels } from '../rulebook/vowels.js';
+import { voiceCardFor } from '../rulebook/voice-card.js';
 
 const PIN = '2468';
 const auth = { 'x-teacher-pin': PIN };
@@ -123,6 +125,227 @@ const finish = (app, turnId, stars = 3) => request(app, '/api/finish', { data: {
 const patch = (app, id, data) => request(app, `/api/children/${id}`, { method: 'PATCH', headers: auth, data });
 const disk = dataDir => JSON.parse(fs.readFileSync(path.join(dataDir, 'store.json'), 'utf8'));
 
+test('children validate learned vowels and reject sets with no regular lines', async () => {
+  const { app, dataDir } = setup();
+  const child = await add(app);
+  assert.deepEqual(child.vowels, VOWEL_IDS);
+  assert.equal(child.voiceStatus, 'needed');
+  for (const vowels of [null, [], ['kamatz', 'kamatz'], ['unknown'], 'kamatz', [1]]) {
+    const created = await request(app, '/api/children', { headers: auth,
+      data: { name: 'Sprout', avatar: 'owl', preset: 'sephardi', vowels } });
+    const edited = await patch(app, child.id, { vowels });
+    for (const response of [created, edited]) {
+      assert.equal(response.status, 400);
+      assert.deepEqual(response.json, { error: 'Invalid vowels' });
+    }
+  }
+  for (const method of ['POST', 'PATCH']) {
+    const response = await request(app, method === 'POST' ? '/api/children' : `/api/children/${child.id}`,
+      { method, headers: auth, data: method === 'POST'
+        ? { name: 'Sprout', avatar: 'owl', preset: 'sephardi', vowels: ['chataf'] } : { vowels: ['chataf'] } });
+    assert.equal(response.status, 400);
+    assert.deepEqual(response.json, { error: 'No lines for these vowels' });
+  }
+  const challengeOnly = setup({ items: [items.at(-1)] });
+  const rejected = await request(challengeOnly.app, '/api/children', { headers: auth,
+    data: { name: 'Sprout', avatar: 'owl', preset: 'sephardi', vowels: ['kamatz', 'patach'] } });
+  assert.equal(rejected.status, 400);
+  assert.deepEqual(rejected.json, { error: 'No lines for these vowels' });
+  assert.equal(Object.keys(disk(dataDir).children).length, 1);
+  assert.deepEqual((await patch(app, child.id, { vowels: ['patach', 'kamatz'] })).json.vowels, ['kamatz', 'patach']);
+});
+
+test('create and edits snap levels to regular eligible lines and keep coach levels in step', async () => {
+  const bank = [
+    { ...items[0], id: 'two', level: 2 },
+    { ...items[6], id: 'four', level: 4 },
+    { ...items.at(-2), id: 'six', level: 6 },
+  ];
+  const { app, dataDir } = setup({ ...realCoach, items: bank, coachModel: 'off' });
+  const child = await add(app, { vowels: ['kamatz'] });
+  assert.equal(child.level, 2);
+  assert.equal((await patch(app, child.id, { level: 6 })).json.level, 2);
+  assert.deepEqual(disk(dataDir).children[child.id].profile, realCoach.startProfile({ level: 2 }));
+  const turn = await start(app, child.id);
+  await grade(app, turn.turnId, 'two');
+  await next(app, turn.turnId);
+  await finish(app, turn.turnId);
+  const learned = disk(dataDir).children[child.id].profile;
+  assert.ok(learned.skills['vowel:kamatz']);
+  await patch(app, child.id, { vowels: ['chirik'] });
+  assert.equal(disk(dataDir).children[child.id].level, 6);
+  assert.deepEqual(disk(dataDir).children[child.id].profile, { ...learned, level: 6 });
+  await patch(app, child.id, { vowels: VOWEL_IDS });
+  assert.equal((await patch(app, child.id, { level: 3 })).json.level, 2);
+  const saved = disk(dataDir).children[child.id].profile;
+  assert.deepEqual(saved, realCoach.startProfile({ level: 2 }));
+  await patch(app, child.id, { vowels: ['patach'] });
+  const after = disk(dataDir).children[child.id];
+  assert.equal(after.level, 4);
+  assert.deepEqual(after.profile, { ...saved, level: 4 });
+  await patch(app, child.id, { level: 5 });
+  assert.equal(disk(dataDir).children[child.id].profile.level, 4);
+});
+
+test('kamatz practice, fallback start, progress map and packets only use eligible lines', async () => {
+  const bank = JSON.parse(fs.readFileSync(new URL('../bank/items.json', import.meta.url), 'utf8'));
+  const { app } = setup({ ...realCoach, items: bank, coachModel: 'off', gradeLine: realGradeLine });
+  const child = await add(app, { vowels: ['kamatz'] });
+  const turn = await start(app, child.id);
+  let set = turn.set;
+  for (let checkpoint = 1; checkpoint <= 3; checkpoint++) {
+    assert.ok(set.length);
+    assert.ok(set.every(item => fitsVowels(item, ['kamatz'])));
+    for (const item of set) assert.equal((await grade(app, turn.turnId, item.id)).status, 200);
+    const response = await next(app, turn.turnId);
+    assert.equal(response.status, 200);
+    set = response.json.set;
+  }
+  const map = (await teacherGet(app, `/api/children/${child.id}/detail`)).json.map;
+  assert.deepEqual(map.vowels, ['vowel:kamatz']);
+  const packet = (await teacherGet(app, `/api/packet?child=${child.id}`)).json;
+  const packetIds = packet.sections.flatMap(section => section.items.map(item => item.id));
+  assert.ok(packetIds.length);
+  assert.ok(packetIds.every(id => fitsVowels(bank.find(item => item.id === id), ['kamatz'])));
+  const fallback = setup({ ...realCoach, items: bank,
+    chooseNextSet: async profile => ({ ...selection(profile), done: true, itemIds: [] }) });
+  const other = await add(fallback.app, { vowels: ['kamatz'] });
+  assert.ok((await start(fallback.app, other.id)).set.every(item => fitsVowels(item, ['kamatz'])));
+  const classPacket = (await teacherGet(app, '/api/packet?skill=vowel:kamatz&level=4')).json;
+  assert.ok(classPacket.sections.flatMap(section => section.items).every(item => !bank.find(entry => entry.id === item.id).source.beginner));
+});
+
+test('full-set and legacy children receive the original start and next sets', async () => {
+  const bank = JSON.parse(fs.readFileSync(new URL('../bank/items.json', import.meta.url), 'utf8'));
+  const original = bank.filter(item => !item.source.beginner);
+  for (const legacy of [false, true]) {
+    const { app, dataDir } = setup({ ...realCoach, items: bank, coachModel: 'off' });
+    const child = await add(app, { vowels: [...VOWEL_IDS].reverse() });
+    let serving = app;
+    if (legacy) {
+      const saved = disk(dataDir);
+      delete saved.children[child.id].vowels;
+      fs.writeFileSync(path.join(dataDir, 'store.json'), JSON.stringify(saved));
+      serving = setup({ ...realCoach, items: bank, dataDir, coachModel: 'off' }).app;
+    }
+    assert.deepEqual((await get(serving, '/api/children')).json[0].vowels, VOWEL_IDS);
+    const expected = await realCoach.chooseNextSet(realCoach.startProfile(), [], original, { useModel: false });
+    const turn = await start(serving, child.id);
+    assert.deepEqual(turn.set.map(item => item.id), expected.itemIds);
+    for (const item of turn.set) await grade(serving, turn.turnId, item.id);
+    const results = turn.set.map(item => ({ itemId: item.id, ...gradeFor() }));
+    const expectedNext = await realCoach.chooseNextSet(expected.profile, results, original, { useModel: false });
+    const response = await next(serving, turn.turnId);
+    assert.deepEqual(response.json.set.map(item => item.id), expectedNext.itemIds);
+  }
+});
+
+test('voice status, skip, delete and successful subset recording follow the learned card', async () => {
+  const { app, dataDir } = setup();
+  const child = await add(app, { vowels: ['kamatz'] });
+  const route = `/api/children/${child.id}/voice`;
+  for (const headers of [{}, { 'x-teacher-pin': '9999' }]) {
+    assert.equal((await request(app, route, { method: 'PUT', headers, data: { skipped: true } })).status, 403);
+  }
+  for (const data of [{}, { skipped: false }, { skipped: 1 }, { skipped: true, extra: true }]) {
+    assert.equal((await request(app, route, { method: 'PUT', headers: auth, data })).status, 400);
+  }
+  const skip = () => request(app, route, { method: 'PUT', headers: auth, data: { skipped: true } });
+  const skipped = await skip();
+  assert.equal(skipped.status, 200);
+  assert.equal(skipped.json.voiceStatus, 'skipped');
+  assert.equal(skipped.json.voiceCheck, true);
+  assert.equal(disk(dataDir).children[child.id].voiceSkipped, true);
+  const data = wav(utterance(cardLabels(child.preset, voiceCardFor(child.vowels, child.preset))));
+  assert.equal((await voice(app, child, { data })).status, 200);
+  assert.equal(Object.hasOwn(disk(dataDir).children[child.id], 'voiceSkipped'), false);
+  assert.equal((await get(app, '/api/children')).json[0].voiceStatus, 'done');
+  await skip();
+  assert.equal(disk(dataDir).children[child.id].voice, null);
+  const cleared = await request(app, route, { method: 'DELETE', headers: auth });
+  assert.equal(cleared.json.voiceStatus, 'needed');
+  assert.equal(cleared.json.voiceCheck, false);
+  assert.equal(Object.hasOwn(disk(dataDir).children[child.id], 'voiceSkipped'), false);
+  const mismatch = await voice(app, child, { data: wav(utterance(['a', 'a'])) });
+  assert.deepEqual(mismatch.json, { error: 'count', heard: 2, expected: 6 });
+});
+
+test('a child with no measurable card returns 409 without consuming the audio', async () => {
+  const bank = [{ ...items[0], id: 'cholam', text: 'בֹּ', skills: ['vowel:cholam'] }];
+  const { app } = setup({ items: bank });
+  const child = await add(app, { preset: 'ashkenazi', vowels: ['cholam'] });
+  assert.equal(child.voiceStatus, 'none');
+  assert.equal(child.voiceCheck, true);
+  const req = new Readable({ read() { throw new Error('Audio must not be read'); } });
+  Object.assign(req, { method: 'POST', url: `/api/voice?child=${child.id}`, headers: { 'content-type': 'audio/wav' } });
+  let status, body;
+  await app(req, { writeHead(code) { status = code; }, end(value) { body = JSON.parse(value); } });
+  assert.equal(status, 409);
+  assert.deepEqual(body, { error: 'No voice check' });
+});
+
+test('a vowel change clears voice and live turns, keeps skip, and the same normalized set preserves them', async () => {
+  const { app, dataDir } = setup();
+  const child = await add(app);
+  await voice(app, child);
+  const first = await start(app, child.id);
+  await patch(app, child.id, { vowels: [...VOWEL_IDS].reverse() });
+  assert.ok(disk(dataDir).children[child.id].voice);
+  assert.equal((await grade(app, first.turnId)).status, 200);
+  await patch(app, child.id, { vowels: ['kamatz'] });
+  assert.equal(disk(dataDir).children[child.id].voice, null);
+  assert.equal((await grade(app, first.turnId)).status, 404);
+  await request(app, `/api/children/${child.id}/voice`, { method: 'PUT', headers: auth, data: { skipped: true } });
+  const live = await start(app, child.id);
+  const changed = await patch(app, child.id, { vowels: ['patach'] });
+  assert.equal(changed.json.voiceStatus, 'skipped');
+  assert.equal(disk(dataDir).children[child.id].voiceSkipped, true);
+  assert.equal((await next(app, live.turnId)).status, 404);
+});
+
+test('skipping a saved voice profile grades through the ear alone', async () => {
+  const item = { ...items[0], id: 'baruch', text: 'בָּרוּךְ', words: ['בָּרוּךְ'] };
+  const { app } = setup({ ...realCoach, items: [item], coachModel: 'off',
+    listen: async () => ({ words: [['ba', 'ruch']] }), gradeLine: realGradeLine });
+  const child = await add(app, { preset: 'ashkenazi' });
+  await voice(app, child);
+  const turn = await start(app, child.id);
+  const data = wav(utterance(['o', 'u']));
+  assert.equal((await grade(app, turn.turnId, item.id, { data })).json.summary.wrong_vowel, 0);
+  await request(app, `/api/children/${child.id}/voice`, { method: 'PUT', headers: auth, data: { skipped: true } });
+  assert.equal((await grade(app, turn.turnId, item.id, { data })).json.summary.wrong_vowel, 1);
+});
+
+test('packet default focus comes from eligible items when the coach has no next skill', async () => {
+  const bank = [items[6], { ...items[0], id: 'z-beginner', source: { generated: true, beginner: true } },
+    { ...items[0], id: 'a-letter', focus: 'letter:bet' }];
+  const { app } = setup({ items: bank, turnFacts: () => ({ best: null, next: null, proven: [] }) });
+  const child = await add(app, { vowels: ['kamatz'] });
+  const packet = (await teacherGet(app, `/api/packet?child=${child.id}`)).json;
+  assert.deepEqual(packet.sections[1].items.map(item => item.id), ['z-beginner', 'a-letter']);
+});
+
+test('pending starts and checkpoints cannot survive a learned-vowel change', async () => {
+  for (const operation of ['start', 'next']) {
+    const entered = deferred(), release = deferred();
+    let calls = 0;
+    const { app, dataDir } = setup({ chooseNextSet: async profile => {
+      if (++calls === (operation === 'start' ? 1 : 2)) { entered.resolve(); await release.promise; }
+      return selection(profile);
+    } });
+    const child = await add(app);
+    const turn = operation === 'next' ? await start(app, child.id) : null;
+    const pending = operation === 'start' ? request(app, '/api/start', { data: { childId: child.id } })
+      : request(app, '/api/next', { data: { turnId: turn.turnId, checkpoint: 1, elapsedMs: 10 } });
+    await entered.promise;
+    assert.equal((await patch(app, child.id, { vowels: ['kamatz'] })).status, 200);
+    const saved = disk(dataDir);
+    release.resolve();
+    assert.equal((await pending).status, 404);
+    assert.deepEqual(disk(dataDir), saved);
+  }
+});
+
 const voiceAudio = preset => wav(utterance(cardLabels(preset).map(label => label || 'o')));
 const voice = (app, child, options = {}) => request(app, `/api/voice?child=${child.id}`,
   { type: 'audio/wav', data: voiceAudio(child.preset), ...options });
@@ -148,9 +371,9 @@ test('voice check saves only version, numeric vowels and spread, with a public b
   }
   assert.doesNotMatch(JSON.stringify(saved), /audio|RIFF|transcript|heard|base64/i);
   assert.deepEqual(fs.readdirSync(dataDir), ['store.json']);
-  assert.deepEqual((await get(app, '/api/children')).json, [{ ...child, voiceCheck: true }]);
+  assert.deepEqual((await get(app, '/api/children')).json, [{ ...child, voiceCheck: true, voiceStatus: 'done' }]);
   assert.deepEqual((await teacherGet(app, `/api/children/${child.id}/detail`)).json.child,
-    { ...child, voiceCheck: true });
+    { ...child, voiceCheck: true, voiceStatus: 'done' });
 });
 
 test('voice check uses the child preset for labels', async () => {
@@ -343,7 +566,8 @@ test('children list is public; teacher check and CRUD require the PIN', async ()
   assert.deepEqual((await request(app, '/api/teacher/check', { headers: auth })).json, { ok: true });
   const child = await add(app);
   assert.match(child.id, /^[a-f0-9-]{36}$/);
-  assert.deepEqual(child, { id: child.id, name: 'Sprout', avatar: 'owl', preset: 'sephardi', level: 1, stars: 0, best: 0, voiceCheck: false });
+  assert.deepEqual(child, { id: child.id, name: 'Sprout', avatar: 'owl', preset: 'sephardi', level: 1, stars: 0, best: 0,
+    vowels: [...VOWEL_IDS], voiceStatus: 'needed', voiceCheck: false });
   assert.deepEqual((await get(app, '/api/children')).json, [child]);
   const updated = await patch(app, child.id, { name: 'Pebble', avatar: 'fox', preset: 'chassidish', level: 3 });
   assert.deepEqual(updated.json, { ...child, name: 'Pebble', avatar: 'fox', preset: 'chassidish', level: 3 });
@@ -1057,7 +1281,7 @@ test('next requires an integer checkpoint identity', async () => {
 });
 
 test('a new turn and a changed teacher level invalidate earlier live turns', async () => {
-  const { app, dataDir } = setup();
+  const { app, dataDir } = setup({ items: [...items, { ...items[0], id: 'regular-four', level: 4 }] });
   const child = await add(app);
   const old = await start(app, child.id);
   await grade(app, old.turnId);
@@ -1114,7 +1338,7 @@ for (const invalidation of ['delete', 'start', 'level', 'expiry']) {
 }
 
 test('a start during a teacher level write waits for the saved profile', async t => {
-  const { app, dataDir } = setup();
+  const { app, dataDir } = setup({ items: [...items, { ...items[0], id: 'regular-four', level: 4 }] });
   const child = await add(app);
   const entered = deferred(), release = deferred();
   const rename = fs.promises.rename;

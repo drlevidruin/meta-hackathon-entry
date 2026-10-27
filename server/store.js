@@ -3,6 +3,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { SKILLS } from '../rulebook/index.js';
+import { normalizeVowels } from '../rulebook/vowels.js';
 
 export const DEFAULT_DATA_DIR = fileURLToPath(new URL('../data/', import.meta.url));
 
@@ -72,6 +73,10 @@ function safeState(state) {
     if (!record(child)) throw new Error('Invalid child');
     child.profile = coachProfile(child.profile);
     child.voice = voiceProfile(child.voice);
+    const vowels = normalizeVowels(child.vowels);
+    if (vowels) child.vowels = vowels;
+    else delete child.vowels;
+    if (child.voiceSkipped !== true) delete child.voiceSkipped;
   }
   for (const id of Object.keys(state.turns)) {
     if (!Array.isArray(state.turns[id])) throw new Error('Invalid turn list');

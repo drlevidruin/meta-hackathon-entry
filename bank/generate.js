@@ -3,6 +3,7 @@ import { allowedGeneratedWord, foldedSkeleton } from './blocking.js';
 import { shuffled } from './random.js';
 import { legalGeneratedWord } from './orthography.js';
 import { segmentWords, siddur } from './corpus.js';
+import { fitsVowels, requiredVowels } from '../rulebook/vowels.js';
 
 export const LETTERS = [
   'א', 'ב', 'בּ', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י', 'כ', 'כּ',
@@ -86,11 +87,12 @@ export function commonConsonants() {
     .slice(0, 12).map(([letter]) => letter);
 }
 
-function wordBuilder(corpusWords, random) {
-  const used = new Set();
+function wordBuilder(corpusWords, random, allowedVowels = null, existingWords = []) {
+  const used = new Set(existingWords);
   const choose = values => values[Math.floor(random() * values.length)];
   const consonants = [...new Set(LETTERS.map(letter => letter.replaceAll('ּ', '')))];
-  const vowels = Object.keys(VOWELS).filter(vowel => vowel !== 'sheva_na');
+  const vowels = Object.keys(VOWELS).filter(vowel => vowel !== 'sheva_na'
+    && (allowedVowels === null || allowedVowels.includes(vowel)));
   const finalForms = { כ: 'ךְ', מ: 'ם', נ: 'ן', פ: 'ף', צ: 'ץ' };
   return (focus, syllables, alphabet = null, maxSkills = Infinity) => {
     // Include pei only in its contrast lessons when it falls outside the
@@ -132,6 +134,7 @@ function wordBuilder(corpusWords, random) {
       word = cleanWord(word);
       if (!legalGeneratedWord(word, 4, focus) || corpusWords.has(word) || used.has(word)) continue;
       const result = expectedSounds(word, 'sephardi');
+      if (allowedVowels && !fitsVowels({ text: word, skills: result.skills }, allowedVowels)) continue;
       if (result.skills.length > maxSkills || !result.skills.includes(focus)
         || formatReading(result).split('-').length !== syllables || !allowedGeneratedWord(word)) continue;
       used.add(word);
@@ -157,4 +160,53 @@ export function nonsenseLines(corpusWords, random) {
     return { focus, words: [buildWord(focus, index % 4 === 0 ? 3 : 2, alphabet, 6)] };
   });
   return { lines, challenges };
+}
+
+// This stream is supplied only after the original bank has finished generating.
+export function beginnerLines(random, corpusWords, existingNonsenseWords, existingTexts = []) {
+  const names = ['kamatz', 'patach', 'segol', 'tzere', 'chirik', 'cholam', 'shuruk', 'kubutz', 'sheva_na'];
+  const groups = names.flatMap((name, index) => [[name], ...names.slice(index + 1).map(other => [name, other])]);
+  const pairs = pairPool();
+  const pools = { 1: pairs, 2: syllablePool(pairs) };
+  const lines = [];
+  const shortfalls = [];
+  const seen = new Set(existingTexts);
+  const usedWords = new Set(existingNonsenseWords);
+  const entryItem = entry => ({ text: entry.word, skills: entry.skills });
+  for (const level of [1, 2, 4]) for (const group of groups) {
+    if (level === 4 && group.includes('sheva_na')) continue;
+    const learned = group.map(name => name === 'sheva_na' ? 'sheva' : name);
+    const focus = `vowel:${group.at(-1)}`;
+    const wanted = level === 4 ? group.length === 1 ? 6 : 2 : group.length === 1 ? 8 : 3;
+    const pool = level < 4 ? pools[level].filter(entry => fitsVowels(entryItem(entry), learned)) : null;
+    const buildWord = level === 4 ? wordBuilder(corpusWords, random, group, usedWords) : null;
+    let count = 0;
+    let reason = 'Distinct line combinations exhausted';
+    for (let attempt = 0; count < wanted && attempt < 1000; attempt++) {
+      const size = level === 1 ? 6 : level === 2 ? 5 : count % 2 ? 2 : 3;
+      let words;
+      if (pool) {
+        if (pool.length < size) { reason = `Only ${pool.length} eligible distinct words for a ${size}-word line`; break; }
+        words = shuffled(pool, random).slice(0, size).map(entry => entry.word);
+      } else {
+        try {
+          words = Array.from({ length: size }, (_, index) =>
+            buildWord(`vowel:${group[index % group.length]}`, random() < 0.5 ? 2 : 3));
+        } catch (error) {
+          reason = error.message;
+          break;
+        }
+        for (const word of words) usedWords.add(word);
+      }
+      const required = words.map(word => requiredVowels({ text: word, skills: tagSkills(word) }));
+      if (!learned.every(vowel => required.filter(vowels => vowels.includes(vowel)).length >= (level < 4 && group.length === 2 ? 2 : 1))) continue;
+      const text = words.join(' ');
+      if (seen.has(text)) continue;
+      seen.add(text);
+      lines.push({ level, words, focus });
+      count++;
+    }
+    if (count < wanted) shortfalls.push({ level, group, count, wanted, reason });
+  }
+  return { lines, shortfalls };
 }

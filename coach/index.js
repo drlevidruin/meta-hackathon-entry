@@ -114,13 +114,25 @@ export function turnFacts(profile) {
   };
 }
 
-function rulePlan(profile) {
+function availableLevels(items) {
+  const levels = [...new Set(items.filter(item => !item.source?.challenge).map(item => item.level))]
+    .sort((a, b) => a - b);
+  if (!levels.length) throw new RangeError('No regular items.');
+  return levels;
+}
+
+function snapLevel(level, levels) {
+  return levels.includes(level) ? level : levels.findLast(value => value < level) ?? levels[0];
+}
+
+function rulePlan(profile, levels) {
   const weak = weakSkills(profile);
+  const current = snapLevel(profile.level, levels);
   if (!profile.checkpoints) {
-    return { level: profile.level, target: weak[0] || null, why: 'start', misses: 0 };
+    return { level: current, target: weak[0] || null, why: 'start', misses: 0 };
   }
   if (profile.cleanAtLevel.clean) {
-    return { level: clamp(profile.level + 1), target: weak[0] || null, why: 'clean', misses: 0 };
+    return { level: levels.find(level => level > profile.level) ?? current, target: weak[0] || null, why: 'clean', misses: 0 };
   }
   const twice = weak.find(skill => {
     const record = profile.skills[skill];
@@ -129,8 +141,8 @@ function rulePlan(profile) {
       && recent.length >= 2 && recent.at(-1) === 1 && recent.at(-2) === 1;
   });
   return twice
-    ? { level: clamp(profile.level - 1), target: twice, why: 'missed_twice', misses: 2 }
-    : { level: profile.level, target: weak[0] || null, why: 'mixed', misses: 0 };
+    ? { level: levels.findLast(level => level < profile.level) ?? current, target: twice, why: 'missed_twice', misses: 2 }
+    : { level: current, target: weak[0] || null, why: 'mixed', misses: 0 };
 }
 
 function rankedItems(profile, items, level, target) {
@@ -166,11 +178,11 @@ function ruleReason(profile, plan) {
     const target = Object.hasOwn(SKILLS, plan.target) ? plan.target : 'the focus skill';
     return `Two latest reads missed ${target}; target it at level ${plan.level}.`;
   }
-  return `Mixed checkpoint; hold level ${profile.level} and revisit the weakest skills.`;
+  return `Mixed checkpoint; hold level ${plan.level} and revisit the weakest skills.`;
 }
 
 export function ruleNextSet(profile, items) {
-  const plan = rulePlan(profile);
+  const plan = rulePlan(profile, availableLevels(items));
   const regular = rankedItems(profile, items, plan.level, plan.target)
     .slice(0, plan.level >= 5 ? 2 : 3);
   const extra = challengeItem(profile, items, plan.level);
@@ -182,9 +194,10 @@ export function ruleNextSet(profile, items) {
 }
 
 function candidatesFor(profile, items, rule) {
-  const levels = [profile.level - 1, profile.level, profile.level + 1]
-    .filter(level => level >= 1 && level <= 6);
-  const target = rulePlan(profile).target;
+  const available = availableLevels(items);
+  const current = available.indexOf(snapLevel(profile.level, available));
+  const levels = available.slice(Math.max(0, current - 1), current + 2);
+  const target = rulePlan(profile, available).target;
   const queues = levels.map(level => {
     const ranked = rankedItems(profile, items, level, target);
     const unseen = ranked.filter(item => !profile.seen.includes(item.id));
@@ -237,11 +250,12 @@ function stopped(profile, reason) {
 }
 
 export async function chooseNextSet(profile, results, items, options = {}) {
+  const levelsAvailable = availableLevels(items);
   const updated = updateProfile(profile, results, items);
   if (results.length && options.elapsedMs >= 240_000) return stopped(updated, 'Turn ended after four minutes.');
   if (results.length && updated.checkpoints >= 8) return stopped(updated, 'Turn ended after eight checkpoints.');
   const rule = ruleNextSet(updated, items);
-  const plan = rulePlan(updated);
+  const plan = rulePlan(updated, levelsAvailable);
   const { levels, candidates } = candidatesFor(updated, items, rule);
   let picked = rule;
   let source = 'rule';

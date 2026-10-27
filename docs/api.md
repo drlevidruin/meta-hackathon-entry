@@ -13,18 +13,32 @@ Unknown routes return 404. API responses use `Cache-Control: no-store`.
 A public child record is exactly:
 
 ```js
-{ id, name, avatar, preset, level, stars, best }
+{ id, name, avatar, preset, level, stars, best, vowels, voiceStatus, voiceCheck }
 ```
 
 Ids are server-generated UUIDs. Child ids are validated before lookup: malformed
 ids return 400, unknown ids return 404. Names are first names only, up to 40
 characters, allowing Unicode letters, apostrophes and hyphens, without spaces.
-New children start at level 1 with zero stars and best. `stars` is lifetime stars;
+New children start at level 1, snapped to a level with eligible regular lines,
+with zero stars and best. `stars` is lifetime stars;
 `best` is the most stars in one turn. Levels are integers from 1 through 6.
 
 Avatars: `lion`, `owl`, `fox`, `bear`, `rabbit`, `turtle`, `whale`, `bee`, `cat`,
 `dog`, `frog`, `panda`, `koala`, `tiger`, `penguin`, `zebra`.
 Presets: `sephardi`, `ashkenazi`, `chassidish`.
+
+`vowels` is a nonempty array of learned vowel ids, returned in this order:
+`kamatz`, `patach`, `segol`, `tzere`, `chirik`, `cholam`, `shuruk`, `kubutz`,
+`sheva`, `chataf`. Duplicate ids, unknown ids, non-string entries and non-arrays
+are invalid. Omitting `vowels` on create uses all ten. Old stored children with
+no learned-vowel field also use all ten. Invalid stored arrays are dropped on
+load or update. `voiceSkipped` is stored only when exactly true; it is not a
+public field.
+
+`voiceStatus` is `none` when the child's learned vowels and preset have no
+measurable voice card, otherwise `done` when a voice profile is saved, otherwise
+`skipped` when the teacher skipped the check, otherwise `needed`. `voiceCheck`
+is `voiceStatus !== 'needed'`, so only `needed` routes to the check.
 
 An Item is an unchanged bank item:
 
@@ -34,6 +48,11 @@ An Item is an unchanged bank item:
 
 Only bank items can be returned by the coach. Challenge items have
 `source.challenge: true`. No model creates text for a child to read.
+Practice, including challenges, the progress map and child packets use only
+items whose text and skills require learned vowels. Closing kaf with sheva
+does not require learning sheva. Beginner items have `source.beginner: true`
+and are included only for children who have not learned all ten vowels.
+Children with the full set receive the original bank in its original order.
 
 ## Station routes, no PIN
 
@@ -45,6 +64,7 @@ Only bank items can be returned by the coach. Challenge items have
 | `POST /api/next` | `{ turnId, elapsedMs, checkpoint }` | `{ done: false, level, levelUp, set: [Item] }` or `{ done: true, level, levelUp, facts: { best, next, proven } }` |
 | `POST /api/finish` | `{ turnId, stars }` | `{ child: Child }` |
 | `GET /api/config` | None | `{ trace: boolean }` |
+| `POST /api/voice?child=<id>` | Raw `audio/wav` bytes | `{ voiceCheck: true }` |
 
 Start loads the child's saved profile, or calls `startProfile({ level })` for a
 new profile, then calls `startTurn(profile)` to reset checkpoint and held-level
@@ -56,7 +76,28 @@ waits for pending store writes before loading the profile. Starting ends any
 earlier live turn for this child. Its grade, next and finish calls then return
 404, so it cannot overwrite newer progress. Finished receipts
 remain available until expiry. A start still awaiting the coach is also
-superseded by a newer start or a teacher level change.
+superseded by a newer start or a teacher level or learned-vowel change.
+
+Both start selections and next checkpoints pass the child's eligible items to
+the coach. Available levels are the levels with regular eligible lines. Start
+and mixed checkpoints use the current level if available, else the highest
+available below it, else the lowest above. A clean checkpoint moves to the next
+available level above, and two misses move to the nearest available level
+below. At either boundary the coach holds at the snapped current level. Model
+candidates use that level and its nearest available neighbors.
+
+The voice card uses learned kamatz, patach, segol, chirik and cholam columns,
+in that order. Five columns use the original 15 syllables on בּ ד מ. Three or
+four columns use those three rows. One or two columns use six rows, בּ ד מ ג תּ ק.
+No shown columns, or no measurable labels for the preset, gives no card. For
+example, cholam alone has no card for Ashkenazi. `POST /api/voice` then returns
+409 `{ error: "No voice check" }` before consuming audio. Otherwise it builds
+the profile using the child's card and preset. A count mismatch returns 422
+`{ error: "count", heard, expected }`, where `expected` is the card's length.
+Unmeasurable audio returns 422 `{ error: "quiet" }`; malformed WAV or a WAV
+outside 16 kHz mono returns 415 `{ error: "Use 16 kHz mono WAV" }`. Success
+clears `voiceSkipped`. Audio is never saved. Grading uses the saved profile
+when present and the ear alone when there is none, including after a skip.
 
 Grade accepts an item only from the turn's current set. An unknown or expired
 turn, a finished turn, or an item outside the current set returns 404. The ear
@@ -97,7 +138,7 @@ profile, level, decision and `explain(decision)` line on the in-memory turn.
 `levelUp` compares the new level with the level before that checkpoint. A done
 response uses `turnFacts(profile)`; a new checkpoint after done returns 400.
 After awaiting the coach, next rechecks that the turn is live and unexpired and
-that the child exists. Deletion, a replacement turn or a changed teacher level
+that the child exists. Deletion, a replacement turn or a changed teacher level or vowel set
 during that wait returns 404 without changing the turn or saving progress.
 The server accepts finishing before a done checkpoint, including
 uncheckpointed grades.
@@ -135,9 +176,11 @@ exits with code 1 before listening. The disabled trace route is always 404.
 | Method and path | Request | Response |
 | --- | --- | --- |
 | `POST /api/teacher/check` | No body required | `{ ok: true }` |
-| `POST /api/children` | `{ name, avatar, preset }` | Child |
-| `PATCH /api/children/<id>` | `{ name?, avatar?, preset?, level? }` | Child |
+| `POST /api/children` | `{ name, avatar, preset, vowels? }` | Child |
+| `PATCH /api/children/<id>` | `{ name?, avatar?, preset?, level?, vowels? }` | Child |
 | `DELETE /api/children/<id>` | None | `{ ok: true }` |
+| `PUT /api/children/<id>/voice` | Exactly `{ skipped: true }` | Child |
+| `DELETE /api/children/<id>/voice` | None | Child |
 | `GET /api/class` | None | Class view below |
 | `GET /api/children/<id>/detail` | None | Child detail below |
 | `GET /api/packet?child=<id>` | None | Packet below |
@@ -145,10 +188,24 @@ exits with code 1 before listening. The disabled trace route is always 404.
 | `GET /api/trace?turn=<turnId>` | None | Trace below, only with `TRACE=1` |
 
 Create and patch reject extra fields. Patch must contain at least one field.
-A PATCH with a different level starts a fresh coach profile at that level and
+Invalid learned-vowel input returns 400 `{ error: "Invalid vowels" }`. A valid
+set with no regular eligible item returns 400 `{ error: "No lines for these vowels" }`.
+After create or patch, a level with no regular eligible lines snaps to the
+highest available level below it, else the lowest above. A saved coach profile's
+level stays in step. A PATCH with a different level starts a fresh coach profile at the snapped level and
 ends the child's live turn, preserving stars and read history. Sending the same
 level, including with name, avatar or preset edits, preserves the saved coach
-profile and live turn. Delete removes the child, every saved turn and all live
+profile and live turn, provided the vowel set and available level do not change.
+Changing learned vowels clears the voice profile, keeps `voiceSkipped` and ends
+the live turn, including a start or checkpoint awaiting the coach. Merely
+reordering the same vowels preserves the profile and turn. Changing the preset
+still clears the voice profile.
+
+PUT voice sets `voiceSkipped: true`, clears the saved voice profile and returns
+the child view. Any JSON body other than exactly `{ skipped: true }` returns
+400 `{ error: "Invalid voice fields" }`; non-object JSON returns 400
+`{ error: "Invalid JSON" }`. DELETE voice clears both the saved profile and
+`voiceSkipped`. Both routes require the teacher PIN. Delete child removes the child, every saved turn and all live
 turns and traces about that child.
 
 ### Class view
@@ -187,8 +244,8 @@ the trace route. Dates are ISO 8601 UTC strings from the
 finish time. Log entries are the coach's English `explain(decision)` sentences,
 including the initial selection. Model reason text never appears here.
 
-The map axes include all letter and vowel skills on bank items at or below the
-child's level. Cells cover their cross product. Samples are actual pointed
+The map axes include all letter and vowel skills on eligible bank items at or
+below the child's level. Cells cover their cross product. Samples are actual pointed
 pairs from eligible bank words, analyzed by the rulebook using the child's
 preset; a sample is absent for combinations that never appear in those words.
 No new Hebrew text is generated for samples.
@@ -237,13 +294,15 @@ Sections, always in this order:
 
 All ties use ascending bank item id. The same inputs produce the same packet.
 Child packets use the child's level and next skill, falling back to the first
-eligible bank focus when next is null. A request must choose either child or
+eligible bank focus when next is null. All three sections use only that child's
+eligible items. Class packets by skill and level use the full learned set,
+excluding beginner lines. A request must choose either child or
 skill plus level. Unknown skills and invalid levels return 400.
 
 Sections contain fewer items when the bank lacks enough eligible items; items
 are never fabricated or duplicated within a section. The current bank has
-150 challenge items with `source.challenge: true`, and each packet includes one
-in Challenge. Warm up and Practice may overlap.
+150 challenge items with `source.challenge: true`. Challenge contains one when
+an eligible challenge is available, otherwise it is empty. Warm up and Practice may overlap.
 
 ### Developer trace
 
