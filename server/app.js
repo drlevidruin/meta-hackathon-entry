@@ -364,7 +364,7 @@ export function createApp({
         const historyView = history.slice(0, 20).map(({ date, startLevel, endLevel, ok, pairs, stars, log }) =>
           ({ date, startLevel, endLevel, ok, pairs, stars, log }));
         json(res, 200, { child: childView(child), map: buildMap(items, child), turns: historyView,
-          parentLine: parentLine(child.name, lastSummary, child.preset) });
+          parentLine: parentLine(child.name, lastSummary, child.preset, factsFor(child).next) });
       } else if (req.method === 'GET' && pathname === '/api/packet') {
         const childId = url.searchParams.get('child');
         let child, skill, level;

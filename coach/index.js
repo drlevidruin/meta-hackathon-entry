@@ -37,20 +37,25 @@ export function updateProfile(profile, results, items) {
     allClean &&= clean;
     atLevel ||= item.level === profile.level;
     const missed = new Set(result.summary.missedSkills || []);
-    if (!clean && !missed.size) {
-      for (const verdict of result.verdicts || []) {
-        if (verdict.verdict !== 'ok') {
-          for (const skill of verdict.skills || []) missed.add(skill);
-        }
+    const cleanSkills = new Set();
+    const uncredited = new Set();
+    for (const verdict of result.verdicts || []) {
+      for (const skill of verdict.blame || []) missed.add(skill);
+      for (const skill of verdict.skills || []) {
+        (verdict.verdict === 'ok' ? cleanSkills : uncredited).add(skill);
       }
+    }
+    if (!clean && !missed.size && !cleanSkills.size && !uncredited.size) {
       // An unplaced or unclear read cannot establish clean skill evidence.
-      if (!missed.size) for (const skill of item.skills) missed.add(skill);
+      for (const skill of item.skills) missed.add(skill);
     }
     for (const skill of new Set(item.skills)) {
+      if (!missed.has(skill) && uncredited.has(skill) && !cleanSkills.has(skill)) continue;
       practiced.add(skill);
       const previous = next.skills[skill] || { tries: 0, misses: 0, recent: [] };
       const mark = clean ? 0 : Number(missed.has(skill));
       next.skills[skill] = {
+        ...previous,
         tries: previous.tries + 1,
         misses: previous.misses + mark,
         recent: [...previous.recent, mark].slice(-6),
@@ -70,7 +75,8 @@ export function updateProfile(profile, results, items) {
   // Provisional hold: chooseNextSet clears it if the chosen set changes level.
   next.cleanAtLevel = {
     clean: atLevel && allClean,
-    held: [...next.cleanAtLevel.held, [...practiced].sort(compare)].slice(-3),
+    held: atLevel ? [...next.cleanAtLevel.held, [...practiced].sort(compare)].slice(-3)
+      : next.cleanAtLevel.held,
   };
   return next;
 }
@@ -88,7 +94,7 @@ export function turnFacts(profile) {
     (profile.skills[a].tries - profile.skills[a].misses) || compare(a, b));
   return {
     best: clean[0] || null,
-    next: weakSkills(profile)[0] || null,
+    next: weakSkills(profile).find(skill => misses(profile.skills[skill]) > 0) || null,
     proven: [...profile.proven].sort(compare),
   };
 }
@@ -102,8 +108,10 @@ function rulePlan(profile) {
     return { level: clamp(profile.level + 1), target: weak[0] || null, why: 'clean', misses: 0 };
   }
   const twice = weak.find(skill => {
-    const recent = profile.skills[skill].recent;
-    return recent.length >= 2 && recent.at(-1) === 1 && recent.at(-2) === 1;
+    const record = profile.skills[skill];
+    const recent = record.recent;
+    return record.tries - (record.demotedAt || 0) >= 2
+      && recent.length >= 2 && recent.at(-1) === 1 && recent.at(-2) === 1;
   });
   return twice
     ? { level: clamp(profile.level - 1), target: twice, why: 'missed_twice', misses: 2 }
@@ -235,6 +243,11 @@ export async function chooseNextSet(profile, results, items, options = {}) {
     }
   }
   const decision = decisionFor(updated, picked, items, plan);
+  if (decision.move === 'down') {
+    // Consume all evidence available at this demotion without erasing misses
+    // used for practice targeting and end-of-turn facts.
+    for (const record of Object.values(updated.skills)) record.demotedAt = record.tries;
+  }
   updated.level = picked.level;
   if (decision.move === 'up' || decision.move === 'down') {
     updated.cleanAtLevel = { clean: false, held: [] };

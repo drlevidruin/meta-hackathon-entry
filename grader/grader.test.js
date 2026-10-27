@@ -80,7 +80,7 @@ for (const [heard, after, sound] of [['e-cho-de', 2, 'e'], ['ba-e-chod', -1, 'ba
     const result = grade('אֶחָד', 'ashkenazi', heard);
     assert.deepEqual(verdicts(result.words[0]), ['ok', 'ok', 'ok']);
     assert.deepEqual(extras(result), [{ word: 0, pair: after, text: '', verdict: 'extra',
-      heard: sound, expected: [], skills: [] }]);
+      heard: sound, expected: [], skills: [], blame: [] }]);
     assert.equal(result.words[0].pairs.map((pair) => pair.text).join(''), result.words[0].text);
   });
 }
@@ -107,7 +107,7 @@ test('an extra heard word stays between its neighboring expected words', () => {
   assert.equal(result.words.length, 3);
   assert.deepEqual(result.words[1], { text: 'ba', verdict: 'extra', pairs: [] });
   assert.deepEqual(extras(result), [{ word: 1, pair: -1, text: 'ba', verdict: 'extra',
-    heard: 'ba', expected: [], skills: [] }]);
+    heard: 'ba', expected: [], skills: [], blame: [] }]);
   assert.equal(result.summary.ok, 7);
   assert.equal(result.summary.extra, 1);
   assert.deepEqual(result.summary.missedSkills, []);
@@ -191,8 +191,8 @@ test('mixed line summary counts sounded pairs, extras and sorted unique missed s
   assert.deepEqual(result.summary, {
     pairs: 20, ok: 11, wrong_letter: 1, wrong_vowel: 1, skipped: 1,
     extra: 2, uncertain: 2, not_decoded: 4,
-    missedSkills: ['letter:bet', 'letter:hei', 'letter:lamed', 'pattern:tzere_male',
-      'vowel:kamatz', 'vowel:segol', 'vowel:tzere'],
+    missedSkills: ['letter:bet', 'letter:lamed', 'pattern:tzere_male',
+      'vowel:segol', 'vowel:tzere'],
   });
   for (const [wordIndex, word] of result.words.entries()) {
     if (word.verdict === 'extra') continue;

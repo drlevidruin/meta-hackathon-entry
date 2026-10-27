@@ -414,7 +414,8 @@ test('each verdict other than ok records a miss; three subsequent ok reads resto
 
 test('detail returns the latest twenty turns, templated parent lines and explain lines only', async () => {
   let tick = 0;
-  const { app } = setup({ now: () => 1_800_000_000_000 + tick++ * 1000 });
+  const { app } = setup({ now: () => 1_800_000_000_000 + tick++ * 1000,
+    turnFacts: () => ({ best: 'letter:bet', next: null, proven: [] }) });
   const child = await add(app);
   const empty = await teacherGet(app, `/api/children/${child.id}/detail`);
   assert.deepEqual(empty.json.turns, []);
@@ -445,6 +446,45 @@ test('parent hints cover every rulebook skill and use each preset for kamatz and
     assert.equal(detail.json.parentLine, `Sprout read 0 of 1 sounds right today. One to practice: the kamatz (ָ) says ${preset === 'sephardi' ? 'a' : 'o'}.`);
   }
   assert.equal(hint('future:skill', 'sephardi'), 'practice future:skill');
+});
+
+test('parent line follows the coach next skill rather than the first summary miss', async () => {
+  const { app } = setup({
+    gradeLine: () => gradeFor('wrong_vowel'),
+    turnFacts: () => ({ best: null, next: 'letter:bet', proven: [] }),
+    chooseNextSet: async (profile, results) => selection(profile, { done: results.length > 0 }),
+  });
+  const child = await add(app);
+  const turn = await start(app, child.id);
+  await grade(app, turn.turnId);
+  const checkpoint = await next(app, turn.turnId);
+  assert.equal(checkpoint.json.facts.next, 'letter:bet');
+  await finish(app, turn.turnId);
+  const detail = (await teacherGet(app, `/api/children/${child.id}/detail`)).json;
+  assert.equal(detail.parentLine, 'Sprout read 0 of 1 sounds right today. One to practice: a bet with a dot says b.');
+});
+
+test('parent line says every sound was right when the coach has no next skill', async () => {
+  const { app } = setup({
+    gradeLine: () => gradeFor('wrong_vowel'),
+    turnFacts: () => ({ best: null, next: null, proven: [] }),
+  });
+  const child = await add(app);
+  const turn = await start(app, child.id);
+  await grade(app, turn.turnId);
+  await finish(app, turn.turnId);
+  const detail = (await teacherGet(app, `/api/children/${child.id}/detail`)).json;
+  assert.equal(detail.parentLine, 'Sprout read 0 of 1 sounds right today. Every sound was right!');
+});
+
+test('server entry point has no test-context import', () => {
+  const source = fs.readFileSync(new URL('./index.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /NODE_TEST_CONTEXT|app\.test\.js/);
+});
+
+test('API documents untested map cells with fewer than three reads and none missed', () => {
+  const api = fs.readFileSync(new URL('../docs/api.md', import.meta.url), 'utf8');
+  assert.match(api, /untested when it has fewer than three reads and none missed/);
 });
 
 test('packets for children and skills are deterministic, bank-only, nearest level first, with three sections', async () => {

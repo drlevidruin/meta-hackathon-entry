@@ -2,6 +2,15 @@ import { distance, equal, isVowel, phonemes } from './phonemes.js';
 
 export const sounded = (pair) => pair.sounds.some(Boolean);
 
+export function blameFor(verdict, skills) {
+  if (verdict === 'skipped') return [...skills];
+  if (verdict === 'wrong_letter') return skills.filter(skill => skill.startsWith('letter:')
+    || skill === 'pattern:vav_consonant' || skill === 'pattern:mappik');
+  if (verdict === 'wrong_vowel') return skills.filter(skill => skill.startsWith('vowel:')
+    || (skill.startsWith('pattern:') && skill !== 'pattern:vav_consonant' && skill !== 'pattern:mappik'));
+  return [];
+}
+
 function consonantMatches(tokens, pair) {
   return pair.consonants.some((sound) => {
     const consonants = phonemes(sound);
@@ -36,6 +45,7 @@ function verdictFor(tokens, model, options) {
       if (options.acceptOtherTraditions) result.verdict = 'ok';
     }
   }
+  result.blame = blameFor(result.verdict, result.skills);
   return result;
 }
 
@@ -71,7 +81,8 @@ export function alignPairs(tokens, models, options) {
       const alternatives = options.acceptOtherTraditions
         ? [...model.alternatives, ...model.traditions.flatMap((entry) => entry.alternatives)]
         : model.alternatives;
-      for (let end = j; end <= tokens.length; end += 1) {
+      const lastEnd = sounded(model.pair) ? tokens.length : j;
+      for (let end = j; end <= lastEnd; end += 1) {
         const consumed = tokens.slice(j, end);
         const result = verdictFor(consumed, model, options);
         const cost = Math.min(...alternatives.map((alternative) => distance(consumed, alternative)));
@@ -80,7 +91,7 @@ export function alignPairs(tokens, models, options) {
       }
 
       // The ear's '?' denotes an unclear syllable, which can cover several pairs.
-      if (tokens[j] === '?') {
+      if (sounded(model.pair) && tokens[j] === '?') {
         const actions = [];
         let count = 0;
         for (let end = i; end < models.length; end += 1) {
@@ -110,7 +121,7 @@ export function alignPairs(tokens, models, options) {
       } else {
         entries.push({
           pair: action.after, text: '', verdict: 'extra', heard: action.extra,
-          expected: [], skills: [],
+          expected: [], skills: [], blame: [],
         });
       }
     }
