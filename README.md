@@ -71,7 +71,7 @@ Meta may train on content sent in contributor mode, so only standard tier is use
 
 ## Data and privacy
 
-The ear never sees the text it grades. No model writes Hebrew a child reads. There is no chat or free-text AI feedback in child, teacher or parent screens. Messages use templates. Model reasons appear only in the PIN-protected developer trace when enabled. Keys stay on the server.
+The ear never sees the text it grades. No model writes Hebrew a child reads. There is no chat or free-text AI feedback anywhere: child screens, teacher screens and the parent line all use templates. Model reasons appear only in the PIN-protected developer trace when enabled. Keys stay on the server.
 
 The station and server grade audio in memory and drop it. They never write audio to disk or a log. `data/store.json` holds first names, avatars, pronunciation presets, progress profiles, per-letter and vowel read history, stars and turn summaries with coded decisions and template logs. It holds no audio, transcripts or coach reasons. The store keeps the last 60 turns per child; the detail screen shows the last 20. The server computes earned stars from its own grades and caps the browser's requested award. Teachers must enter first names only; the server enforces a single word, not whether it is a first name.
 
