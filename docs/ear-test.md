@@ -450,7 +450,7 @@ Runs 2 and 3 used the same settings, from 3:55 to 4:03 PM and from 4:04 to 4:11 
 | gan_kamatz-for-patach | gon | plant marked each run | plant marked each run |
 | daf_kamatz-for-patach | dof | plant marked each run | plant marked each run |
 
-Over the three runs the referee caught 10 of 12 plants, as many as without it, and cut false marks from 10 to 6. It changed four answers on these words, each to the vowel Levi said, and never wrote o for a patach he said. The meter changed no answer on these words. No run passed: run 2 left no false marks but missed a plant, and run 3 caught every plant with one false mark.
+Over the three runs the referee caught 10 of 12 plants, as many as without it, and cut false marks from 10 to 6. The ear wrote a for a kamatz Levi said as o five times on these words, and the referee fixed each of the four it checked. It changed four answers on these words, each to the vowel Levi said, and never wrote o for a patach he said. The meter changed no answer on these words. No run passed: run 2 left no false marks but missed a plant, and run 3 caught every plant with one false mark.
 
 The referee fixed shom, where the ear and the meter wrote sham. In the first run it missed kosav for a reason outside its rule: the phoneme service gave no answer on that reading. The Mac was short of memory, macOS had swapped the idle model out, and the reading took longer than the time limit. The runner did not say so. Asked again later, the model heard kosav's kamatz as a back vowel, 0.95 against the line of 0.5. Swapped out, half a second of audio took 27 to 57 seconds that afternoon. The fix pins the model in RAM: pinned, the 21-second card takes about a second, and short readings under a tenth of a second. The runner now also tries a missed reading once more and names any reading the referee did not check.
 
@@ -469,6 +469,21 @@ Across all 58 clips, in the same three runs:
 Rounds 1 to 1d shaped the meter, the card, the vote and the referee's rule, so these totals are not a test. Only Round 1e is. Over the three runs the referee changed 33 answers, and 32 moved a vowel to the one Levi said. One was worse: in run 3 the ear wrote na-chal for the planted no-chal, and the referee made it no-chol, the flaw seen when its rule was designed. The plant was missed either way, but the grader could not read no-chol, so it marked all three letters.
 
 The pin and the retry changed how the service runs, not what the referee decides, so run 1 counts. Round 1e has now been read, so it no longer counts as a sealed test. A change made from here needs new words.
+
+## Undo threshold, October 27
+
+In run 2 of Round 1e the referee left kom for the planted kam, because the phoneme model's back share, 0.37, was not below 0.15. A threshold set from the card, at Levi's own a of 0.43, would have undone it. Round 1e has been read, so the idea was checked on the design rounds only: the 46 clips of Rounds 1 to 1d, in eleven saved sets of answers, seven with the card and four without.
+
+Where the ear wrote o and Levi said a, the model's back share was 0.06 to 0.10, already below 0.15. The one exception was no-chal's second syllable, at 0.84, which no threshold reaches. Where the ear wrote o and Levi said o, four kamatz syllables sat between 0.20 and 0.35: mitz-vo, bo-nim, o-meyn and bo-ruch. A threshold at his a would turn all four into a in every set.
+
+| Undo threshold | Plants caught | False marks |
+| --- | --- | --- |
+| 0.15, as shipped, with the card | 146 of 154 | 73 |
+| 0.43, Levi's a, with the card | 146 of 154 | 100 |
+| 0.15, as shipped, no card | 82 of 88 | 55 |
+| 0.43, Levi's a, no card | 82 of 88 | 71 |
+
+For Levi's voice the phoneme model cannot tell kom's a from the o of mitz-vo, so the threshold stays at 0.15, and no sealed round is needed to test it.
 
 ## Round 2: a child's voice
 
