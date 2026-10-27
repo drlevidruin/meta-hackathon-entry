@@ -1,5 +1,5 @@
 {
-  "about": "Hand-checked answers. Each array is one pair; 'ba|bo' means either sound is accepted. Compare alternatives as sets.",
+  "about": "Expected answers written for the tests from the rules in docs/rulebook.md; not yet reviewed by a kriah teacher. Each array is one pair; 'ba|bo' means either sound is accepted. Compare alternatives as sets.",
   "words": [
     { "word": "שַׁבָּת", "sephardi": ["sha", "ba", "t"], "ashkenazi": ["sha", "bo", "s"], "chassidish": ["sha", "bo|bu", "s"], "flags": [] },
     { "word": "בָּרוּךְ", "sephardi": ["ba", "ru", "ch"], "ashkenazi": ["bo", "ru", "ch"], "chassidish": ["bo|bu", "ru", "ch"], "flags": [] },
