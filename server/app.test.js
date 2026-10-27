@@ -127,7 +127,7 @@ const voiceAudio = preset => wav(utterance(cardLabels(preset).map(label => label
 const voice = (app, child, options = {}) => request(app, `/api/voice?child=${child.id}`,
   { type: 'audio/wav', data: voiceAudio(child.preset), ...options });
 
-test('voice check saves only version and numeric vowels, with a public boolean child view', async () => {
+test('voice check saves only version, numeric vowels and spread, with a public boolean child view', async () => {
   const { app, dataDir, listen } = setup();
   const child = await add(app);
   assert.equal(child.voiceCheck, false);
@@ -137,8 +137,9 @@ test('voice check saves only version and numeric vowels, with a public boolean c
   assert.equal(listen.mock.callCount(), 0);
   const saved = disk(dataDir);
   const profile = saved.children[child.id].voice;
-  assert.deepEqual(Object.keys(profile), ['version', 'vowels']);
-  assert.equal(profile.version, 1);
+  assert.deepEqual(Object.keys(profile), ['version', 'vowels', 'spread']);
+  assert.equal(profile.version, 2);
+  assert.ok(Number.isFinite(profile.spread) && profile.spread >= 0);
   assert.deepEqual(Object.keys(profile.vowels), ['a', 'o', 'e', 'i']);
   for (const value of Object.values(profile.vowels)) {
     assert.deepEqual(Object.keys(value), ['f1', 'f2', 'n']);

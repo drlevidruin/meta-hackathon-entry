@@ -48,9 +48,10 @@ function coachProfile(profile) {
 }
 
 function voiceProfile(value) {
-  if (!value || typeof value !== 'object' || Array.isArray(value) || value.version !== 1
+  if (!value || typeof value !== 'object' || Array.isArray(value) || value.version !== 2
     || !value.vowels || typeof value.vowels !== 'object'
-    || Array.isArray(value.vowels)) return null;
+    || Array.isArray(value.vowels)
+    || !Number.isFinite(value.spread) || value.spread < 0 || value.spread > 10) return null;
   const vowels = {};
   for (const key of ['a', 'o', 'e', 'i']) {
     const vowel = value.vowels[key];
@@ -59,7 +60,7 @@ function voiceProfile(value) {
       || !Number.isInteger(vowel.n) || vowel.n < 2 || vowel.n > 15) continue;
     vowels[key] = { f1: vowel.f1, f2: vowel.f2, n: vowel.n };
   }
-  return Object.keys(vowels).length >= 2 ? { version: 1, vowels } : null;
+  return Object.keys(vowels).length >= 1 ? { version: 2, vowels, spread: value.spread } : null;
 }
 
 function safeState(state) {

@@ -92,25 +92,61 @@ test('voice persistence keeps only supported numeric vowel fields on update and 
   assert.deepEqual(createStore(directory).read().children.sprout.voice, profile);
 });
 
-test('voice sanitizer drops invalid vowels and requires at least two surviving classes', async t => {
+test('voice sanitizer drops invalid vowels and requires at least one surviving class', async t => {
   const { store } = fixture(t);
   const valid = { f1: 0, f2: 25, n: 2 };
   const save = async voice => {
     await store.update(state => { state.children.sprout = { voice }; });
     return store.read().children.sprout.voice;
   };
-  assert.deepEqual(await save({ version: 1, vowels: { a: valid, o: { ...valid, n: 15 }, u: valid } }),
-    { version: 1, vowels: { a: valid, o: { ...valid, n: 15 } } });
+  assert.deepEqual(await save({ version: 2, vowels: { a: valid, o: { ...valid, n: 15 }, u: valid }, spread: 0.3 }),
+    { version: 2, vowels: { a: valid, o: { ...valid, n: 15 } }, spread: 0.3 });
   for (const invalid of [null, [], {}, { ...valid, f1: NaN }, { ...valid, f2: Infinity },
     { ...valid, f1: -0.01 }, { ...valid, f2: 25.01 }, { ...valid, f1: '3' },
     { ...valid, n: 1 }, { ...valid, n: 16 }, { ...valid, n: 2.5 }, { ...valid, n: '2' }]) {
-    assert.equal(await save({ version: 1, vowels: { a: valid, o: invalid } }), null);
-    assert.deepEqual(await save({ version: 1, vowels: { a: valid, o: valid, e: invalid } }),
-      { version: 1, vowels: { a: valid, o: valid } });
+    assert.equal(await save({ version: 2, vowels: { o: invalid }, spread: 0.3 }), null);
+    assert.deepEqual(await save({ version: 2, vowels: { a: valid, o: invalid }, spread: 0.3 }),
+      { version: 2, vowels: { a: valid }, spread: 0.3 });
+    assert.deepEqual(await save({ version: 2, vowels: { a: valid, o: valid, e: invalid }, spread: 0.3 }),
+      { version: 2, vowels: { a: valid, o: valid }, spread: 0.3 });
   }
   for (const invalid of [undefined, null, [], {}, { version: 2, vowels: { a: valid, o: valid } },
-    { version: '1', vowels: { a: valid, o: valid } }, { version: 1, vowels: [] },
-    { version: 1, vowels: { u: valid, oy: valid } }]) {
+    { version: 1, vowels: { a: valid, o: valid }, spread: 0.3 },
+    { version: '2', vowels: { a: valid, o: valid }, spread: 0.3 },
+    { version: 2, vowels: [], spread: 0.3 }, { version: 2, vowels: {}, spread: 0.3 },
+    { version: 2, vowels: { u: valid, oy: valid }, spread: 0.3 }]) {
     assert.equal(await save(invalid), null);
+  }
+});
+
+test('a version 1 voice profile loads as null', t => {
+  const { directory } = fixture(t);
+  const voice = { version: 1, vowels: { a: { f1: 5, f2: 9, n: 3 }, o: { f1: 4, f2: 8, n: 3 } } };
+  fs.writeFileSync(path.join(directory, 'store.json'), JSON.stringify({
+    version: 1, children: { sprout: { voice } }, turns: {},
+  }));
+  assert.equal(createStore(directory).read().children.sprout.voice, null);
+});
+
+test('a version 2 voice profile with one vowel survives an update and reload', async t => {
+  const { directory, store } = fixture(t);
+  for (const spread of [0, 0.3, 10]) {
+    const voice = { version: 2, vowels: { o: { f1: 4, f2: 8, n: 6 } }, spread };
+    await store.update(state => { state.children.sprout = { voice }; });
+    assert.deepEqual(store.read().children.sprout.voice, voice);
+    assert.deepEqual(createStore(directory).read().children.sprout.voice, voice);
+  }
+});
+
+test('voice sanitizer rejects invalid spread on update and reload', async t => {
+  const { directory, store } = fixture(t);
+  for (const spread of [-0.1, NaN, '0.3', 10.01, Infinity, undefined, null]) {
+    const voice = { version: 2, vowels: { o: { f1: 4, f2: 8, n: 3 } }, spread };
+    await store.update(state => { state.children.sprout = { voice }; });
+    assert.equal(store.read().children.sprout.voice, null);
+    fs.writeFileSync(path.join(directory, 'store.json'), JSON.stringify({
+      version: 1, children: { sprout: { voice } }, turns: {},
+    }));
+    assert.equal(createStore(directory).read().children.sprout.voice, null);
   }
 });

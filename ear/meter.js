@@ -147,6 +147,8 @@ function bark(hz) {
 }
 
 export function buildVoiceProfile(data, labels) {
+  const required = Math.min(2, new Set(labels.filter(label => label !== null)).size);
+  if (required === 0) throw new VoiceCheckError('card');
   const { samples, rate } = decodeWav(data);
   const islands = soundIslands(samples, rate);
   if (islands.length !== labels.length) throw new VoiceCheckError('count', islands.length);
@@ -155,23 +157,53 @@ export function buildVoiceProfile(data, labels) {
     const value = measureVowel(samples, rate, start, end);
     const label = labels[index];
     if (label === null || !value) continue;
-    (groups[label] ??= []).push(value);
+    (groups[label] ??= []).push({ f1: bark(value.f1), f2: bark(value.f2) });
   }
   const vowels = {};
+  let squaredDeviations = 0;
+  let degreesOfFreedom = 0;
   for (const [label, values] of Object.entries(groups)) {
     if (values.length < 2) continue;
-    const mean = (key) => Math.round(values.reduce((sum, value) => sum + bark(value[key]), 0) / values.length * 1000) / 1000;
-    vowels[label] = { f1: mean('f1'), f2: mean('f2'), n: values.length };
+    const mean = (key) => values.reduce((sum, value) => sum + value[key], 0) / values.length;
+    const f1 = mean('f1');
+    const f2 = mean('f2');
+    vowels[label] = { f1: Math.round(f1 * 1000) / 1000, f2: Math.round(f2 * 1000) / 1000, n: values.length };
+    for (const value of values) squaredDeviations += (value.f1 - f1) ** 2 + (value.f2 - f2) ** 2;
+    degreesOfFreedom += 2 * (values.length - 1);
   }
-  if (Object.keys(vowels).length < 2) throw new VoiceCheckError('quiet');
-  return { version: 1, vowels };
+  if (Object.keys(vowels).length < required) throw new VoiceCheckError('quiet');
+  const spread = Math.round(Math.sqrt(squaredDeviations / degreesOfFreedom) * 1000) / 1000;
+  return { version: 2, vowels, spread };
 }
 
-export function applyMeter(words, data, profile, { margin = 0.75 } = {}) {
+export function meterDecision(earVowel, point, profile, { margin = 0.75, radius = 0.75, minGap = 0.8, gapFactor = 3 } = {}) {
+  const candidates = earVowel === 'a' ? ['a', 'o', 'e'] : earVowel === 'e' ? ['e', 'i'] : [];
+  const available = candidates.filter(v => Object.hasOwn(profile.vowels, v));
+  if (!available.some(v => v !== earVowel)) return null;
+  const distances = available.map(v => {
+    const c = profile.vowels[v];
+    return { v, d: Math.hypot(point.f1 - c.f1, point.f2 - c.f2) };
+  }).sort((a, b) => a.d - b.d);
+  const [best, second] = distances;
+  if (best.v === earVowel) return null;
+  if (second && !(best.d / second.d < margin)) return null;
+  if (available.length < candidates.length && !(best.d <= radius)) return null;
+  const cb = profile.vowels[best.v];
+  for (const { v } of distances.slice(1)) {
+    const cy = profile.vowels[v];
+    const gap = Math.hypot(cb.f1 - cy.f1, cb.f2 - cy.f2);
+    const requiredGap = Math.max(minGap, gapFactor * profile.spread * Math.sqrt(1 / cb.n + 1 / cy.n));
+    if (gap < requiredGap) return null;
+  }
+  return best.v;
+}
+
+export function applyMeter(words, data, profile, options = {}) {
   const newWords = words.map((word) => [...word]);
   const unchanged = (reason) => ({ words: newWords, changes: [], applied: false, reason });
-  if (profile?.version !== 1 || !profile.vowels || typeof profile.vowels !== 'object'
-    || Array.isArray(profile.vowels)) return unchanged('profile');
+  if (profile?.version !== 2 || !profile.vowels || typeof profile.vowels !== 'object'
+    || Array.isArray(profile.vowels) || Object.keys(profile.vowels).length === 0
+    || !Number.isFinite(profile.spread) || profile.spread < 0) return unchanged('profile');
   let audio;
   try {
     audio = decodeWav(data);
@@ -190,18 +222,13 @@ export function applyMeter(words, data, profile, { margin = 0.75 } = {}) {
       const match = /oy|ey|a|e|i|o|u/.exec(from);
       const earVowel = match?.[0];
       const candidates = earVowel === 'a' ? ['a', 'o', 'e'] : earVowel === 'e' ? ['e', 'i'] : [];
-      const usable = candidates.filter((v) => Object.hasOwn(profile.vowels, v));
-      if (usable.length < 2) continue;
+      if (!candidates.some(v => v !== earVowel && Object.hasOwn(profile.vowels, v))) continue;
       const { start, end } = islands[index];
       const value = measureVowel(samples, rate, start, end);
       if (!value) continue;
-      const distances = usable.map((v) => {
-        const c = profile.vowels[v];
-        return { v, d: Math.hypot(bark(value.f1) - c.f1, bark(value.f2) - c.f2) };
-      }).sort((a, b) => a.d - b.d);
-      const [best, second] = distances;
-      if (best.v !== earVowel && best.d / second.d < margin) {
-        const to = from.slice(0, match.index) + best.v + from.slice(match.index + earVowel.length);
+      const vowel = meterDecision(earVowel, { f1: bark(value.f1), f2: bark(value.f2) }, profile, options);
+      if (vowel) {
+        const to = from.slice(0, match.index) + vowel + from.slice(match.index + earVowel.length);
         word[s] = to;
         changes.push({ index, from, to });
       }
