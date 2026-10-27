@@ -1,7 +1,9 @@
 import { readSession, writeSession } from './storage.js';
 import { skillLabel } from './messages.js';
+import { voiceCardFor } from '../../rulebook/voice-card.js';
+import { normalizeVowels, VOWEL_IDS } from '../../rulebook/vowels.js';
 
-const KEY = 'kriah.mock.v4';
+const KEY = 'kriah.mock.v5';
 const initialChildren = [
   { id: 'bim', name: 'Bim', avatar: 'lion', preset: 'sephardi', level: 1, stars: 12, best: 5, next: 'vowel:sheva_na' },
   { id: 'nubo', name: 'Nubo', avatar: 'owl', preset: 'ashkenazi', level: 2, stars: 24, best: 7, next: 'vowel:chirik' },
@@ -10,13 +12,14 @@ const initialChildren = [
   { id: 'lulo', name: 'Lulo', avatar: 'bear', preset: 'sephardi', level: 4, stars: 56, best: 9, next: 'vowel:cholam' },
   { id: 'mipo', name: 'Mipo', avatar: 'rabbit', preset: 'chassidish', level: 2, stars: 16, best: 5, next: 'vowel:chirik' },
   { id: 'quib', name: 'Quib', avatar: 'whale', preset: 'sephardi', level: 3, stars: 31, best: 6, next: 'letter:bet' },
-  { id: 'plo', name: 'Plo', avatar: 'bee', preset: 'ashkenazi', level: 1, stars: 6, best: 2, next: 'vowel:sheva_na' },
+  { id: 'plo', name: 'Plo', avatar: 'bee', preset: 'ashkenazi', level: 1, stars: 6, best: 2, next: 'vowel:patach' },
   { id: 'yibo', name: 'Yibo', avatar: 'cat', preset: 'chassidish', level: 4, stars: 63, best: 9, next: 'vowel:cholam' },
   { id: 'voppo', name: 'Voppo', avatar: 'dog', preset: 'sephardi', level: 2, stars: 22, best: 6, next: 'vowel:chirik' },
   { id: 'fuzzle', name: 'Fuzzle', avatar: 'frog', preset: 'ashkenazi', level: 3, stars: 43, best: 8, next: 'pattern:closed_syllable' },
   { id: 'dibbo', name: 'Dibbo', avatar: 'panda', preset: 'chassidish', level: 1, stars: 0, best: 0, next: null },
   { id: 'pippa', name: 'Pippa', avatar: 'koala', preset: 'sephardi', level: 1, stars: 0, best: 0, next: null },
-].map(child => ({ ...child, voiceCheck: child.id !== 'pippa' }));
+].map(child => ({ ...child, vowels: child.id === 'plo' ? ['kamatz', 'patach'] : [...VOWEL_IDS],
+  voice: !['pippa', 'plo'].includes(child.id) }));
 const lines = ['בָּ בַּ בֵּ', 'מָ מַ מִ', 'לָ לַ לִ', 'בִּ בֵּ בֻּ', 'שָׁ שַׁ שִׁ', 'נָ נַ נִ'];
 export const items = lines.map((text, index) => ({
   id: `mock-${index}`, level: 1, text, words: text.split(' '),
@@ -32,7 +35,17 @@ const findChild = (db, id) => {
   if (!child) throw new Error('Child not found');
   return child;
 };
-export async function children() { return clone(database().children); }
+function childView({ voice, voiceSkipped, ...child }) {
+  const voiceStatus = !voiceCardFor(child.vowels, child.preset).length ? 'none'
+    : voice ? 'done' : voiceSkipped ? 'skipped' : 'needed';
+  return clone({ ...child, voiceStatus, voiceCheck: voiceStatus !== 'needed' });
+}
+function learnedVowels(value) {
+  const vowels = normalizeVowels(value);
+  if (!vowels) throw Object.assign(new Error('Invalid vowels'), { status: 400 });
+  return vowels;
+}
+export async function children() { return database().children.map(childView); }
 export async function config() { return { trace: true }; }
 export async function checkPin(pin) {
   if (!/^\d{4,12}$/.test(pin)) throw new Error('Enter PIN');
@@ -40,16 +53,30 @@ export async function checkPin(pin) {
 }
 export async function voice({ childId }) {
   const db = database();
-  findChild(db, childId).voiceCheck = true;
+  const child = findChild(db, childId);
+  if (!voiceCardFor(child.vowels, child.preset).length) {
+    throw Object.assign(new Error('No voice check'), { status: 409 });
+  }
+  child.voice = true;
+  delete child.voiceSkipped;
   save(db);
   return { voiceCheck: true };
 }
 export async function clearVoice(id) {
   const db = database();
   const child = findChild(db, id);
-  child.voiceCheck = false;
+  child.voice = false;
+  delete child.voiceSkipped;
   save(db);
-  return clone(child);
+  return childView(child);
+}
+export async function skipVoice(id) {
+  const db = database();
+  const child = findChild(db, id);
+  child.voice = false;
+  child.voiceSkipped = true;
+  save(db);
+  return childView(child);
 }
 export async function start({ childId }) {
   const db = database();
@@ -102,7 +129,7 @@ export async function finish({ turnId, stars }) {
     turn.finished = true;
     save(db);
   }
-  return { child: clone(child) };
+  return { child: childView(child) };
 }
 const sampleTurns = {
   bim: { daysAgo: 0, startLevel: 1, endLevel: 1, ok: 18, pairs: 20, stars: 4,
@@ -132,7 +159,7 @@ function turnsFor(db, childId) {
 }
 export async function classView() {
   const db = database();
-  const children = db.children.map(child => ({ ...child,
+  const children = db.children.map(child => ({ ...childView(child),
     next: child.next === undefined ? 'vowel:kamatz' : child.next, lastTurn: turnsFor(db, child.id)[0],
   }));
   const groups = [...new Set(children.map(child => child.next).filter(Boolean))].map(skill => ({
@@ -152,19 +179,23 @@ export async function childDetail(id) {
     cells[key] = ['solid', 'shaky', 'untested'][(row + column) % 3];
     sample[key] = samples[row][column];
   }));
-  return { child: clone(child), map: { letters, vowels, cells, sample }, turns: turnsFor(db, id),
+  return { child: childView(child), map: { letters, vowels, cells, sample }, turns: turnsFor(db, id),
     parentLine: `${child.name} read the bet with a dot well today and will practice the sheva next.` };
 }
 export async function addChild(data) {
   const db = database();
-  const child = { ...data, id: `mock-child-${crypto.randomUUID()}`, level: 1, stars: 0, best: 0, voiceCheck: false };
-  db.children.push(child); save(db); return clone(child);
+  const vowels = Object.hasOwn(data, 'vowels') ? learnedVowels(data.vowels) : [...VOWEL_IDS];
+  const child = { ...data, vowels, id: `mock-child-${crypto.randomUUID()}`, level: 1, stars: 0, best: 0, voice: false };
+  db.children.push(child); save(db); return childView(child);
 }
 export async function editChild(id, data) {
   const db = database();
   const child = findChild(db, id);
-  if (data.preset !== undefined && data.preset !== child.preset) child.voiceCheck = false;
-  Object.assign(child, data); save(db); return clone(child);
+  const fields = { ...data };
+  if (Object.hasOwn(fields, 'vowels')) fields.vowels = learnedVowels(fields.vowels);
+  if ((fields.preset !== undefined && fields.preset !== child.preset)
+    || (fields.vowels && JSON.stringify(fields.vowels) !== JSON.stringify(child.vowels))) child.voice = false;
+  Object.assign(child, fields); save(db); return childView(child);
 }
 export async function deleteChild(id) {
   const db = database();

@@ -7,6 +7,9 @@ import { Avatar, AVATARS } from './Avatar.jsx';
 import { ClassView, ChildDetail, Packet, Roster } from './Teacher.jsx';
 import * as api from './api.js';
 import { loadPin, savePin } from './storage.js';
+import { VOWEL_IDS } from '../../rulebook/vowels.js';
+
+const vowelNames = ['Kamatz', 'Patach', 'Segol', 'Tzere', 'Chirik', 'Cholam', 'Shuruk', 'Kubutz', 'Sheva', 'Chataf'];
 
 beforeEach(() => { sessionStorage.clear(); window.history.replaceState(null, '', '/?mock#/teacher'); });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
@@ -31,7 +34,7 @@ it('renders groups before children and opens a skill packet', async () => {
   const groups = await screen.findByRole('heading', { name: 'Practice groups' });
   expect(groups.compareDocumentPosition(screen.getByRole('heading', { name: 'Children' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(within(groups.parentElement).getByRole('link', { name: /Sheva/ }).getAttribute('href')).toBe('#/teacher/packet/skill/vowel%3Asheva_na/1');
-  expect(document.querySelectorAll('.group-card')).toHaveLength(5);
+  expect(document.querySelectorAll('.group-card')).toHaveLength(6);
   expect(document.querySelectorAll('.child-row')).toHaveLength(13);
   expect(screen.getAllByText('18 of 20 sounds')).toHaveLength(1);
   expect(screen.getAllByText('No turns yet')).toHaveLength(2);
@@ -78,31 +81,122 @@ it('asks before deleting and names the child in the confirmation', async () => {
   expect(remove).toHaveBeenCalledOnce(); expect(remove).toHaveBeenCalledWith('bim');
 });
 
-it('adds and edits the child avatar, preset, and level', async () => {
+it('adds and edits the child avatar, preset, level and vowels in canonical order', async () => {
+  const add = vi.spyOn(api, 'addChild');
+  const edit = vi.spyOn(api, 'editChild');
   render(React.createElement(Roster));
   await screen.findByRole('button', { name: 'Edit Bim' });
   fireEvent.change(screen.getByLabelText('First name'), { target: { value: 'Mippo' } });
   fireEvent.click(screen.getByRole('button', { name: 'whale' }));
   fireEvent.change(screen.getByLabelText('Preset'), { target: { value: 'ashkenazi' } });
+  fireEvent.click(screen.getByRole('button', { name: 'All' }));
+  for (const name of ['Chirik', 'Patach', 'Kamatz']) fireEvent.click(screen.getByRole('button', { name, exact: true }));
   fireEvent.click(screen.getByRole('button', { name: 'Add child' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Edit Mippo' }));
+  expect(add).toHaveBeenCalledExactlyOnceWith({ name: 'Mippo', avatar: 'whale', preset: 'ashkenazi', vowels: ['kamatz', 'patach', 'chirik'] });
+  for (const [index, name] of vowelNames.entries()) {
+    expect(screen.getByRole('button', { name, exact: true }).getAttribute('aria-pressed')).toBe(String(['kamatz', 'patach', 'chirik'].includes(VOWEL_IDS[index])));
+  }
   fireEvent.change(screen.getByLabelText('Level'), { target: { value: '3' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Segol', exact: true }));
+  fireEvent.click(screen.getByRole('button', { name: 'Patach', exact: true }));
   fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-  await waitFor(async () => expect((await api.children()).find(child => child.name === 'Mippo')).toMatchObject({ avatar: 'whale', preset: 'ashkenazi', level: 3 }));
+  await waitFor(async () => expect((await api.children()).find(child => child.name === 'Mippo')).toMatchObject({ avatar: 'whale', preset: 'ashkenazi', level: 3, vowels: ['kamatz', 'segol', 'chirik'] }));
+  expect(edit).toHaveBeenCalledExactlyOnceWith(expect.any(String), { name: 'Mippo', avatar: 'whale', preset: 'ashkenazi', level: 3, vowels: ['kamatz', 'segol', 'chirik'] });
 });
 
-it('offers Redo voice check only for checked children and refreshes the roster after clearing', async () => {
+it('offers Redo voice check only for done children and refreshes the roster after clearing', async () => {
   const clear = vi.spyOn(api, 'clearVoice');
   const children = vi.spyOn(api, 'children');
   render(React.createElement(Roster));
   const redo = await screen.findByRole('button', { name: 'Redo voice check Bim' });
   expect(screen.queryByRole('button', { name: 'Redo voice check Pippa' })).toBeNull();
-  expect(screen.getAllByRole('button', { name: /Redo voice check/ })).toHaveLength(12);
+  expect(screen.getAllByRole('button', { name: /Redo voice check/ })).toHaveLength(11);
+  expect(screen.getAllByRole('button', { name: /Skip voice check/ })).toHaveLength(2);
   fireEvent.click(redo);
   await waitFor(() => expect(screen.queryByRole('button', { name: 'Redo voice check Bim' })).toBeNull());
   expect(clear).toHaveBeenCalledExactlyOnceWith('bim');
   expect(children).toHaveBeenCalledTimes(2);
   expect((await api.children()).find(child => child.id === 'bim').voiceCheck).toBe(false);
+  expect(screen.getByRole('button', { name: 'Skip voice check Bim' })).toBeTruthy();
+});
+
+it('renders named vowel toggles in order with Hebrew marks and toggles All both ways', async () => {
+  render(React.createElement(Roster));
+  await screen.findByRole('button', { name: 'Edit Bim' });
+  const fieldset = screen.getByRole('group', { name: 'Vowels' });
+  const buttons = within(fieldset).getAllByRole('button');
+  expect(buttons.map(button => button.getAttribute('aria-label') || button.textContent)).toEqual(['All', ...vowelNames]);
+  expect([...fieldset.querySelectorAll('[lang="he"]')].map(mark => mark.textContent))
+    .toEqual(['בָ', 'בַ', 'בֶ', 'בֵ', 'בִ', 'בֹ', 'בוּ', 'בֻ', 'בְ', 'בֲ']);
+  for (const mark of fieldset.querySelectorAll('[lang="he"]')) expect(mark.getAttribute('dir')).toBe('rtl');
+  expect(buttons.every(button => button.getAttribute('aria-pressed') === 'true')).toBe(true);
+  const all = within(fieldset).getByRole('button', { name: 'All' });
+  fireEvent.click(all);
+  expect(buttons.every(button => button.getAttribute('aria-pressed') === 'false')).toBe(true);
+  fireEvent.click(all);
+  expect(buttons.every(button => button.getAttribute('aria-pressed') === 'true')).toBe(true);
+  fireEvent.click(within(fieldset).getByRole('button', { name: 'Kamatz', exact: true }));
+  expect(all.getAttribute('aria-pressed')).toBe('false');
+  fireEvent.click(all);
+  expect(buttons.every(button => button.getAttribute('aria-pressed') === 'true')).toBe(true);
+  expect(fieldset.previousElementSibling.textContent).toMatch(/^Preset/);
+  expect(fieldset.querySelector('p')).toBeNull();
+});
+
+it.each([false, true])('rejects an empty vowel selection without sending an API request when editing is %s', async editing => {
+  const add = vi.spyOn(api, 'addChild');
+  const edit = vi.spyOn(api, 'editChild');
+  render(React.createElement(Roster));
+  const editBim = await screen.findByRole('button', { name: 'Edit Bim' });
+  if (editing) fireEvent.click(editBim);
+  else fireEvent.change(screen.getByLabelText('First name'), { target: { value: 'Mippo' } });
+  fireEvent.click(screen.getByRole('button', { name: 'All' }));
+  fireEvent.click(screen.getByRole('button', { name: editing ? 'Save' : 'Add child' }));
+  expect(screen.getByRole('alert').textContent).toBe('Choose a vowel');
+  expect(add).not.toHaveBeenCalled();
+  expect(edit).not.toHaveBeenCalled();
+});
+
+it('shows learned vowel names after the level for a subset and loads them for editing', async () => {
+  render(React.createElement(Roster));
+  const edit = await screen.findByRole('button', { name: 'Edit Plo' });
+  expect(within(edit.closest('article')).getByText('Level 1 · Kamatz, Patach')).toBeTruthy();
+  expect(within(screen.getByRole('button', { name: 'Edit Bim' }).closest('article')).getByText('Level 1')).toBeTruthy();
+  fireEvent.click(edit);
+  expect(screen.getByRole('button', { name: 'All' }).getAttribute('aria-pressed')).toBe('false');
+  expect(within(screen.getByRole('group', { name: 'Vowels' })).getAllByRole('button', { pressed: true }).map(button => button.getAttribute('aria-label')))
+    .toEqual(['Kamatz', 'Patach']);
+});
+
+it.each([
+  ['done', 'Redo voice check', 'clearVoice'],
+  ['needed', 'Skip voice check', 'skipVoice'],
+  ['skipped', 'Use voice check', 'clearVoice'],
+  ['none', null, null],
+])('shows the right roster action for voiceStatus %s', async (voiceStatus, label, method) => {
+  const child = (await api.children())[0];
+  vi.spyOn(api, 'children').mockResolvedValue([{ ...child, voiceStatus, voiceCheck: voiceStatus === 'needed' }]);
+  const clear = vi.spyOn(api, 'clearVoice');
+  const skip = vi.spyOn(api, 'skipVoice');
+  render(React.createElement(Roster));
+  await screen.findByRole('button', { name: 'Edit Bim' });
+  expect(screen.queryAllByRole('button', { name: /voice check Bim/ })).toHaveLength(label ? 1 : 0);
+  if (label) {
+    fireEvent.click(screen.getByRole('button', { name: `${label} Bim` }));
+    await waitFor(() => expect(method === 'clearVoice' ? clear : skip).toHaveBeenCalledExactlyOnceWith('bim'));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Edit Bim' }).disabled).toBe(false));
+  }
+  expect(method === 'clearVoice' ? skip : clear).not.toHaveBeenCalled();
+  if (!method) expect(skip).not.toHaveBeenCalled();
+});
+
+it.each(['Invalid vowels', 'No lines for these vowels'])('shows the server vowel error in the roster alert: %s', async message => {
+  vi.spyOn(api, 'addChild').mockRejectedValue(Object.assign(new Error(message), { status: 400 }));
+  render(React.createElement(Roster));
+  fireEvent.change(screen.getByLabelText('First name'), { target: { value: 'Mippo' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Add child' }));
+  expect((await screen.findByRole('alert')).textContent).toBe(message);
 });
 
 it.each(['#/teacher/child/bim', '#/teacher/roster', '#/teacher/packet/child/bim', '#/teacher/packet/skill/vowel%3Asheva_na/1', '#/trace/mock-turn'])

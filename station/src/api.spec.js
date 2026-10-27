@@ -26,14 +26,16 @@ it('sends only the API v2 turn fields and raw WAV', async () => {
 it('uses the PIN header for teacher routes only', async () => {
   savePin('4321');
   await api.checkPin('1234'); await api.classView(); await api.childDetail('bim');
-  await api.addChild({ name: 'Mippo', avatar: 'whale', preset: 'sephardi' });
-  await api.editChild('bim', { level: 2 }); await api.deleteChild('bim');
+  await api.addChild({ name: 'Mippo', avatar: 'whale', preset: 'sephardi', vowels: ['kamatz', 'patach'] });
+  await api.editChild('bim', { level: 2, vowels: ['chirik'] }); await api.deleteChild('bim');
   await api.packet({ skillId: 'vowel:sheva_na', level: 2 }); await api.packet({ childId: 'bim' }); await api.trace('t1');
   fetch.mock.calls.forEach(([path, options], index) => {
     expect(options.headers['X-Teacher-Pin']).toBe(index === 0 ? '1234' : '4321');
     expect(path).not.toMatch(/1234|4321/);
   });
   expect(fetch.mock.calls[4][1].method).toBe('PATCH'); expect(fetch.mock.calls[5][1].method).toBe('DELETE');
+  expect(JSON.parse(fetch.mock.calls[3][1].body).vowels).toEqual(['kamatz', 'patach']);
+  expect(JSON.parse(fetch.mock.calls[4][1].body).vowels).toEqual(['chirik']);
   expect(fetch.mock.calls[6][0]).toBe('/api/packet?skill=vowel%3Asheva_na&level=2');
   await api.children(); await api.config();
   expect(fetch.mock.calls.at(-1)[1].headers['X-Teacher-Pin']).toBeUndefined();
@@ -44,12 +46,13 @@ it('keeps the short server error and status', async () => {
   await expect(api.checkPin('1234')).rejects.toMatchObject({ status: 403, message: 'Teacher PIN not set' });
 });
 
-it('posts raw voice WAV without a PIN and clears voice with the teacher PIN', async () => {
+it('posts raw voice WAV without a PIN and clears or skips voice with the teacher PIN', async () => {
   savePin('2468');
   const audio = new Blob(['synthetic wav'], { type: 'audio/wav' });
   await api.voice({ childId: 'c /1', audio });
   await api.clearVoice('c /1');
-  const [[voicePath, voiceOptions], [clearPath, clearOptions]] = fetch.mock.calls;
+  await api.skipVoice('c /1');
+  const [[voicePath, voiceOptions], [clearPath, clearOptions], [skipPath, skipOptions]] = fetch.mock.calls;
   expect(voicePath).toBe('/api/voice?child=c%20%2F1');
   expect(voiceOptions.method).toBe('POST');
   expect(voiceOptions.headers).toEqual({ 'Content-Type': 'audio/wav' });
@@ -57,6 +60,10 @@ it('posts raw voice WAV without a PIN and clears voice with the teacher PIN', as
   expect(clearPath).toBe('/api/children/c%20%2F1/voice');
   expect(clearOptions.method).toBe('DELETE');
   expect(clearOptions.headers['X-Teacher-Pin']).toBe('2468');
+  expect(skipPath).toBe('/api/children/c%20%2F1/voice');
+  expect(skipOptions.method).toBe('PUT');
+  expect(skipOptions.headers).toEqual({ 'X-Teacher-Pin': '2468', 'Content-Type': 'application/json' });
+  expect(JSON.parse(skipOptions.body)).toEqual({ skipped: true });
 });
 
 it('preserves count error fields from a 422 voice response', async () => {
@@ -69,6 +76,7 @@ it('preserves count error fields from a 422 voice response', async () => {
 it('uses mock voice functions without fetching', async () => {
   window.history.replaceState(null, '', '/?mock');
   await expect(api.voice({ childId: 'pippa', audio: null })).resolves.toEqual({ voiceCheck: true });
-  await expect(api.clearVoice('pippa')).resolves.toMatchObject({ id: 'pippa', voiceCheck: false });
+  await expect(api.clearVoice('pippa')).resolves.toMatchObject({ id: 'pippa', voiceStatus: 'needed', voiceCheck: false });
+  await expect(api.skipVoice('pippa')).resolves.toMatchObject({ id: 'pippa', voiceStatus: 'skipped', voiceCheck: true });
   expect(fetch).not.toHaveBeenCalled();
 });
