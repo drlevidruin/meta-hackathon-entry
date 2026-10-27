@@ -40,22 +40,24 @@ export async function loadClips(set = 'adult') {
   const markdown = await readFile(tableURL, 'utf8');
   const clips = [
     ['Voice check', 'voice'],
-    ['Round 1b', 'reading'],
-    ['Round 1c', 'reading'],
-    ['Card tests', 'card'],
-    ['Sheva tests', 'card'],
-    ['Round 1d', 'reading'],
-    ['Round 1e', 'reading'],
+    ['Round 1b', 'reading', 'voice-check'],
+    ['Round 1c', 'reading', 'voice-check'],
+    ['Card tests', 'card', 'voice-check'],
+    ['Sheva tests', 'card', 'voice-check'],
+    ['Round 1d', 'reading', 'voice-check'],
+    ['Round 1e', 'reading', 'voice-check'],
     ['Voice check 2', 'voice'],
-    ['Round 1f', 'reading'],
-    ['Round 1g', 'reading'],
-    ['Round 1', 'reading'],
-  ].flatMap(([section, kind]) => parseClips(markdown, section).map((clip) => ({ ...clip, kind, section })));
+    ['Round 1f', 'reading', 'voice-check-2'],
+    ['Round 1g', 'reading', 'voice-check-2'],
+    ['Round 1', 'reading', 'voice-check'],
+  ].flatMap(([section, kind, card]) => parseClips(markdown, section)
+    .map((clip) => ({ ...clip, kind, section, ...(card ? { card } : {}) })));
   if (new Set(clips.map((clip) => clip.name)).size !== clips.length) {
     throw new Error('Clip names must be unique across sections.');
   }
   return clips.map((clip) => ({
     ...clip, name: `${set === 'child' ? 'child_' : ''}${clip.name}`,
+    ...(clip.card ? { card: `${set === 'child' ? 'child_' : ''}${clip.card}` } : {}),
   }));
 }
 

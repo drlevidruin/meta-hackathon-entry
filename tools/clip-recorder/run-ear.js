@@ -39,85 +39,106 @@ async function phonemesWithRetry(audio, phonemes) {
 export async function runEar({ set = 'adult', model = defaultEarModel(), votes = defaultVotes(), keep = false, directory,
   preset = 'ashkenazi', meter = true, card = true, referee = true, cardName, round,
   phonemes = audio => hearPhonemes(audio), ear = listen, log = console.log } = {}) {
+  if (set === 'child' && round !== undefined && !keep) {
+    throw new SelectionError("--round with --set child requires --keep: the child's other rounds would be deleted without being graded.");
+  }
   const clips = await loadClips(set);
+  if (round !== undefined && !clips.some(clip => clip.section === round)) {
+    throw new SelectionError(`Unknown section: ${round}.`);
+  }
   const store = recordingStore(clips, directory);
+  const listed = await store.list();
+  const recorded = listed.filter((clip) => clip.done);
+  const readings = recorded.filter((clip) => clip.kind === 'reading'
+    && (round === undefined || clip.section === round));
+  if (round !== undefined && !readings.length) {
+    throw new SelectionError(`No recorded readings in section: ${round}.`);
+  }
+  let override;
+  if (cardName !== undefined) {
+    const name = `${set === 'child' ? 'child_' : ''}${cardName}`;
+    override = listed.find(clip => clip.name === name);
+    if (!override || override.kind !== 'voice') {
+      throw new SelectionError(`Voice card must name a voice clip: ${cardName}.`);
+    }
+    if (!override.done) throw new SelectionError(`Voice card is not recorded: ${name}.`);
+  }
+  const voices = new Map();
+  for (const clip of readings) {
+    const name = override?.name ?? clip.card;
+    const voice = recorded.find(clip => clip.kind === 'voice' && clip.name === name);
+    if (round !== undefined && !voice) {
+      throw new SelectionError(`Voice card is not recorded: ${name} (section: ${clip.section}).`);
+    }
+    voices.set(name, voice);
+  }
+  // Preserve voice-card inspection for a run with no recorded readings.
+  if (!readings.length) {
+    const voice = override ?? recorded.find(clip => clip.kind === 'voice');
+    voices.set(voice?.name, voice);
+  }
   let failed = false;
   const rows = [];
   const outcomes = [];
+  const cards = new Map();
   try {
-    const listed = await store.list();
-    const recorded = listed.filter((clip) => clip.done);
-    if (round !== undefined && !clips.some(clip => clip.section === round)) {
-      throw new SelectionError(`Unknown section: ${round}.`);
-    }
-    const readings = recorded.filter((clip) => clip.kind === 'reading'
-      && (round === undefined || clip.section === round));
-    if (round !== undefined && !readings.length) {
-      throw new SelectionError(`No recorded readings in section: ${round}.`);
-    }
-    let voice = recorded.find((clip) => clip.kind === 'voice');
-    if (cardName !== undefined) {
-      const name = `${set === 'child' ? 'child_' : ''}${cardName}`;
-      voice = listed.find(clip => clip.name === name);
-      if (!voice || voice.kind !== 'voice') {
-        throw new SelectionError(`Voice card must name a voice clip: ${cardName}.`);
-      }
-      if (!voice.done) throw new SelectionError(`Voice card is not recorded: ${name}.`);
-    }
     const modelId = model === 'primary'
       ? process.env.EAR_PRIMARY_MODEL || 'muse-wonder-1.0'
       : process.env.EAR_FALLBACK_MODEL || 'meta-models/muse-spark-open-1026';
     log(`Ear model: ${model} (${modelId})`);
     const earVotes = model === 'fallback' ? 1 : votes;
     log(`Ear votes: ${earVotes}${model === 'fallback' ? ' (fallback ear)' : ''}`);
-    log(`Voice card: ${voice?.name ?? 'none recorded'}`);
-    const voiceAudio = voice && (meter || card || referee) ? await store.read(voice.name) : undefined;
-    let profile;
-    let voiceStatus;
-    if (voice && (meter || card)) {
-      try {
-        profile = buildVoiceProfile(voiceAudio, cardLabels(preset));
-        voiceStatus = `on (${preset} voice check)`;
-      } catch (error) {
-        if (!(error instanceof VoiceCheckError)) throw error;
-        voiceStatus = error.code === 'count'
-          ? `off (voice check unusable: heard ${error.heard} sounds for 15)`
-          : 'off (voice check unusable)';
-      }
-    }
-    const meterStatus = !meter ? 'off (--no-meter)'
-      : !voice ? 'off (no voice check recorded)' : voiceStatus;
-    const cardStatus = !card ? 'off (--no-card)'
-      : !voice ? 'off (no voice check recorded)'
-      : !profile ? 'off (voice check unusable)'
-      : !pairsApart(profile) ? 'off (vowels merged on the card)'
-      : !voiceCardToEar(profile, null, preset) ? 'off (kamatz not checked on the card)'
-      // listen() never sends the card to the fallback ear.
-      : model === 'fallback' ? 'off (fallback ear)' : 'on';
-    const reference = cardStatus === 'on' ? { data: voiceAudio, format: 'wav' } : undefined;
-    let calibration;
-    let refereeStatus = !referee ? 'off (--no-referee)' : 'off (no voice check recorded)';
-    if (referee && voice) {
-      try {
-        const tokens = await phonemesWithRetry(voiceAudio, phonemes);
-        if (tokens == null) refereeStatus = 'off (no answer from the phoneme service)';
-        else {
-          calibration = cardCalibration(tokens, cardLabels(preset));
-          const settings = refereeSettings(calibration);
-          refereeStatus = !calibration ? 'off (card vowels did not line up)'
-            : !settings.on ? 'off (card does not keep o and a apart)'
-            : `on (o ${calibration.o.toFixed(2)}, a ${calibration.a.toFixed(2)}, line ${settings.line.toFixed(2)})`;
+    for (const [name, voice] of voices) {
+      log(`Voice card: ${name ?? 'none recorded'}${name && !voice ? ' (not recorded)' : ''}`);
+      const voiceAudio = voice && (meter || card || referee) ? await store.read(voice.name) : undefined;
+      let profile;
+      let voiceStatus;
+      if (voice && (meter || card)) {
+        try {
+          profile = buildVoiceProfile(voiceAudio, cardLabels(preset));
+          voiceStatus = `on (${preset} voice check)`;
+        } catch (error) {
+          if (!(error instanceof VoiceCheckError)) throw error;
+          voiceStatus = error.code === 'count'
+            ? `off (voice check unusable: heard ${error.heard} sounds for 15)`
+            : 'off (voice check unusable)';
         }
-      } catch {
-        refereeStatus = 'off (no answer from the phoneme service)';
       }
+      const meterStatus = !meter ? 'off (--no-meter)'
+        : !voice ? 'off (no voice check recorded)' : voiceStatus;
+      const cardStatus = !card ? 'off (--no-card)'
+        : !voice ? 'off (no voice check recorded)'
+        : !profile ? 'off (voice check unusable)'
+        : !pairsApart(profile) ? 'off (vowels merged on the card)'
+        : !voiceCardToEar(profile, null, preset) ? 'off (kamatz not checked on the card)'
+        // listen() never sends the card to the fallback ear.
+        : model === 'fallback' ? 'off (fallback ear)' : 'on';
+      const reference = cardStatus === 'on' ? { data: voiceAudio, format: 'wav' } : undefined;
+      let calibration;
+      let refereeStatus = !referee ? 'off (--no-referee)' : 'off (no voice check recorded)';
+      if (referee && voice) {
+        try {
+          const tokens = await phonemesWithRetry(voiceAudio, phonemes);
+          if (tokens == null) refereeStatus = 'off (no answer from the phoneme service)';
+          else {
+            calibration = cardCalibration(tokens, cardLabels(preset));
+            const settings = refereeSettings(calibration);
+            refereeStatus = !calibration ? 'off (card vowels did not line up)'
+              : !settings.on ? 'off (card does not keep o and a apart)'
+              : `on (o ${calibration.o.toFixed(2)}, a ${calibration.a.toFixed(2)}, line ${settings.line.toFixed(2)})`;
+          }
+        } catch {
+          refereeStatus = 'off (no answer from the phoneme service)';
+        }
+      }
+      cards.set(name, { profile, reference, calibration, refereeOn: refereeSettings(calibration).on });
+      log(`Vowel meter: ${meterStatus}`);
+      log(`Voice card to the ear: ${cardStatus}`);
+      log(`Phoneme referee: ${refereeStatus}`);
     }
-    const refereeOn = refereeSettings(calibration).on;
-    log(`Vowel meter: ${meterStatus}`);
-    log(`Voice card to the ear: ${cardStatus}`);
-    log(`Phoneme referee: ${refereeStatus}`);
     log('clip\tsaid\theard\tresult\tear\tmetered\tvotes');
     for (const clip of readings) {
+      const { profile, reference, calibration, refereeOn } = cards.get(override?.name ?? clip.card);
       let heard = 'ERROR';
       let earSounds = 'ERROR';
       let metered = 'ERROR';
@@ -131,7 +152,8 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), votes =
         });
         const earWords = answer.words;
         earSounds = formatWords(earWords);
-        voteSounds = answer.answers.map(formatWords).join(' | ');
+        const missingVotes = answer.votes ? answer.votes.asked - answer.votes.answered : 0;
+        voteSounds = [...answer.answers.map(formatWords), ...Array(missingVotes).fill('ERROR')].join(' | ');
         let words = meter && profile ? applyMeter(earWords, audio, profile).words : earWords;
         metered = formatWords(words);
         if (refereeOn) {
@@ -166,7 +188,7 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), votes =
         if (set === 'child' && !keep) await store.remove(clip.name);
       }
     }
-    if (refereeOn) {
+    if ([...cards.values()].some(card => card.refereeOn)) {
       const checked = outcomes.filter(outcome => outcome.status === 'checked').length;
       const noAnswer = outcomes.filter(outcome => outcome.status === null).map(outcome => outcome.clip);
       const count = outcomes.filter(outcome => outcome.status === 'count').map(outcome => outcome.clip);
