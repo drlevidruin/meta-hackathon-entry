@@ -6,6 +6,7 @@ node_modules/
 *.log
 coverage/
 /data/
+/certs/
 # Children's voices never enter this public repo, consent or not.
 *.wav
 *.webm

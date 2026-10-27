@@ -105,7 +105,20 @@ Set the API key and `TEACHER_PIN` in `.env`, then run:
 npm start
 ```
 
-`npm start` runs `node server/index.js`. On the computer running the server, open http://localhost:8787. The server binds to `127.0.0.1` unless `HOST` is set. Browsers allow the microphone only on https or localhost. The server speaks plain http. For a classroom tablet on the same network, set `HOST=0.0.0.0` and put an https address in front of the server. Open that https address on the tablet. This tablet setup has not been tested.
+`npm start` runs `node server/index.js`. On the computer running the server, open http://localhost:8787. The server binds to `127.0.0.1` unless `HOST` is set. Browsers allow the microphone only on https or localhost. Localhost works without https. The server uses http when both `TLS_CERT` and `TLS_KEY` are empty. Set both paths to use https. If only one path is set or either file cannot be read, startup stops with one plain line naming the variable.
+
+**Classroom tablet.** Use a self-signed certificate for the server computer's network IP address. Replace `192.168.1.20` below with that address. Run these commands from the repo root. The `certs/` folder is gitignored.
+
+```bash
+SERVER_ADDRESS=192.168.1.20
+mkdir -p certs
+openssl req -x509 -newkey rsa:2048 -sha256 -nodes -days 365 \
+  -keyout certs/server-key.pem -out certs/server-cert.pem \
+  -subj "/CN=$SERVER_ADDRESS" -addext "subjectAltName=IP:$SERVER_ADDRESS"
+HOST=0.0.0.0 TLS_CERT=certs/server-cert.pem TLS_KEY=certs/server-key.pem npm start
+```
+
+On the tablet, open `https://<address>:8787` with that same network address and accept the browser warning once. This has not been tested on a real tablet yet.
 
 The first screen is empty until a teacher adds children: tap Teacher, enter the PIN, open Roster, and add a child. `TEACHER_PIN` must contain 4 to 12 digits. Missing or invalid values stop startup before the server listens. The PIN pad accepts digits and caps input at 12. Startup reports when both ear keys or the station build are missing, without printing a key.
 
@@ -118,8 +131,10 @@ The first screen is empty until a teacher adds children: tap Teacher, enter the 
 | `COACH_MODEL` | Set to `off` to use the rule alone; otherwise model calls are enabled. |
 | `COACH_REASONING_EFFORT` | Coach reasoning effort; defaults to `minimal`. |
 | `DATA_DIR` | Store directory; defaults to `./data`. |
-| `HOST` | Listen address; defaults to `127.0.0.1`. Network tablets need `0.0.0.0` and an https address in front of the plain http server. Use http://localhost:8787 on the server computer. |
+| `HOST` | Listen address; defaults to `127.0.0.1`. Use `0.0.0.0` and TLS for network tablets. |
 | `PORT` | Server port; defaults to `8787`. |
+| `TLS_CERT` | Optional path to a PEM certificate. Set with `TLS_KEY` for https. Leave both empty for http. An unreadable file stops startup. |
+| `TLS_KEY` | Optional path to a PEM private key. Required with `TLS_CERT`. An unreadable file stops startup. |
 | `EAR_PRIMARY_MODEL` | Baseten model id; defaults to `meta-models/muse-spark-open-1026`. |
 | `EAR_FALLBACK_MODEL` | Meta ear model id; defaults to `muse-wonder-1.0`. |
 | `EAR_REASONING_EFFORT` | Meta ear reasoning effort; defaults to `minimal`. |

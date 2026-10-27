@@ -4,6 +4,8 @@ import http from 'node:http';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
 const startup = () => import('./startup.js');
 
@@ -48,10 +50,89 @@ test('listen options default to loopback and let HOST and PORT override it', asy
   assert.deepEqual(listenOptions({ HOST: '0.0.0.0', PORT: '9000' }), { host: '0.0.0.0', port: 9000 });
 });
 
+test('TLS options keep HTTP when both paths are unset or empty', async () => {
+  const { tlsOptions } = await startup();
+  for (const env of [{}, { TLS_CERT: '', TLS_KEY: '' }]) {
+    assert.equal(tlsOptions(env, () => assert.fail('HTTP must not read TLS files')), null);
+  }
+});
+
+test('TLS options require both paths before reading either file', async () => {
+  const { tlsOptions } = await startup();
+  for (const [env, missing] of [
+    [{ TLS_CERT: 'private-cert-path' }, 'TLS_KEY'],
+    [{ TLS_CERT: 'private-cert-path', TLS_KEY: '' }, 'TLS_KEY'],
+    [{ TLS_KEY: 'private-key-path' }, 'TLS_CERT'],
+    [{ TLS_CERT: '', TLS_KEY: 'private-key-path' }, 'TLS_CERT'],
+  ]) {
+    assert.throws(() => tlsOptions(env, () => assert.fail('Do not read an incomplete pair')), {
+      message: `${missing} is missing; set both TLS_CERT and TLS_KEY.`,
+    });
+  }
+});
+
+test('TLS options read the certificate and key as buffers', async () => {
+  const { tlsOptions } = await startup();
+  const cert = Buffer.from('TEST_CERTIFICATE_CONTENT');
+  const key = Buffer.from('TEST_KEY_CONTENT');
+  const paths = [];
+  const options = tlsOptions({ TLS_CERT: 'certs/server-cert.pem', TLS_KEY: 'certs/server-key.pem' }, file => {
+    paths.push(file);
+    return file.endsWith('server-cert.pem') ? cert : key;
+  });
+  assert.deepEqual(paths, ['certs/server-cert.pem', 'certs/server-key.pem']);
+  assert.deepEqual(options, { cert, key });
+});
+
+test('TLS read errors name the variable without leaking paths, contents or error details', async () => {
+  const { tlsOptions } = await startup();
+  for (const variable of ['TLS_CERT', 'TLS_KEY']) {
+    const env = { TLS_CERT: 'private-cert-path', TLS_KEY: 'private-key-path' };
+    assert.throws(() => tlsOptions(env, file => {
+      if (file === env[variable]) throw new Error('PRIVATE_FILE_CONTENT\nprivate-path');
+      return Buffer.from('PRIVATE_FILE_CONTENT');
+    }), { message: `${variable} could not be read.` });
+  }
+});
+
+test('startup address uses HTTPS when TLS is enabled, including IPv6', async () => {
+  const { startupMessages } = await startup();
+  for (const [host, address] of [['0.0.0.0', '0.0.0.0'], ['::1', '[::1]']]) {
+    assert.deepEqual(startupMessages({
+      metaApiKey: 'offline-fallback', hasStation: true, host, port: 9000, tls: true,
+    }), [`Kriah Listener: https://${address}:9000`]);
+  }
+});
+
+test('the server exits with one safe line for incomplete or unreadable TLS files', t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'kriah-tls-errors-test-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const readable = fileURLToPath(new URL('./startup.test.js', import.meta.url));
+  const missing = path.join(directory, 'missing.pem');
+  for (const [tls, expected] of [
+    [{ TLS_CERT: readable, TLS_KEY: '' }, 'TLS_KEY is missing; set both TLS_CERT and TLS_KEY.'],
+    [{ TLS_CERT: '', TLS_KEY: readable }, 'TLS_CERT is missing; set both TLS_CERT and TLS_KEY.'],
+    [{ TLS_CERT: missing, TLS_KEY: readable }, 'TLS_CERT could not be read.'],
+    [{ TLS_CERT: readable, TLS_KEY: missing }, 'TLS_KEY could not be read.'],
+  ]) {
+    const result = spawnSync(process.execPath, [fileURLToPath(new URL('./index.js', import.meta.url))], {
+      env: { ...process.env, TEACHER_PIN: '2468', HOST: '127.0.0.1', PORT: '0', ...tls },
+      encoding: 'utf8', timeout: 5000,
+    });
+    assert.ifError(result.error);
+    assert.equal(result.status, 1);
+    assert.equal(result.stdout, '');
+    assert.equal(result.stderr, `${expected}\n`);
+  }
+});
+
 test('the server entry passes the Baseten key to startup messages', async t => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'kriah-startup-test-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
-  for (const [name, value] of Object.entries({ TEACHER_PIN: '2468', BASETEN_API_KEY: 'offline-primary', META_API_KEY: '', DATA_DIR: directory })) {
+  for (const [name, value] of Object.entries({
+    TEACHER_PIN: '2468', BASETEN_API_KEY: 'offline-primary', META_API_KEY: '', DATA_DIR: directory,
+    TLS_CERT: '', TLS_KEY: '',
+  })) {
     const previous = process.env[name];
     t.after(() => {
       if (previous === undefined) delete process.env[name];

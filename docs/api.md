@@ -295,15 +295,20 @@ apply when loading a store. Read histories keep at most six entries per cell.
 
 `server/index.js` loads `ear/env.js`, imports the real ear, grader and coach,
 serves `station/dist` and listens on `HOST` (default `127.0.0.1`) and `PORT`
-(default 8787). Browsers allow the microphone only on https or localhost. The
-server speaks plain http. For a classroom tablet on the same network, set
-`HOST=0.0.0.0` and put an https address in front of the server. Open that https
-address on the tablet. On the server computer, use http://localhost:8787.
-This tablet setup has not been tested.
+(default 8787). Browsers allow the microphone only on https or localhost.
+Localhost works without https. The server uses http when both `TLS_CERT` and
+`TLS_KEY` are empty. Set both to paths to a PEM certificate and key to use https.
+Relative paths start at the working directory. If only one path is set or
+either file cannot be read, startup prints one plain line naming the variable
+and exits with code 1.
+File contents are never printed. For a classroom tablet on the same network,
+set `HOST=0.0.0.0` and both TLS paths. See [Run it](../README.md#run-it) for the
+self-signed certificate command. Open `https://<address>:8787` on the tablet
+and accept the browser warning once. This has not been tested on a real tablet yet.
 After listening, startup warns only when both `BASETEN_API_KEY` and
 `META_API_KEY` are blank: the ear cannot hear and lines show gray. A missing
 `station/dist` prints `station/dist is missing; run npm run build.` Startup
-also prints the actual address and port it listens on.
+also prints the actual address and port it listens on, with https when TLS is on.
 No key or part of a key is printed. Configuration:
 
 | Variable | Meaning |
@@ -313,8 +318,10 @@ No key or part of a key is printed. Configuration:
 | `COACH_MODEL` | Exactly `off` disables model calls at next checkpoints |
 | `COACH_REASONING_EFFORT` | Coach reasoning effort, default `minimal`; requests allow 16000 tokens and time out after 30 seconds |
 | `DATA_DIR` | Store directory, default `<repo>/data` |
-| `HOST` | Listen address, default `127.0.0.1`; network tablets need `0.0.0.0` and https in front of this plain http server. Use http://localhost:8787 on the server computer. |
-| `PORT` | HTTP port, default 8787 |
+| `HOST` | Listen address, default `127.0.0.1`; use `0.0.0.0` and TLS for network tablets |
+| `PORT` | Server port, default 8787 |
+| `TLS_CERT` | Optional PEM certificate path; set with `TLS_KEY` for https, leave both empty for http. An unreadable file stops startup. |
+| `TLS_KEY` | Optional PEM private key path; required with `TLS_CERT`. An unreadable file stops startup. |
 
 The ear refuses any configured `EAR_PRIMARY_MODEL` or `EAR_FALLBACK_MODEL` id
 ending in `-contributor` before sending a request. That provider counts as a
