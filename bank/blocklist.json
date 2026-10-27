@@ -1,0 +1,5 @@
+{
+  "about": "Generated items (levels 1, 2, 4) never spell or sound like these. Skeletons are letters only, final forms folded on both sides. Sounds are matched against every accepted reading in every preset, pairs joined with no hyphens.",
+  "skeletons": ["זונה", "זנות", "זין", "זיון", "חרא", "כוס", "כוסית", "שרמוטה", "תחת", "פוץ", "שמוק", "קקי", "פיפי", "טמבל", "דביל", "מטומטם"],
+  "sounds": ["zona", "zayin", "zain", "zin", "chara", "kus", "kusit", "tachat", "putz", "shmok", "shmuk", "kaki", "pipi", "tembel", "debil"]
+}
