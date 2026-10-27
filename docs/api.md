@@ -223,6 +223,8 @@ Sections, always in this order:
 
 1. `Warm up`: up to two regular items whose letter-vowel cells are all solid.
    If no cells are solid, or the request is by skill, use level 1 items.
+   If that selection is empty, use the two lowest-level regular items in the
+   bank, with ascending ids breaking ties. Challenges never enter Warm up.
 2. `Practice`: fill up to six regular items, first with target-focus items at
    or below the requested level (nearest level first), then remaining items at
    or below that level whose `skills` include the target (nearest level first),

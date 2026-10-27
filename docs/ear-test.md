@@ -2,7 +2,63 @@
 
 The ear must report the sounds that were spoken, including mistakes. It receives audio and a sound alphabet. It never sees the printed line. It can still mishear or replace a mistake with a familiar word.
 
-Only Muse Wonder 1.0 through the Meta Model API has run as the ear. Muse Spark Open through Baseten is wired and has never run. Neither the adult nor child round has run. The real-voice test is still the go or no-go.
+Muse Wonder 1.0 was chosen after the synthetic trials below. Neither the adult nor child round has run. The real-voice test is still the go or no-go.
+
+## Round 0: synthetic voices
+
+`recordings/make-synthetic.sh` defines 13 clips from macOS Hebrew and English voices. Seven contain a planted mistake and six are clean controls. The Hebrew voice reads text with the mistake written in. The English voice reads spelled-out sounds.
+
+| Voice | Planted clips | Clean controls |
+| --- | --- | --- |
+| Hebrew, Carmit | `baruch_va-for-ba`, `shabbat_va-for-ba`, `melech_skipped-le`, `echad_i-for-a` | `shalom_clean`, `shema-line_clean`, `babav_nonsense-clean` |
+| English, Samantha | `en_shabbos_va-for-ba`, `en_baruch_va-for-ba`, `en_modeh_u-for-o` | `en_shabbos_clean`, `en_baruch_clean`, `en_modeh_clean` |
+
+The October 26 notes record these results for Muse Wonder 1.0:
+
+| Run | Plants reported as spoken | Plants in the set |
+| --- | --- | --- |
+| First | 5 | 7 |
+| Second | 5 | 7 |
+
+The notes report no prose answers from Wonder. They also mention an HTTP error and unclear answers, but do not map those outcomes to every clip and run. The original list of successful readings combined outputs without identifying their runs. It cannot establish which plants succeeded in each run.
+
+The Hebrew voice's planted vav in וָרוּךְ was reported as `ba-ruch`. Without listening to the source clip, that result cannot distinguish a voice synthesis error from an ear correction. The English voice also added an r to its clean reading of Modeh, which came back as `mo-der`.
+
+A separate grader replay described `va-ruk` for בָּרוּךְ and `ya-chid` for אֶחָד as `not_decoded`. It also described a wrong-letter verdict for the r in `mo-der`. The saved notes do not list the full replay subset or its expected verdicts. They do not support an exact grader success rate, or a split between successful plants and clean controls.
+
+These are recorded observations, not a fresh replay. The repository contains the generation script but no audio or complete per-run output. The clip definitions can be counted offline. The live results cannot be reproduced without regenerating the clips and calling the API.
+
+### Other Meta ear trials
+
+Earlier October 26 notes record three runs per model with the first prompt. Muse Spark 1.2 and Muse Wonder 1.0 reported the English plants, including `sha-vas` and `va-ruk`. Muse Spark 1.3 corrected `sha-vos` toward `sha-bos` and copied the prompt's real-word examples. The prompt then switched to made-up sounds. Spark 1.2 answered in prose on about a third of clips.
+
+With those made-up examples, the notes report two runs per model:
+
+| Model | Plants reported as spoken, of 7, run 1 and run 2 | Other answers |
+| --- | --- | --- |
+| Muse Wonder 1.0 | 5 and 5 | No prose; an HTTP 500 and unclear answers are noted. |
+| Muse Spark 1.2 | 2 and 2 | 3 and 2 prose answers; 4 `?` clips per run. |
+| Muse Spark 1.3 | 1 and 4 | 7 and 4 `?` clips; 0 and 1 empty answers. |
+
+These are the notes' counts, not a complete per-clip record. Wonder was chosen as the fallback. Muse Spark Open on Baseten is wired as the primary ear and has not run.
+
+### Speed: reasoning effort
+
+The same 13 synthetic clips went through Muse Wonder 1.0 once per setting:
+
+| Setting | Seconds per clip, average | Plants reported as spoken, of 7 |
+| --- | --- | --- |
+| Not set, default | About 15 | 5 |
+| `low` | 7.8 | 5 |
+| `minimal` | 2.4 | 5 |
+
+The ear now requests `minimal`; `EAR_REASONING_EFFORT` overrides it. At minimal reasoning the Hebrew voice's שְׁמַע came back as `shma`, while slower settings wrote `she-ma`. Real voices must check that difference. These timings are recorded observations, not a fresh benchmark.
+
+### Muse Voice Transcribe 1.0
+
+Meta's transcription endpoint, `POST /v1/asr/transcribe`, was tried with and without a Hebrew language hint. Every clip answered in under a second, but it writes words rather than raw sounds. The planted English `va-ruk` became Baruch without the hint; a clean `sha-bos` became Shabbat with it. Hebrew output dropped nikud, including ברוך and שלום. It also invented words on two clips and answered one in Arabic script. It was rejected as the ear.
+
+The current prose check unwraps the answer, then rejects characters outside the sound alphabet, spaces, hyphens, slashes, `?` and line breaks. This catches short refusals such as "I can't hear audio." For answers longer than six whitespace tokens, a listed refusal phrase or two distinct listed prose words also causes a failure. A prose answer is retried once, then counts as a failed call. Prose made entirely of allowed characters can still escape these checks.
 
 ## Round 1: an adult voice
 
@@ -36,29 +92,3 @@ Each planted mistake must come back as the sound that was said. Clean controls c
 `npm run ear-test` compares the returned sounds with the table's `Say` column. It ignores case and spaces within each word. Syllable boundaries, word boundaries, order and word count must match. It prints `PASS` or `MISS` for each recorded clip. It does not call the grader or check letter-level verdicts.
 
 The runner defaults to the Baseten primary when `BASETEN_API_KEY` is nonempty. Otherwise it uses the Meta fallback. It prints the selected role and model id. `--model primary` or `--model fallback` overrides that choice.
-
-## Round 0: synthetic voices
-
-`recordings/make-synthetic.sh` defines 13 clips from macOS Hebrew and English voices. Seven contain a planted mistake and six are clean controls. The Hebrew voice reads text with the mistake written in. The English voice reads spelled-out sounds.
-
-| Voice | Planted clips | Clean controls |
-| --- | --- | --- |
-| Hebrew, Carmit | `baruch_va-for-ba`, `shabbat_va-for-ba`, `melech_skipped-le`, `echad_i-for-a` | `shalom_clean`, `shema-line_clean`, `babav_nonsense-clean` |
-| English, Samantha | `en_shabbos_va-for-ba`, `en_baruch_va-for-ba`, `en_modeh_u-for-o` | `en_shabbos_clean`, `en_baruch_clean`, `en_modeh_clean` |
-
-The October 26 notes record these results for Muse Wonder 1.0:
-
-| Run | Plants reported as spoken | Plants in the set |
-| --- | --- | --- |
-| First | 5 | 7 |
-| Second | 5 | 7 |
-
-The notes report no prose answers from Wonder. They also mention an HTTP error and unclear answers, but do not map those outcomes to every clip and run. The original list of successful readings combined outputs without identifying their runs. It cannot establish which plants succeeded in each run.
-
-The Hebrew voice's planted vav in וָרוּךְ was reported as `ba-ruch`. Without listening to the source clip, that result cannot distinguish a voice synthesis error from an ear correction. The English voice also added an r to its clean reading of Modeh, which came back as `mo-der`.
-
-A separate grader replay described `va-ruk` for בָּרוּךְ and `ya-chid` for אֶחָד as `not_decoded`. It also described a wrong-letter verdict for the r in `mo-der`. The saved notes do not list the full replay subset or its expected verdicts. They do not support an exact grader success rate, or a split between successful plants and clean controls.
-
-These are recorded observations, not a fresh replay. The repository contains the generation script but no audio or complete per-run output. The clip definitions can be counted offline. The live results cannot be reproduced without regenerating the clips and calling the API.
-
-The ear currently requests `minimal` reasoning effort from the Meta fallback. `EAR_REASONING_EFFORT` overrides it. The code uses a heuristic to detect some prose refusals and retries those answers once. It does not reject every possible prose answer.

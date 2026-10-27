@@ -5,7 +5,7 @@ import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@t
 import App, { DoneScreen, GradedLine, LevelUp, ReadScreen } from './App.jsx';
 import * as api from './api.js';
 import { items } from './api.mock.js';
-import { TURN_KEY } from './storage.js';
+import { savePin, TURN_KEY } from './storage.js';
 import { lineStars, useTurn } from './useTurn.js';
 
 const child = { id: 'bim', name: 'Bim', avatar: 'lion', preset: 'sephardi', level: 1, stars: 0, best: 0 };
@@ -20,6 +20,30 @@ beforeEach(() => {
   window.history.replaceState(null, '', '/?mock#/read');
 });
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals(); document.querySelector('#station-test-styles')?.remove(); });
+
+it.each(['/', '/read', '/done', '/teacher'])('shows a gray Demo pill only in mock mode on %s', async route => {
+  vi.spyOn(api, 'children').mockResolvedValue([child]);
+  vi.spyOn(api, 'config').mockResolvedValue({ trace: false });
+  vi.spyOn(api, 'checkPin').mockResolvedValue({ ok: true });
+  vi.spyOn(api, 'classView').mockResolvedValue({ children: [], groups: [] });
+  for (const mock of [true, false]) {
+    window.history.replaceState(null, '', `/${mock ? '?mock' : ''}#${route}`);
+    savePin('2468');
+    sessionStorage.setItem(TURN_KEY, JSON.stringify(turn({ phase: route === '/done' ? 'finished' : 'reading' })));
+    const style = document.createElement('style'); style.id = 'station-test-styles';
+    style.textContent = readFileSync('src/styles.css', 'utf8'); document.head.append(style);
+    const view = render(React.createElement(App));
+    await screen.findByRole('link', { name: 'Kriah Listener home' });
+    if (mock) {
+      const pill = await screen.findByText('Demo');
+      expect(pill.closest('header, aside')).toBeTruthy();
+      expect(pill.classList.contains('level-badge')).toBe(true);
+      expect(getComputedStyle(pill).color).toBe('rgb(101, 113, 123)');
+      expect(getComputedStyle(pill).backgroundColor).toBe('rgb(240, 242, 243)');
+    } else expect(screen.queryByText('Demo')).toBeNull();
+    view.unmount(); style.remove();
+  }
+});
 
 it('renders the Hebrew line and record button, then a gold frame for the last challenge', async () => {
   const fetch = vi.spyOn(globalThis, 'fetch');
@@ -56,7 +80,7 @@ it.each([[0, '0 stars!'], [1, '1 star!'], [4, '4 stars!'], [10, '10 stars!'], [1
   });
 
 it('finishes when the server says done, saves line and bonus stars, and replaces read with done', async () => {
-  vi.spyOn(Math, 'random').mockReturnValue(0);
+  vi.spyOn(api, 'grade').mockImplementation(async ({ itemId }) => grade(items.find(item => item.id === itemId)));
   const choose = vi.spyOn(api, 'next');
   const finish = vi.spyOn(api, 'finish');
   const replace = vi.spyOn(window.history, 'replaceState');
@@ -138,7 +162,6 @@ it('continues after a failed upload without awarding a star', async () => {
 });
 
 it('honors an early server ending and retries finish without requesting another set', async () => {
-  vi.spyOn(Math, 'random').mockReturnValue(0);
   const choose = vi.spyOn(api, 'next').mockResolvedValue({ done: true, level: 1, levelUp: false, facts: {} });
   const finish = vi.spyOn(api, 'finish').mockRejectedValueOnce(new Error('Offline')).mockResolvedValueOnce({ child });
   const { result } = renderHook(useTurn);

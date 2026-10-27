@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
-import { access, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
+import fs from 'node:fs';
+import os from 'node:os';
+import { access, mkdir, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Readable } from 'node:stream';
-import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import { isClipName, loadClips, parseClips } from './clips.js';
 import { defaultEarModel, parseOptions } from './options.js';
@@ -28,10 +29,22 @@ const expectedClips = [
 const wav = Buffer.from(encodeWav(new Float32Array([0, .25, -.25, 0])));
 
 async function fixtureDirectory(t) {
-  const directory = await mkdtemp(join(fileURLToPath(new URL('.', import.meta.url)), '.recorder-test-'));
+  const directory = fs.realpathSync(fs.mkdtempSync(join(os.tmpdir(), 'kriah-recorder-test-')));
   t.after(() => rm(directory, { recursive: true, force: true }));
   return directory;
 }
+
+test('recorder fixtures use the system temp folder and remove saved clips', async () => {
+  let cleanup;
+  const directory = await fixtureDirectory({ after: callback => { cleanup = callback; } });
+  try {
+    assert.equal(fs.realpathSync(join(directory, '..')), fs.realpathSync(os.tmpdir()));
+    await writeFile(join(directory, 'clip.wav'), wav);
+  } finally {
+    await cleanup();
+  }
+  assert.equal(fs.existsSync(directory), false);
+});
 
 // Exercise the real server handler with streams, without network calls or ports.
 async function request(server, url, { method = 'GET', data = [], headers = {} } = {}) {
@@ -78,8 +91,8 @@ test('parser follows the table instead of hardcoding its rows and rejects malfor
   });
   assert.throws(() => parseClips('## Round 2\n'), /missing/);
   assert.throws(() => parseClips(markdown.replace('File name', 'Filename')), /columns/);
-  assert.throws(() => parseClips(markdown.replace('baruch_clean', '../escape')), /Invalid/);
-  assert.throws(() => parseClips(markdown.replace('baruch_clean', 'shabbos_va-for-ba')), /unique/);
+  assert.throws(() => parseClips(markdown.replace('| baruch_clean |', '| ../escape |')), /Invalid/);
+  assert.throws(() => parseClips(markdown.replace('| baruch_clean |', '| shabbos_va-for-ba |')), /unique/);
 });
 
 test('name validation accepts only exact table names in the selected set', async () => {

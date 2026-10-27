@@ -1,8 +1,35 @@
-import { beforeEach, expect, it } from 'vitest';
+import { beforeEach, expect, it, vi } from 'vitest';
 import * as mock from './api.mock.js';
 import { PRESETS } from './storage.js';
 
 beforeEach(() => sessionStorage.clear());
+
+it('gives each line the same marks across turns, children and random values', async () => {
+  const random = vi.spyOn(Math, 'random').mockReturnValue(0);
+  const first = await mock.start({ childId: 'bim' });
+  const grades = await Promise.all(mock.items.map(item => mock.grade({ turnId: first.turnId, itemId: item.id })));
+  sessionStorage.clear();
+  random.mockReturnValue(0.99);
+  const second = await mock.start({ childId: 'nubo' });
+  for (const item of [...mock.items].reverse()) {
+    expect(await mock.grade({ turnId: second.turnId, itemId: item.id }))
+      .toEqual(grades.find(result => result.itemId === item.id));
+  }
+});
+
+it('keeps most lines correct and puts one or two amber marks on a third of the lines', async () => {
+  const grades = await Promise.all(mock.items.map(item => mock.grade({ itemId: item.id })));
+  const marked = grades.filter(grade => grade.summary.ok < grade.summary.pairs);
+  expect(marked).toHaveLength(2);
+  for (const grade of grades) {
+    const verdicts = grade.words.flatMap(word => word.pairs.map(pair => pair.verdict));
+    expect(grade.summary.pairs).toBe(verdicts.length);
+    expect(grade.summary.ok).toBe(verdicts.filter(verdict => verdict === 'ok').length);
+    expect(verdicts.every(verdict => ['ok', 'wrong_letter', 'wrong_vowel'].includes(verdict))).toBe(true);
+    if (marked.includes(grade)) expect([1, 2]).toContain(grade.summary.pairs - grade.summary.ok);
+    else expect(verdicts.every(verdict => verdict === 'ok')).toBe(true);
+  }
+});
 
 it('places at most one challenge at the end of every mock set', async () => {
   for (const child of await mock.children()) {

@@ -8,6 +8,26 @@ const item = (id, level, focus, skills = [focus], challenge = false) =>
 const practice = options => makePacket(options).sections[1].items;
 const skill = 'pattern:chirik_male';
 
+test('warm up falls back to the two lowest regular items when no line uses only solid pairs', () => {
+  const child = { name: 'Bim', preset: 'sephardi', pairs: { 'letter:bet|vowel:kamatz': [1, 1, 1] } };
+  const items = [item('higher', 4, skill), item('low-z', 2, skill), item('low-a', 2, skill),
+    item('lowest', 1, skill, [skill], true), item('middle', 3, skill)];
+  const before = structuredClone({ items, child });
+  const warm = items => makePacket({ items, child, skill, level: 3 }).sections[0].items;
+  assert.deepEqual(warm(items).map(item => item.id), ['low-a', 'low-z']);
+  assert.deepEqual(warm([...items].reverse()), warm(items));
+  assert.deepEqual({ items, child }, before);
+  assert.deepEqual(warm([items[0]]).map(item => item.id), ['higher']);
+  assert.deepEqual(warm([]), []);
+});
+
+test('warm up keeps available solid lines instead of adding fallback lines', () => {
+  const child = { name: 'Bim', preset: 'sephardi', pairs: { 'letter:bet|vowel:chirik': [1, 1, 1] } };
+  const items = [item('fallback', 1, skill), item('solid', 2, skill)];
+  items[0].text = 'מָ';
+  assert.deepEqual(makePacket({ items, child, skill, level: 2 }).sections[0].items.map(item => item.id), ['solid']);
+});
+
 test('round 2.9: level one chirik male practice fills six real-bank items', () => {
   const items = JSON.parse(readFileSync(new URL('../bank/items.json', import.meta.url), 'utf8'));
   const result = practice({ items, level: 1, skill });

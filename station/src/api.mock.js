@@ -48,10 +48,12 @@ export async function start({ childId }) {
 export async function grade({ turnId, itemId }) {
   const item = items.find(item => item.id === itemId);
   if (!item) throw new Error('Item not found');
-  const tokens = ['ok', 'ok', 'ok', 'ok', 'wrong_letter', 'wrong_vowel', 'uncertain'];
+  const hash = [...itemId].reduce((value, character) => (Math.imul(value, 31) + character.charCodeAt(0)) >>> 0, 0);
+  const markCount = hash % 3 === 0 ? 1 + ((hash >>> 8) % 2) : 0;
+  const amber = new Set(Array.from({ length: markCount }, (_, index) => ((hash >>> 2) + index) % item.words.length));
   const summary = { pairs: 0, ok: 0, wrong_letter: 0, wrong_vowel: 0, skipped: 0, extra: 0, uncertain: 0, not_decoded: 0 };
-  const words = item.words.map(text => {
-    const verdict = tokens[Math.floor(Math.random() * tokens.length)];
+  const words = item.words.map((text, index) => {
+    const verdict = amber.has(index) ? ((hash + index) % 2 === 0 ? 'wrong_letter' : 'wrong_vowel') : 'ok';
     summary.pairs++;
     summary[verdict]++;
     return { text, verdict: null, pairs: [{ text, verdict, skills: ['vowel:kamatz'] }] };

@@ -1,6 +1,6 @@
 # Demo video script
 
-The demo uses synthetic audio and a station preview labeled "Mock mode". No adult or child voice round has run. The mock grades and roster are simulated. They do not show a live model decision.
+The demo uses synthetic audio and a station preview labeled "Demo". No adult or child voice round has run. The mock grades and roster are simulated. They do not show a live model decision.
 
 ## Reading and marking
 
@@ -14,7 +14,7 @@ Voice: "Here the grader compares typed sounds with the printed word. The bet wit
 
 ## Choosing practice
 
-Picture: the mock checkpoint, level change and challenge card. The "Mock mode" label stays visible.
+Picture: the mock checkpoint, level change and challenge card. The "Demo" pill stays visible.
 
 Voice: "The server runs a coach and turns its bank ids into the next lines. Muse Spark 1.3 picks the next two or three lines from the bank after every set. Code checks every pick, and a plain rule takes over if a pick fails. The model's reasons stay in a developer trace; the teacher sees a templated line."
 
@@ -30,7 +30,7 @@ Voice: "The end-of-turn sentence uses a template. The teacher gets practice grou
 
 Picture: the README diagram and model status table. Then show the synthetic clip definitions and results table.
 
-Voice: "The ear gets audio and a sound alphabet. It never sees the printed line, so the line cannot steer it. It can still mishear. Only Muse Wonder 1.0 through the Meta Model API has run as the ear. Muse Spark Open through Baseten is wired and has never run."
+Voice: "The ear gets audio and a sound alphabet. It never sees the printed line, so the line cannot steer it. It can still mishear. Muse Wonder 1.0 was chosen after the Meta ear trials and used in the full server run. Muse Spark Open through Baseten is wired and has never run."
 
 Voice: "The synthetic set has thirteen clips: seven planted mistakes and six clean controls. Wonder wrote the planted mistake on five of the seven plants in each of two recorded runs. Real voices are still the go or no-go. AI reviewers checked the siddur words in each pronunciation tradition. No human kriah teacher has reviewed the rulebook yet."
 

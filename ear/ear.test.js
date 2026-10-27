@@ -1,13 +1,14 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, open, readFile, rm, writeFile } from 'node:fs/promises';
+import fs from 'node:fs';
+import os from 'node:os';
+import { mkdir, open, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import { CONSONANTS, VOWELS, tokenize } from './alphabet.js';
 import { main } from './cli.js';
 import { loadEnv } from './env.js';
 import { hear, listen } from './hear.js';
-import { parseEarOutput } from './parse.js';
+import { looksLikeProse, parseEarOutput } from './parse.js';
 
 const PRIMARY = 'meta-models/muse-spark-open-1026';
 const FALLBACK = 'muse-wonder-1.0';
@@ -47,10 +48,53 @@ function safeError(error) {
 }
 
 async function fixtureDirectory(t) {
-  const directory = await mkdtemp(join(fileURLToPath(new URL('.', import.meta.url)), '.ear-test-'));
+  const directory = fs.mkdtempSync(join(os.tmpdir(), 'kriah-ear-test-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   return directory;
 }
+
+test('ear fixtures use the system temp folder and remove their files', async () => {
+  let cleanup;
+  const directory = await fixtureDirectory({ after: callback => { cleanup = callback; } });
+  try {
+    assert.equal(fs.realpathSync(join(directory, '..')), fs.realpathSync(os.tmpdir()));
+    await writeFile(join(directory, 'clip.wav'), audio.data);
+  } finally {
+    await cleanup();
+  }
+  assert.equal(fs.existsSync(directory), false);
+});
+
+for (const raw of ["I can't hear audio.", 'No speech detected', 'Sorry.', "\"I can't hear audio.\"", 'sha,bos', 'sha.bos', 'No Speech Detected', '1. sha-vos.']) {
+  test(`prose characters fail the ear call: ${raw}`, async t => {
+    setKeys(t);
+    assert.equal(looksLikeProse(raw), true);
+    let calls = 0;
+    await assert.rejects(listen(audio, { model: 'fallback', fetch: async () => {
+      calls++;
+      return answer(raw);
+    } }), /answered in prose/);
+    assert.equal(calls, 2);
+  });
+}
+
+test('sound lines and their outer wrappers are not prose', async t => {
+  setKeys(t);
+  for (const raw of ['sha-vos\nba-ruch\n?', '"sha-vos"', "'sha-vos'", '`sha-vos`', '```\nsha-vos\n```', '“sha-vos”', '‘sha-vos’']) {
+    assert.equal(looksLikeProse(raw), false);
+    assert.deepEqual((await listen(audio, { model: 'fallback', fetch: async () => answer(raw) })).words, parseEarOutput(raw));
+  }
+  assert.equal(looksLikeProse('sha/va - ?\r\nni i'), false);
+});
+
+test('formats the parser accepts are readings, not prose', () => {
+  // Capitals are a reading when every syllable is a real sound. A stray letter
+  // outside the alphabet stays one uncertain syllable instead of failing the call.
+  for (const raw of ['Sha-vos', 'SHA-BOS', 'Sha-vos\nBa-ruch', '1. sha-vos\n2. ba-ruch', '- sha-vos\n- ba-ruch',
+    'Sounds:\nsha-vos', 'Here is what I heard:\nsha-vos', '"sha" "vos"', 'sha-wos']) {
+    assert.equal(looksLikeProse(raw), false, raw);
+  }
+});
 
 test('tokenize covers the exact alphabet and valid syllables', () => {
   for (const sound of [...CONSONANTS, ...VOWELS]) assert.deepEqual(tokenize(sound), [sound]);

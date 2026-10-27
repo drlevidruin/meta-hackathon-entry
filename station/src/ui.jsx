@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { savePin } from './storage.js';
+import { isMockMode } from './api.js';
 
 export function Star({ filled = false, filling = false }) {
   return <svg className={`star ${filled ? 'filled' : ''} ${filling ? 'filling' : ''}`} viewBox="0 0 32 32" aria-hidden="true">
@@ -8,7 +9,8 @@ export function Star({ filled = false, filling = false }) {
 }
 
 export function Brand() {
-  return <a className="wordmark" href="#/" aria-label="Kriah Listener home"><span className="brand-mark" aria-hidden="true">ק</span><span>Kriah<br />Listener</span></a>;
+  return <><a className="wordmark" href="#/" aria-label="Kriah Listener home"><span className="brand-mark" aria-hidden="true">ק</span><span>Kriah<br />Listener</span></a>
+    {isMockMode() && <span className="level-badge demo-badge">Demo</span>}</>;
 }
 
 export function Loading() {

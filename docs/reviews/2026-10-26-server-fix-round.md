@@ -1,4 +1,4 @@
-# Server and station reliability, 2026-10-27
+# Server and station reliability, 2026-10-26
 
 The server owns star awards and turn identity. Checkpoint and finish responses
 can be retried after a lost response. Learning history survives ordinary roster

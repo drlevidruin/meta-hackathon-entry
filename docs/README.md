@@ -10,6 +10,8 @@
 - [Rulebook and bank report](check/build-report.md): item counts, spelling checks and restored siddur segments.
 - [Shema check page](check/shema.md): generated readings for a kriah teacher to check by hand; no human review has been completed.
 - [Core fix round](reviews/2026-10-26-core-fix-round.md): regression findings, fixes and test names.
+- [Core fix round 2](reviews/2026-10-26-core-fix-round-2.md): turn resets, alignment, packet selection and coach requests.
+- [Server fix round](reviews/2026-10-26-server-fix-round.md): stars, retries, startup checks and saved history.
+- [Live run](live-run.md): one full turn through the real server with the coach model on.
 
 [Recording instructions](../recordings/README.md) and the [local recorder](../tools/clip-recorder/README.md) describe test audio storage and deletion. The [main README](../README.md) covers setup, model status and privacy.
-- [live-run.md](live-run.md): one full turn through the real server with the coach model on.

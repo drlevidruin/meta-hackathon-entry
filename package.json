@@ -12,6 +12,10 @@
     "url": "https://github.com/drlevidruin/kriah-listener-entry"
   },
   "scripts": {
+    "start": "node server/index.js",
+    "build": "npm --prefix station ci && npm --prefix station run build -- --configLoader native",
+    "demo": "npm --prefix station run dev",
+    "rulebook": "node rulebook/cli.js",
     "test": "node --test",
     "grade": "node grader/cli.js",
     "record": "node tools/clip-recorder/server.js",

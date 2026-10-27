@@ -18,7 +18,7 @@ AI reviewers checked every distinct siddur word in all three traditions. A secon
 
 `489c17d` added the synthetic clip script. `660e482` recorded the first test notes. `dd3e3cd` corrected the recorded counts. `ca9b59b` set minimal reasoning effort for the fallback ear.
 
-The script defines 13 clips: 7 planted mistakes and 6 clean controls. The notes report that Muse Wonder 1.0 wrote the plant on 5 of the 7 plants in each of two runs. Complete per-run output is not in the repository. Only Muse Wonder 1.0 through the Meta Model API has run as the ear. Muse Spark Open through Baseten is wired and has never run. [Ear test](ear-test.md).
+The script defines 13 clips: 7 planted mistakes and 6 clean controls. The notes report that Muse Wonder 1.0 wrote the plant on 5 of the 7 plants in each of two runs. Complete per-run output is not in the repository. Wonder was chosen after trials of Muse Spark 1.2, Muse Spark 1.3 and Muse Voice Transcribe 1.0. Muse Spark Open through Baseten is wired and has never run. [Ear test](ear-test.md).
 
 ## Grader
 

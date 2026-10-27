@@ -29,6 +29,7 @@ export function makePacket({ items, child, skill, level }) {
   } else {
     warm = regular.filter(item => item.level === 1).sort(byId).slice(0, 2);
   }
+  if (!warm.length) warm = [...allRegular].sort((a, b) => a.level - b.level || byId(a, b)).slice(0, 2);
   const challenges = items.filter(item => item.source?.challenge);
   // A supplied challenge can sit above the child's level. Prefer the target
   // skill and the nearest level, then use the stable bank id as a tie breaker.
