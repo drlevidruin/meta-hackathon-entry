@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import { CONSONANTS, VOWELS, tokenize } from './alphabet.js';
 import { main } from './cli.js';
 import { loadEnv } from './env.js';
-import { hear, listen } from './hear.js';
+import { combineAnswers, defaultVotes, hear, listen } from './hear.js';
 import { looksLikeProse, parseEarOutput } from './parse.js';
 
 const PRIMARY = 'muse-wonder-1.0';
@@ -194,10 +194,243 @@ test('parse collapses hyphens, drops empty syllables and blank lines', () => {
   assert.deepEqual(parseEarOutput('Sounds:'), []);
 });
 
+test('defaultVotes reads whole numbers from 1 to 5 and otherwise uses 3', () => {
+  for (let votes = 1; votes <= 5; votes += 1) {
+    assert.equal(defaultVotes({ EAR_VOTES: String(votes) }), votes);
+  }
+  for (const value of [undefined, '', '0', '6', '2.5', 'text']) {
+    assert.equal(defaultVotes({ EAR_VOTES: value }), 3);
+  }
+  assert.equal(defaultVotes({}), 3);
+});
+
+test('listen rejects invalid votes before any fetch, including for fallback', async () => {
+  let calls = 0;
+  const fetch = async () => { calls += 1; return answer(); };
+  for (const model of [undefined, 'primary', 'fallback']) {
+    for (const votes of [0, 6, -1, 2.5, '3', null, true, NaN, Infinity, [], {}]) {
+      await assert.rejects(listen(audio, { model, votes, fetch }), {
+        message: 'Votes must be a whole number from 1 to 5.',
+      });
+    }
+  }
+  assert.equal(calls, 0);
+});
+
+test('combineAnswers votes by whole words and breaks word ties by request order', () => {
+  const words = raw => raw.split(' ').map(word => word.split('-'));
+  for (const [raws, expected] of [
+    [['ko-voyd', 'ka-voyd', 'ka-voyd'], 'ka-voyd'],
+    [['a b', 'a c', 'a b'], 'a b'],
+    [['x', 'y', 'z'], 'x'],
+    [['a b', 'a c', 'd c'], 'a c'],
+  ]) {
+    assert.deepEqual(combineAnswers(raws.map(words)), words(expected));
+  }
+});
+
+test('combineAnswers chooses the most common word count with the earliest breaking ties', () => {
+  const words = raw => raw.split(' ').map(word => word.split('-'));
+  for (const [raws, expected] of [
+    [['u v', 'a b c', 'd b f'], 'a b c'],
+    [['a b', 'c d e', 'f g h i'], 'a b'],
+    [['x', 'a b', 'c d e', 'f g', 'h i j'], 'a b'],
+  ]) {
+    assert.deepEqual(combineAnswers(raws.map(raw => ({ words: words(raw) }))), words(expected));
+  }
+});
+
+test('combineAnswers ignores empty readings and keeps the earliest remaining ties', () => {
+  const words = [['ko', 'voyd']];
+  for (const answers of [
+    [[], [], words],
+    [[], words, []],
+    [words, [], []],
+    [[], words, [['ka', 'voyd']]],
+    [[], words, [['ka', 'voyd'], ['ba', 'ruch']]],
+  ]) {
+    assert.deepEqual(combineAnswers(answers), words);
+    assert.deepEqual(combineAnswers(answers.map(words => ({ words }))), words);
+  }
+});
+
+test('combineAnswers keeps all-empty and single answers unchanged', () => {
+  const words = [['ko', 'voyd']];
+  for (const [answers, expected] of [
+    [[], []],
+    [[[]], []],
+    [[[], []], []],
+    [[words], words],
+  ]) {
+    assert.deepEqual(combineAnswers(answers), expected);
+    assert.deepEqual(combineAnswers(answers.map(words => ({ words }))), expected);
+  }
+});
+
+test('listen keeps real words when two primary replies parse to no words without fallback', async t => {
+  setKeys(t);
+  for (const empty of ['Sounds:', '---']) {
+    const raws = [empty, empty, 'ko-voyd'];
+    const models = [];
+    const result = await listen(audio, { votes: 3, fetch: async (_url, init) => {
+      const raw = raws[models.length];
+      models.push(JSON.parse(init.body).model);
+      return answer(raw);
+    } });
+    assert.deepEqual(result.words, [['ko', 'voyd']]);
+    assert.deepEqual(result.votes, { asked: 3, answered: 3 });
+    assert.deepEqual(models, [PRIMARY, PRIMARY, PRIMARY]);
+  }
+});
+
+test('listen uses defaultVotes when votes is missing', async t => {
+  setKeys(t);
+  const previous = process.env.EAR_VOTES;
+  t.after(() => {
+    if (previous === undefined) delete process.env.EAR_VOTES;
+    else process.env.EAR_VOTES = previous;
+  });
+  for (const [value, expected] of [[undefined, 3], ['1', 1], ['5', 5], ['2.5', 3]]) {
+    if (value === undefined) delete process.env.EAR_VOTES;
+    else process.env.EAR_VOTES = value;
+    let calls = 0;
+    const result = await listen(audio, { fetch: async () => { calls += 1; return answer(); } });
+    assert.equal(defaultVotes(), expected);
+    assert.equal(calls, expected);
+    assert.deepEqual(result.votes, { asked: expected, answered: expected });
+  }
+});
+
+test('primary votes start together and combine in request order when they finish in reverse', async t => {
+  setKeys(t);
+  for (const [raws, expected] of [
+    [['ko-voyd', 'ka-voyd', 'ka-voyd'], [['ka', 'voyd']]],
+    [['ko-voyd', 'ka-voyd', 'ke-voyd'], [['ko', 'voyd']]],
+  ]) {
+    const gates = Array.from({ length: 3 }, () => Promise.withResolvers());
+    const finished = Array.from({ length: 3 }, () => Promise.withResolvers());
+    const order = [];
+    let calls = 0;
+    const pending = listen(audio, { votes: 3, fetch: async (_url, init) => {
+      assert.equal(JSON.parse(init.body).model, PRIMARY);
+      const slot = calls++;
+      await gates[slot].promise;
+      order.push(slot);
+      finished[slot].resolve();
+      return answer(raws[slot]);
+    } });
+    try {
+      await new Promise(resolve => setImmediate(resolve));
+      assert.equal(calls, 3);
+      for (const slot of [2, 1, 0]) {
+        gates[slot].resolve();
+        await finished[slot].promise;
+      }
+      const result = await pending;
+      assert.deepEqual(order, [2, 1, 0]);
+      assert.deepEqual(result.words, expected);
+      assert.equal(result.raw, raws[0]);
+      assert.deepEqual(result.votes, { asked: 3, answered: 3 });
+    } finally {
+      for (const gate of gates) gate.resolve();
+      await pending;
+    }
+  }
+});
+
+test('a prose answer retries within its primary slot and retains that slot order', async t => {
+  setKeys(t);
+  const raws = ['I cannot hear audio.', 'ka-voyd', 'ka-voyd', 'ko-voyd'];
+  let calls = 0;
+  const result = await listen(audio, { votes: 3, fetch: async (_url, init) => {
+    assert.equal(JSON.parse(init.body).model, PRIMARY);
+    return answer(raws[calls++]);
+  } });
+  assert.equal(calls, 4);
+  assert.deepEqual(result.words, [['ka', 'voyd']]);
+  assert.equal(result.raw, 'ko-voyd');
+  assert.deepEqual(result.usage, { prompt_tokens: 30, completion_tokens: 60, total_tokens: 90 });
+  assert.deepEqual(result.votes, { asked: 3, answered: 3 });
+});
+
+test('each primary slot respects tries and a forced primary never calls fallback', async t => {
+  setKeys(t);
+  for (const tries of [1, 2, 3]) {
+    let calls = 0;
+    await assert.rejects(listen(audio, { model: 'primary', votes: 3, tries, fetch: async (_url, init) => {
+      calls += 1;
+      assert.equal(JSON.parse(init.body).model, PRIMARY);
+      return answer('I cannot hear audio.');
+    } }), { message: `No ear model returned an answer (${Array(3 * tries).fill('primary: answered in prose').join('; ')}).` });
+    assert.equal(calls, 3 * tries);
+  }
+});
+
+test('one network failure leaves two primary answers to combine without fallback', async t => {
+  setKeys(t);
+  let calls = 0;
+  const result = await listen(audio, { votes: 3, reference: audio, fetch: async (_url, init) => {
+    assert.equal(JSON.parse(init.body).model, PRIMARY);
+    const slot = calls++;
+    if (slot === 0) throw new Error('offline failure');
+    return answer(slot === 1 ? 'ko-voyd' : 'ka-voyd');
+  } });
+  assert.equal(calls, 3);
+  assert.deepEqual(result, {
+    words: [['ko', 'voyd']], model: PRIMARY, raw: 'ko-voyd', card: true,
+    usage: { prompt_tokens: 20, completion_tokens: 40, total_tokens: 60 },
+    votes: { asked: 3, answered: 2 },
+  });
+});
+
+test('a single successful primary answer prevents fallback and preserves its usage', async t => {
+  setKeys(t);
+  const usage = { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30,
+    completion_tokens_details: { reasoning_tokens: 5 } };
+  let calls = 0;
+  const result = await listen(audio, { votes: 3, fetch: async (_url, init) => {
+    assert.equal(JSON.parse(init.body).model, PRIMARY);
+    if (calls++ !== 1) return new Response('', { status: 503 });
+    return answer('ka-voyd', { usage });
+  } });
+  assert.equal(calls, 3);
+  assert.deepEqual(result.words, [['ka', 'voyd']]);
+  assert.equal(result.raw, 'ka-voyd');
+  assert.deepEqual(result.usage, usage);
+  assert.deepEqual(result.votes, { asked: 3, answered: 1 });
+});
+
+test('primary usage includes every answer even when its word count is excluded', async t => {
+  setKeys(t);
+  const raws = ['sha-bos', 'ka-voyd ba-ruch', 'ko-voyd ba-ruch'];
+  let calls = 0;
+  const result = await listen(audio, { votes: 3, fetch: async () => {
+    const slot = calls++;
+    return answer(raws[slot], { usage: {
+      prompt_tokens: slot + 1, completion_tokens: 2 * (slot + 1), total_tokens: 3 * (slot + 1),
+    } });
+  } });
+  assert.deepEqual(result.words, [['ka', 'voyd'], ['ba', 'ruch']]);
+  assert.equal(result.raw, raws[0]);
+  assert.deepEqual(result.usage, { prompt_tokens: 6, completion_tokens: 12, total_tokens: 18 });
+});
+
+test('primary usage is null if any answer omits token counts', async t => {
+  setKeys(t);
+  for (const usage of [null, undefined, { prompt_tokens: 10 }]) {
+    let calls = 0;
+    const result = await listen(audio, { votes: 3, fetch: async () => (
+      calls++ === 1 ? answer('ka-voyd', { usage }) : answer('ka-voyd')
+    ) });
+    assert.equal(result.usage, null);
+    assert.deepEqual(result.votes, { asked: 3, answered: 3 });
+  }
+});
+
 test('listen sends the exact primary request and returns only content as the answer', async (t) => {
   setKeys(t);
   const calls = [];
-  const result = await listen(audio, { fetch: async (url, init) => {
+  const result = await listen(audio, { votes: 1, fetch: async (url, init) => {
     calls.push({ url, init });
     return answer();
   } });
@@ -226,6 +459,7 @@ test('listen sends the exact primary request and returns only content as the ans
     raw: 'sha-bos\nba-ruch',
     usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 },
     card: false,
+    votes: { asked: 1, answered: 1 },
   });
 });
 
@@ -234,11 +468,11 @@ test('listen sends the card prompt and both recordings in order to primary only'
   const reference = { data: Buffer.from('practice card fixture'), format: 'mp3' };
   const cardPrompt = await readFile(new URL('./prompt-card.md', import.meta.url), 'utf8');
   const calls = [];
-  const result = await listen(audio, { reference, fetch: async (_url, init) => {
+  const result = await listen(audio, { votes: 3, reference, fetch: async (_url, init) => {
     calls.push(JSON.parse(init.body));
     return answer('Baw-ruch');
   } });
-  assert.deepEqual(calls, [{
+  assert.deepEqual(calls, Array(3).fill({
     model: PRIMARY,
     messages: [{ role: 'user', content: [
       { type: 'text', text: cardPrompt },
@@ -250,8 +484,9 @@ test('listen sends the card prompt and both recordings in order to primary only'
     max_tokens: 8192,
     temperature: 0,
     reasoning_effort: 'minimal',
-  }]);
+  }));
   assert.equal(result.card, true);
+  assert.deepEqual(result.votes, { asked: 3, answered: 3 });
   assert.deepEqual(result.words, [['bo', 'ruch']]);
   assert.deepEqual(await hear(audio, { reference, fetch: async () => answer('baw-ruch') }), [['bo', 'ruch']]);
 });
@@ -316,6 +551,7 @@ test('fallback always keeps the plain request and reports card false even with a
     else process.env.META_API_KEY = primaryKey;
     let primaryCalls = 0, fallbackCalls = 0;
     const result = await listen(audio, {
+      votes: 3,
       ...(mode === 'plain' ? {} : { reference }),
       ...(['plain', 'forced'].includes(mode) ? { model: 'fallback' } : {}),
       fetch: async (_url, init) => {
@@ -336,14 +572,15 @@ test('fallback always keeps the plain request and reports card false even with a
     assert.equal(result.card, false);
     assert.equal(result.model, FALLBACK);
     assert.equal(fallbackCalls, 1);
-    assert.equal(primaryCalls, ['plain', 'forced', 'missing key'].includes(mode) ? 0 : mode === 'prose' ? 2 : 1);
+    assert.equal(primaryCalls, ['plain', 'forced', 'missing key'].includes(mode) ? 0 : mode === 'prose' ? 6 : 3);
+    assert.deepEqual(result.votes, { asked: 1, answered: 1 });
   }
 });
 
 test('a successful primary retry still reports that it used the card', async t => {
   setKeys(t);
   let calls = 0;
-  const result = await listen(audio, { reference: audio, fetch: async (_url, init) => {
+  const result = await listen(audio, { votes: 1, reference: audio, fetch: async (_url, init) => {
     assert.equal(JSON.parse(init.body).messages[0].content.length, 5);
     return ++calls === 1 ? answer('I cannot hear audio.') : answer('baw-ruch');
   } });
@@ -432,7 +669,7 @@ test('listen goes directly to fallback when the primary key is missing', async (
 test('listen falls back after a primary 500', async (t) => {
   setKeys(t);
   const models = [];
-  const result = await listen(audio, { fetch: async (_url, init) => {
+  const result = await listen(audio, { votes: 1, fetch: async (_url, init) => {
     const model = JSON.parse(init.body).model;
     models.push(model);
     return model === PRIMARY ? new Response('provider error', { status: 500 }) : answer();
@@ -453,7 +690,7 @@ test('listen falls back after network errors, empty content, or malformed replie
   ];
   for (const fail of failures) {
     let calls = 0;
-    const result = await listen(audio, { fetch: async () => (++calls === 1 ? fail() : answer()) });
+    const result = await listen(audio, { votes: 1, fetch: async () => (++calls === 1 ? fail() : answer()) });
     assert.equal(calls, 2);
     assert.equal(result.model, FALLBACK);
   }
@@ -462,7 +699,7 @@ test('listen falls back after network errors, empty content, or malformed replie
 test('listen throws a credential-safe error when both providers fail', async (t) => {
   setKeys(t);
   let calls = 0;
-  await assert.rejects(listen(audio, { fetch: async (_url, init) => {
+  await assert.rejects(listen(audio, { votes: 1, fetch: async (_url, init) => {
     calls += 1;
     throw new Error(`Authorization: ${init.headers.Authorization}; ${primaryKey}; ${fallbackKey}`);
   } }), safeError);
@@ -482,7 +719,7 @@ test('listen honors each forced model without trying the other provider', async 
   setKeys(t);
   for (const [model, id] of [['primary', PRIMARY], ['fallback', FALLBACK]]) {
     let calls = 0;
-    const result = await listen(audio, { model, fetch: async (_url, init) => {
+    const result = await listen(audio, { model, votes: 1, fetch: async (_url, init) => {
       calls += 1;
       assert.equal(JSON.parse(init.body).model, id);
       return answer();
@@ -490,7 +727,7 @@ test('listen honors each forced model without trying the other provider', async 
     assert.equal(calls, 1);
     assert.equal(result.model, id);
     calls = 0;
-    await assert.rejects(listen(audio, { model, fetch: async () => {
+    await assert.rejects(listen(audio, { model, votes: 1, fetch: async () => {
       calls += 1;
       return new Response('', { status: 500 });
     } }), safeError);
@@ -524,15 +761,15 @@ test('listen aborts each timed-out call after 120 seconds and tries fallback', a
     return handle;
   });
   const signals = [];
-  await assert.rejects(listen(audio, { fetch: async (_url, init) => {
+  await assert.rejects(listen(audio, { votes: 3, fetch: async (_url, init) => {
     signals.push(init.signal);
     return new Promise((_resolve, reject) => {
       init.signal.addEventListener('abort', () => reject(new Error(primaryKey)), { once: true });
     });
   } }), safeError);
-  assert.deepEqual(durations, [120_000, 120_000]);
-  assert.equal(signals.length, 2);
-  assert.notEqual(signals[0], signals[1]);
+  assert.deepEqual(durations, Array(4).fill(120_000));
+  assert.equal(signals.length, 4);
+  assert.equal(new Set(signals).size, 4);
   assert.ok(signals.every((signal) => signal.aborted));
 });
 
@@ -595,14 +832,18 @@ test('CLI sorts audio files, skips subfolders, keeps going, and writes JSON resu
   });
   const output = join(directory, 'out.json');
   assert.equal(await main([directory, '--json', output]), 1);
-  assert.deepEqual(mimes, ['data:audio/wav', 'data:audio/mpeg', 'data:audio/mpeg', 'data:audio/flac']);
+  const votes = defaultVotes();
+  const failure = `No ear model returned an answer (${[...Array(votes).fill('primary: network error'), 'fallback: network error'].join('; ')}).`;
+  assert.deepEqual(mimes, [
+    ...Array(votes).fill('data:audio/wav'), ...Array(votes + 1).fill('data:audio/mpeg'), ...Array(votes).fill('data:audio/flac'),
+  ]);
   assert.deepEqual(logs, [`a.wav\t${PRIMARY}\tsha-bos ba-ruch`, `c.flac\t${PRIMARY}\tsha-bos ba-ruch`]);
-  assert.deepEqual(errors, ['b.mp3: No ear model returned an answer (primary: network error; fallback: network error).']);
+  assert.deepEqual(errors, [`b.mp3: ${failure}`]);
   const results = JSON.parse(await readFile(output, 'utf8'));
   assert.deepEqual(results.map((result) => result.file), ['a.wav', 'b.mp3', 'c.flac']);
   assert.equal(results[0].model, PRIMARY);
   assert.deepEqual(results[0].words, [['sha', 'bos'], ['ba', 'ruch']]);
-  assert.equal(results[1].error, 'No ear model returned an answer (primary: network error; fallback: network error).');
+  assert.equal(results[1].error, failure);
 });
 
 test('CLI accepts explicit files and a forced fallback model', async (t) => {
@@ -658,7 +899,7 @@ test('a prose refusal is a failed call and is retried', async (t) => {
   const fakeFetch = async () => ({ ok: true, status: 200, json: async () => ({ choices: [{ message: { content: answers[calls++] } }] }) });
   process.env.META_API_KEY = 'test-primary';
   t.after(() => { delete process.env.META_API_KEY; });
-  const result = await listen(audio, { fetch: fakeFetch, model: 'primary' });
+  const result = await listen(audio, { fetch: fakeFetch, model: 'primary', votes: 1 });
   assert.equal(calls, 2);
   assert.deepEqual(result.words, [['sha', 'vos']]);
 });
@@ -683,9 +924,9 @@ test('the primary asks Wonder for minimal reasoning, and EAR_REASONING_EFFORT ov
   const efforts = [];
   const fetch = async (_url, init) => { efforts.push(JSON.parse(init.body).reasoning_effort); return answer(); };
   delete process.env.EAR_REASONING_EFFORT;
-  await listen(audio, { fetch });
+  await listen(audio, { fetch, votes: 1 });
   process.env.EAR_REASONING_EFFORT = 'low';
-  await listen(audio, { fetch });
+  await listen(audio, { fetch, votes: 1 });
   assert.deepEqual(efforts, ['minimal', 'low']);
 });
 

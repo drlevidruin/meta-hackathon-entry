@@ -129,7 +129,10 @@ in memory and a saved voice profile that keeps each usable vowel pair apart by
 the meter's separation rule and passes the kamatz check above, it receives
 `{ data, format: 'wav' }` with
 `{ reference: { data: card, format: 'wav' } }`. Otherwise it receives only the
-reading. The primary ear uses the card; the fallback receives only the reading.
+reading. The primary ear is asked `EAR_VOTES` times (default 3) in parallel with
+the same audio and card when present. The most common word count is kept, then
+the answer most calls agree on is kept word by word. The earliest answer breaks
+ties. The fallback is asked once and receives only the reading.
 The grader receives `{ heard: ear.words, text: item.text, preset: turn.preset }`.
 The response omits the top-level `verdicts` and ear model. `words` is the grader's
 word output. Summary is:

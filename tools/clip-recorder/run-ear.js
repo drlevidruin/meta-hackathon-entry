@@ -1,5 +1,5 @@
 import '../../ear/env.js';
-import { hear } from '../../ear/hear.js';
+import { defaultVotes, hear } from '../../ear/hear.js';
 import { applyMeter, buildVoiceProfile, pairsApart, VoiceCheckError } from '../../ear/meter.js';
 import { voiceCardToEar } from '../../ear/card-gate.js';
 import { cardLabels } from '../../rulebook/voice-card.js';
@@ -18,7 +18,7 @@ export function matchesSay(heard, say) {
     && heard.every((word, index) => normalize(word.join('-')) === expected[index]);
 }
 
-export async function runEar({ set = 'adult', model = defaultEarModel(), keep = false, directory,
+export async function runEar({ set = 'adult', model = defaultEarModel(), votes = defaultVotes(), keep = false, directory,
   preset = 'ashkenazi', meter = true, card = true, ear = hear, log = console.log } = {}) {
   const store = recordingStore(await loadClips(set), directory);
   let failed = false;
@@ -31,6 +31,8 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), keep = 
       ? process.env.EAR_PRIMARY_MODEL || 'muse-wonder-1.0'
       : process.env.EAR_FALLBACK_MODEL || 'meta-models/muse-spark-open-1026';
     log(`Ear model: ${model} (${modelId})`);
+    const earVotes = model === 'fallback' ? 1 : votes;
+    log(`Ear votes: ${earVotes}${model === 'fallback' ? ' (fallback ear)' : ''}`);
     const voiceAudio = voice && (meter || card) ? await store.read(voice.name) : undefined;
     let profile;
     let voiceStatus;
@@ -66,7 +68,7 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), keep = 
         // Only the audio reaches the ear, never the Hebrew, Say, or planted mistake.
         const audio = await store.read(clip.name);
         const earWords = await ear({ data: audio, format: 'wav' }, {
-          model, ...(reference ? { reference } : {}),
+          model, votes: earVotes, ...(reference ? { reference } : {}),
         });
         earSounds = earWords.map((word) => word.join('-')).join(' ');
         const words = meter && profile ? applyMeter(earWords, audio, profile).words : earWords;
@@ -96,6 +98,7 @@ export async function main(argv = process.argv.slice(2)) {
     return (await runEar(parseOptions(argv, 'ear'))).code;
   } catch (error) {
     console.error(error.message.startsWith('Set must') || error.message.startsWith('Model must')
+      || error.message.startsWith('Votes must')
       || error.message.startsWith('Preset must')
       || error.message.startsWith('Unknown option:') ? error.message : 'Could not run the ear test.');
     return 1;

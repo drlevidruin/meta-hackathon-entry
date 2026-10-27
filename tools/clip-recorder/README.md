@@ -45,7 +45,15 @@ npm run ear-test
 npm run ear-test -- --set child
 ```
 
-The runner loads `.env`. With a nonempty `BASETEN_API_KEY`, it defaults to the Baseten primary. Otherwise it defaults to the Meta fallback, so a `META_API_KEY` alone is enough. The selected role and model id are printed before the results. `EAR_PRIMARY_MODEL` and `EAR_FALLBACK_MODEL` override their ids.
+The runner loads `.env`. With a nonempty `META_API_KEY`, it defaults to the Meta primary. Otherwise a nonempty `BASETEN_API_KEY` selects the Baseten fallback; with neither key, it selects primary. The selected role and model id are printed before the results. `EAR_PRIMARY_MODEL` and `EAR_FALLBACK_MODEL` override their ids.
+
+The next line prints `Ear votes: N`. The primary ear is asked in parallel with the same audio and voice card, when present. The most common word count is kept, then each word is chosen by the most votes at that position. The earliest answer breaks ties. `EAR_VOTES` sets the default to a whole number from 1 to 5; missing or invalid values use 3. `--votes N` overrides it for this run:
+
+```bash
+npm run ear-test -- --votes 1
+```
+
+The fallback ear is asked once, without a voice card. It always prints `Ear votes: 1 (fallback ear)` and uses one vote, including when `--votes` is given.
 
 To choose a provider explicitly:
 
