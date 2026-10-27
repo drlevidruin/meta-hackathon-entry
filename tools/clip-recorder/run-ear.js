@@ -1,5 +1,5 @@
 import '../../ear/env.js';
-import { defaultVotes, hear } from '../../ear/hear.js';
+import { defaultVotes, listen } from '../../ear/hear.js';
 import { applyMeter, buildVoiceProfile, pairsApart, VoiceCheckError } from '../../ear/meter.js';
 import { voiceCardToEar } from '../../ear/card-gate.js';
 import { hearPhonemes } from '../../ear/phonemes.js';
@@ -10,6 +10,10 @@ import { pathToFileURL } from 'node:url';
 import { loadClips } from './clips.js';
 import { defaultEarModel, parseOptions } from './options.js';
 import { recordingStore } from './recordings.js';
+
+class SelectionError extends Error {}
+
+const formatWords = words => words.map(word => word.join('-')).join(' ');
 
 export function matchesSay(heard, say) {
   if (!Array.isArray(heard) || !heard.every((word) => Array.isArray(word)
@@ -33,22 +37,40 @@ async function phonemesWithRetry(audio, phonemes) {
 }
 
 export async function runEar({ set = 'adult', model = defaultEarModel(), votes = defaultVotes(), keep = false, directory,
-  preset = 'ashkenazi', meter = true, card = true, referee = true,
-  phonemes = audio => hearPhonemes(audio), ear = hear, log = console.log } = {}) {
-  const store = recordingStore(await loadClips(set), directory);
+  preset = 'ashkenazi', meter = true, card = true, referee = true, cardName, round,
+  phonemes = audio => hearPhonemes(audio), ear = listen, log = console.log } = {}) {
+  const clips = await loadClips(set);
+  const store = recordingStore(clips, directory);
   let failed = false;
   const rows = [];
   const outcomes = [];
   try {
-    const recorded = (await store.list()).filter((clip) => clip.done);
-    const readings = recorded.filter((clip) => clip.kind === 'reading');
-    const voice = recorded.find((clip) => clip.kind === 'voice');
+    const listed = await store.list();
+    const recorded = listed.filter((clip) => clip.done);
+    if (round !== undefined && !clips.some(clip => clip.section === round)) {
+      throw new SelectionError(`Unknown section: ${round}.`);
+    }
+    const readings = recorded.filter((clip) => clip.kind === 'reading'
+      && (round === undefined || clip.section === round));
+    if (round !== undefined && !readings.length) {
+      throw new SelectionError(`No recorded readings in section: ${round}.`);
+    }
+    let voice = recorded.find((clip) => clip.kind === 'voice');
+    if (cardName !== undefined) {
+      const name = `${set === 'child' ? 'child_' : ''}${cardName}`;
+      voice = listed.find(clip => clip.name === name);
+      if (!voice || voice.kind !== 'voice') {
+        throw new SelectionError(`Voice card must name a voice clip: ${cardName}.`);
+      }
+      if (!voice.done) throw new SelectionError(`Voice card is not recorded: ${name}.`);
+    }
     const modelId = model === 'primary'
       ? process.env.EAR_PRIMARY_MODEL || 'muse-wonder-1.0'
       : process.env.EAR_FALLBACK_MODEL || 'meta-models/muse-spark-open-1026';
     log(`Ear model: ${model} (${modelId})`);
     const earVotes = model === 'fallback' ? 1 : votes;
     log(`Ear votes: ${earVotes}${model === 'fallback' ? ' (fallback ear)' : ''}`);
+    log(`Voice card: ${voice?.name ?? 'none recorded'}`);
     const voiceAudio = voice && (meter || card || referee) ? await store.read(voice.name) : undefined;
     let profile;
     let voiceStatus;
@@ -94,21 +116,24 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), votes =
     log(`Vowel meter: ${meterStatus}`);
     log(`Voice card to the ear: ${cardStatus}`);
     log(`Phoneme referee: ${refereeStatus}`);
-    log('clip\tsaid\theard\tresult\tear\tmetered');
+    log('clip\tsaid\theard\tresult\tear\tmetered\tvotes');
     for (const clip of readings) {
       let heard = 'ERROR';
       let earSounds = 'ERROR';
       let metered = 'ERROR';
+      let voteSounds = 'ERROR';
       let result = 'MISS';
       try {
         // Only the audio reaches the ear, never the Hebrew, Say, or planted mistake.
         const audio = await store.read(clip.name);
-        const earWords = await ear({ data: audio, format: 'wav' }, {
+        const answer = await ear({ data: audio, format: 'wav' }, {
           model, votes: earVotes, ...(reference ? { reference } : {}),
         });
-        earSounds = earWords.map((word) => word.join('-')).join(' ');
+        const earWords = answer.words;
+        earSounds = formatWords(earWords);
+        voteSounds = answer.answers.map(formatWords).join(' | ');
         let words = meter && profile ? applyMeter(earWords, audio, profile).words : earWords;
-        metered = words.map((word) => word.join('-')).join(' ');
+        metered = formatWords(words);
         if (refereeOn) {
           let status = 'failed';
           try {
@@ -125,15 +150,16 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), votes =
             outcomes.push({ clip: clip.name, status });
           }
         }
-        heard = words.map((word) => word.join('-')).join(' ');
+        heard = formatWords(words);
         result = matchesSay(words, clip.say) ? 'PASS' : 'MISS';
       } catch {
         failed = true;
+        voteSounds = 'ERROR';
       }
       try {
-        const row = { clip: clip.name, said: clip.say, heard, result, ear: earSounds, metered };
+        const row = { clip: clip.name, said: clip.say, heard, result, ear: earSounds, metered, votes: voteSounds };
         rows.push(row);
-        log([row.clip, row.said, row.heard, row.result, row.ear, row.metered].join('\t'));
+        log([row.clip, row.said, row.heard, row.result, row.ear, row.metered, row.votes].join('\t'));
         if (result === 'MISS') failed = true;
       } finally {
         // Print the verdict, then immediately discard this child's audio.
@@ -161,9 +187,11 @@ export async function main(argv = process.argv.slice(2)) {
   try {
     return (await runEar(parseOptions(argv, 'ear'))).code;
   } catch (error) {
-    console.error(error.message.startsWith('Set must') || error.message.startsWith('Model must')
+    console.error(error instanceof SelectionError
+      || error.message.startsWith('Set must') || error.message.startsWith('Model must')
       || error.message.startsWith('Votes must')
       || error.message.startsWith('Preset must')
+      || error.message.startsWith('Card name must') || error.message.startsWith('Round section must')
       || error.message.startsWith('Unknown option:') ? error.message : 'Could not run the ear test.');
     return 1;
   }

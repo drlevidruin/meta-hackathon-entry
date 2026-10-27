@@ -103,7 +103,41 @@ const expectedRound1e = [
   ['gan_kamatz-for-patach', 'gon'],
   ['daf_kamatz-for-patach', 'dof'],
 ];
+const expectedRound1f = [
+  ['gal_clean', 'gal'],
+  ['moyro_clean', 'moy-ro'],
+  ['tal_kamatz-for-patach', 'tol'],
+  ['chozok_clean', 'cho-zok'],
+  ['moshol_clean', 'mo-shol'],
+  ['kohol_patach-for-kamatz', 'ka-hol'],
+  ['soro_clean', 'so-ro'],
+  ['naal_clean', 'na-al'],
+  ['omol_patach-for-kamatz', 'o-mal'],
+  ['chaveyro_clean', 'cha-vey-ro'],
+  ['godoyl_clean', 'go-doyl'],
+  ['chom_patach-for-kamatz', 'cham'],
+  ['shulchon_clean', 'shul-chon'],
+];
+const expectedRound1g = [
+  ['sal_clean', 'sal'],
+  ['shiro_clean', 'shi-ro'],
+  ['dal_kamatz-for-patach', 'dol'],
+  ['bosor_clean', 'bo-sor'],
+  ['cholol_clean', 'cho-lol'],
+  ['yofo_patach-for-kamatz', 'ya-fo'],
+  ['malko_clean', 'mal-ko'],
+  ['baal_clean', 'ba-al'],
+  ['sholol_patach-for-kamatz', 'sho-lal'],
+  ['diro_clean', 'di-ro'],
+  ['oylom_clean', 'oy-lom'],
+  ['dom_patach-for-kamatz', 'dam'],
+  ['suko_clean', 'su-ko'],
+];
 const wav = Buffer.from(encodeWav(new Float32Array([0, .25, -.25, 0])));
+
+function earAnswer(words, answers = [words]) {
+  return { words, answers };
+}
 
 function syntheticWav(labels) {
   const rate = 16000;
@@ -204,19 +238,26 @@ test('Round 1 selects only its 12 clips even when Round 1b appears first', async
   }
 });
 
-test('loadClips returns the voice check, then Round 1b, Round 1c, the card and sheva tests, Round 1d, Round 1e and Round 1 clips in table order', async () => {
+test('loadClips returns both voice checks and all rounds with their sections in table order', async () => {
   const clips = await loadClips();
-  assert.deepEqual(clips.map(({ name, kind }) => [name, kind]), [
-    ['voice-check', 'voice'],
-    ...expectedNewClips.map(([name]) => [name, 'reading']),
-    ...expectedSealedClips.map(([name]) => [name, 'reading']),
-    ...expectedCardTests.map(([name]) => [name, 'card']),
-    ...expectedRound1d.map(([name]) => [name, 'reading']),
-    ...expectedRound1e.map(([name]) => [name, 'reading']),
-    ...expectedClips.map(([name]) => [name, 'reading']),
+  assert.deepEqual(clips.map(({ name, kind, section }) => [name, kind, section]), [
+    ['voice-check', 'voice', 'Voice check'],
+    ...expectedNewClips.map(([name]) => [name, 'reading', 'Round 1b']),
+    ...expectedSealedClips.map(([name]) => [name, 'reading', 'Round 1c']),
+    ...expectedCardTests.map(([name], index) => [name, 'card', index < 3 ? 'Card tests' : 'Sheva tests']),
+    ...expectedRound1d.map(([name]) => [name, 'reading', 'Round 1d']),
+    ...expectedRound1e.map(([name]) => [name, 'reading', 'Round 1e']),
+    ['voice-check-2', 'voice', 'Voice check 2'],
+    ...expectedRound1f.map(([name]) => [name, 'reading', 'Round 1f']),
+    ...expectedRound1g.map(([name]) => [name, 'reading', 'Round 1g']),
+    ...expectedClips.map(([name]) => [name, 'reading', 'Round 1']),
   ]);
-  assert.deepEqual(clips.slice(1).map(({ name, say }) => [name, say]),
-    [...expectedNewClips, ...expectedSealedClips, ...expectedCardTests, ...expectedRound1d, ...expectedRound1e, ...expectedClips]);
+  assert.deepEqual(clips.filter(clip => clip.kind !== 'voice').map(({ name, say }) => [name, say]),
+    [...expectedNewClips, ...expectedSealedClips, ...expectedCardTests, ...expectedRound1d, ...expectedRound1e,
+      ...expectedRound1f, ...expectedRound1g, ...expectedClips]);
+  assert.deepEqual(clips.find(clip => clip.name === 'voice-check-2'), {
+    ...clips[0], name: 'voice-check-2', section: 'Voice check 2',
+  });
   const markdown = await readFile(new URL('../../docs/ear-test.md', import.meta.url), 'utf8');
   assert.deepEqual(parseClips(markdown, 'Round 1c').map(({ name, say }) => [name, say]), expectedSealedClips);
 });
@@ -259,11 +300,13 @@ test('parser selects the voice check section, escapes heading names and names er
 test('name validation accepts only exact table names in the selected set', async () => {
   const adult = await loadClips();
   const child = await loadClips('child');
-  assert.equal(adult.length, 74);
+  assert.equal(adult.length, 101);
   assert.equal(adult[0].name, 'voice-check');
   assert.equal(adult[0].kind, 'voice');
-  assert.ok(adult.slice(1).every((clip) => clip.kind === (expectedCardTests.some(([name]) => name === clip.name) ? 'card' : 'reading')));
-  assert.equal(new Set(adult.map((clip) => clip.name)).size, 74);
+  assert.deepEqual(adult.filter(clip => clip.kind === 'voice').map(clip => clip.name), ['voice-check', 'voice-check-2']);
+  assert.ok(adult.filter(clip => clip.kind !== 'voice').every((clip) =>
+    clip.kind === (expectedCardTests.some(([name]) => name === clip.name) ? 'card' : 'reading')));
+  assert.equal(new Set(adult.map((clip) => clip.name)).size, 101);
   assert.deepEqual(child, adult.map((clip) => ({ ...clip, name: `child_${clip.name}` })));
   for (const clip of adult) {
     assert.equal(isClipName(clip.name, adult), true);
@@ -302,7 +345,7 @@ test('server writes a posted WAV, lists completion, and reads it back from the s
   const server = await createRecorderServer({ directory });
   let list = await request(server, '/clips');
   assert.equal(list.json.set, 'adult');
-  assert.equal(list.json.clips.length, 74);
+  assert.equal(list.json.clips.length, 101);
   assert.ok(list.json.clips.every((clip) => !clip.done));
   const response = await post(server, 'baruch_clean');
   assert.equal(response.status, 200);
@@ -320,22 +363,26 @@ test('server writes a posted WAV, lists completion, and reads it back from the s
   assert.equal((await request(childServer, '/clips')).json.set, 'child');
 });
 
-test('server lists, saves and plays the adult and child voice check like other clips', async (t) => {
+test('server lists, saves and plays both adult and child voice checks like other clips', async (t) => {
   const directory = await fixtureDirectory(t);
   for (const set of ['adult', 'child']) {
     const server = await createRecorderServer({ set, directory });
-    const name = `${set === 'child' ? 'child_' : ''}voice-check`;
+    const names = ['voice-check', 'voice-check-2'].map(name => `${set === 'child' ? 'child_' : ''}${name}`);
     const list = await request(server, '/clips');
-    assert.equal(list.json.clips.length, 74);
-    assert.equal(list.json.clips[0].name, name);
-    assert.equal(list.json.clips[0].kind, 'voice');
-    assert.equal((await post(server, name)).status, 200);
-    assert.deepEqual((await request(server, `/clip?name=${name}`)).body, wav);
-    assert.equal((await request(server, '/clips')).json.clips[0].done, true);
+    assert.equal(list.json.clips.length, 101);
+    const cards = list.json.clips.filter(clip => clip.kind === 'voice');
+    assert.deepEqual(cards.map(clip => clip.name), names);
+    assert.ok(cards.every(clip => clip.hebrew === VOICE_CARD.join(' ') && clip.say.split(' ').length === 15));
+    for (const name of names) {
+      assert.equal((await post(server, name)).status, 200);
+      assert.deepEqual((await request(server, `/clip?name=${name}`)).body, wav);
+      assert.equal((await request(server, '/clips')).json.clips.find(clip => clip.name === name).done, true);
+    }
   }
   const server = await createRecorderServer({ directory });
-  assert.deepEqual((await request(server, '/clips?set=child', { method: 'DELETE' })).json.deleted, ['child_voice-check.wav']);
-  assert.deepEqual(await readdir(directory), ['voice-check.wav']);
+  assert.deepEqual((await request(server, '/clips?set=child', { method: 'DELETE' })).json.deleted.sort(),
+    ['child_voice-check-2.wav', 'child_voice-check.wav']);
+  assert.deepEqual((await readdir(directory)).sort(), ['voice-check-2.wav', 'voice-check.wav']);
 });
 
 test('server rejects traversal, unknown names, wrong sets, wrong MIME, and cross-origin writes', async (t) => {
@@ -445,17 +492,172 @@ test('ear runner sends only audio, respects the model, and prints PASS and MISS 
     ear: async (audio, options) => {
       assert.deepEqual(audio, { data: wav, format: 'wav' });
       assert.deepEqual(options, { model: 'fallback', votes: 1 });
-      return ++calls === 1 ? [['O', 'MEYN']] : [['ba', 'ra', 'cha']];
+      return earAnswer(++calls === 1 ? [['O', 'MEYN']] : [['ba', 'ra', 'cha']]);
     } });
   assert.equal(calls, 2);
   assert.equal(result.code, 1);
   assert.match(output[0], /^Ear model: fallback \(.+\)$/);
-  assert.deepEqual(output.slice(1), ['Ear votes: 1 (fallback ear)', 'Vowel meter: off (no voice check recorded)',
+  assert.deepEqual(output.slice(1), ['Ear votes: 1 (fallback ear)', 'Voice card: none recorded', 'Vowel meter: off (no voice check recorded)',
     'Voice card to the ear: off (no voice check recorded)', 'Phoneme referee: off (no voice check recorded)',
-    'clip\tsaid\theard\tresult\tear\tmetered',
-    'omein_clean\to-meyn\tO-MEYN\tPASS\tO-MEYN\tO-MEYN',
-    'brocho_clean\tbe-ro-cho\tba-ra-cha\tMISS\tba-ra-cha\tba-ra-cha']);
+    'clip\tsaid\theard\tresult\tear\tmetered\tvotes',
+    'omein_clean\to-meyn\tO-MEYN\tPASS\tO-MEYN\tO-MEYN\tO-MEYN',
+    'brocho_clean\tbe-ro-cho\tba-ra-cha\tMISS\tba-ra-cha\tba-ra-cha\tba-ra-cha']);
   assert.ok((await store.list()).slice(0, 2).every((clip) => clip.done));
+});
+
+test('ear runner uses listen and logs every vote, including excluded word counts and error rows', async t => {
+  const directory = await fixtureDirectory(t);
+  const store = recordingStore(await loadClips(), directory);
+  for (const name of ['omein_clean', 'brocho_clean']) await store.save(name, wav);
+  const previous = process.env.META_API_KEY;
+  t.after(() => {
+    if (previous === undefined) delete process.env.META_API_KEY;
+    else process.env.META_API_KEY = previous;
+  });
+  process.env.META_API_KEY = 'offline-primary-placeholder';
+  const raws = ['a-meyn ba-ruch', 'o-meyn', 'o-meyn'];
+  let calls = 0;
+  t.mock.method(globalThis, 'fetch', async () => {
+    const raw = raws[calls++];
+    if (raw === undefined) throw new Error('private provider failure');
+    return Response.json({ choices: [{ message: { content: raw } }] });
+  });
+  const output = [];
+  const result = await runEar({ directory, model: 'primary', votes: 3, meter: false, card: false, referee: false,
+    log: line => output.push(line) });
+  assert.equal(calls, 6);
+  assert.equal(result.code, 1);
+  assert.deepEqual(output.slice(6), [
+    'clip\tsaid\theard\tresult\tear\tmetered\tvotes',
+    'omein_clean\to-meyn\to-meyn\tPASS\to-meyn\to-meyn\ta-meyn ba-ruch | o-meyn | o-meyn',
+    'brocho_clean\tbe-ro-cho\tERROR\tMISS\tERROR\tERROR\tERROR',
+  ]);
+  assert.equal(result.rows[0].votes, 'a-meyn ba-ruch | o-meyn | o-meyn');
+  assert.equal(result.rows[1].votes, 'ERROR');
+  assert.ok(output.every(line => !line.includes('private provider failure')));
+});
+
+test('the default voice card is the first recorded voice clip in list order for either set', async t => {
+  for (const set of ['adult', 'child']) {
+    const directory = await fixtureDirectory(t);
+    const store = recordingStore(await loadClips(set), directory);
+    const prefix = set === 'child' ? 'child_' : '';
+    const second = Buffer.from('second card');
+    const first = Buffer.from('first card');
+    await store.save(`${prefix}voice-check-2`, second);
+    for (const [name, audio] of [['voice-check-2', second], ['voice-check', first]]) {
+      if (name === 'voice-check') await store.save(`${prefix}${name}`, audio);
+      const output = [];
+      const calls = [];
+      await runEar({ set, directory, keep: true, meter: false, card: false, log: line => output.push(line),
+        ear: async () => assert.fail('no readings'), phonemes: async data => {
+          calls.push(data);
+          return null;
+        } });
+      assert.equal(output[2], `Voice card: ${prefix}${name}`);
+      assert.deepEqual(calls, [audio, audio]);
+    }
+  }
+});
+
+test('--card selects the card for the meter, ear reference and referee in either set', async t => {
+  for (const set of ['adult', 'child']) {
+    const directory = await fixtureDirectory(t);
+    const store = recordingStore(await loadClips(set), directory);
+    const prefix = set === 'child' ? 'child_' : '';
+    const voice = syntheticWav(cardLabels('ashkenazi'));
+    const reading = syntheticWav(['o', 'u']);
+    await store.save(`${prefix}voice-check`, syntheticWav(Array(15).fill('a')));
+    await store.save(`${prefix}voice-check-2`, voice);
+    await store.save(`${prefix}baruch_clean`, reading);
+    const output = [];
+    const calls = [];
+    let reads = 0;
+    const result = await runEar({ ...parseOptions(['--card', 'voice-check-2', '--set', set, '--model', 'primary'], 'ear'),
+      directory, log: line => output.push(line), ear: async (audio, options) => {
+        reads += 1;
+        assert.deepEqual(audio, { data: reading, format: 'wav' });
+        assert.deepEqual(options, { model: 'primary', votes: defaultVotes(), reference: { data: voice, format: 'wav' } });
+        return earAnswer([['ba', 'ruch']]);
+      }, phonemes: async data => {
+        calls.push(data);
+        return calls.length === 1 ? phonemeCard() : [phonemeVowel(0.9), { token: 'u', top: [['u', 1]] }];
+      } });
+    assert.equal(reads, 1);
+    assert.equal(result.code, 0);
+    assert.equal(output[2], `Voice card: ${prefix}voice-check-2`);
+    assert.equal(output[3], 'Vowel meter: on (ashkenazi voice check)');
+    assert.equal(output[4], 'Voice card to the ear: on');
+    assert.deepEqual(calls, [voice, reading]);
+    assert.deepEqual(result.rows, [{ clip: `${prefix}baruch_clean`, said: 'bo-ruch', heard: 'bo-ruch', result: 'PASS',
+      ear: 'ba-ruch', metered: 'bo-ruch', votes: 'ba-ruch' }]);
+    if (set === 'child') assert.deepEqual(await readdir(directory), []);
+  }
+});
+
+test('--card rejects unknown, non-voice and unrecorded clips before calling either service', async t => {
+  const directory = await fixtureDirectory(t);
+  const store = recordingStore(await loadClips(), directory);
+  for (const name of ['voice-check', 'baruch_clean', 'voice-check_patach-for-kamatz']) await store.save(name, wav);
+  let calls = 0;
+  const service = async () => { calls += 1; };
+  for (const [name, message] of [
+    ['missing-card', 'Voice card must name a voice clip: missing-card.'],
+    ['baruch_clean', 'Voice card must name a voice clip: baruch_clean.'],
+    ['voice-check_patach-for-kamatz', 'Voice card must name a voice clip: voice-check_patach-for-kamatz.'],
+    ['voice-check-2', 'Voice card is not recorded: voice-check-2.'],
+  ]) {
+    await assert.rejects(runEar({ ...parseOptions(['--card', name, '--no-meter', '--no-card', '--no-referee'], 'ear'),
+      directory, ear: service, phonemes: service, log: () => assert.fail('selection must be checked first') }), { message });
+  }
+  assert.equal(calls, 0);
+});
+
+test('--round filters recorded readings by exact section while the default grades all rounds', async t => {
+  for (const set of ['adult', 'child']) {
+    const directory = await fixtureDirectory(t);
+    const clips = await loadClips(set);
+    const store = recordingStore(clips, directory);
+    const prefix = set === 'child' ? 'child_' : '';
+    const names = ['gal_clean', 'sal_clean', 'shiro_clean', 'baruch_clean', 'voice-check-2', 'kamatz-card_clean'];
+    for (const name of names) await store.save(`${prefix}${name}`, Buffer.from(name));
+    for (const round of ['Round 1g', undefined]) {
+      const readings = [];
+      const output = [];
+      const result = await runEar({ ...parseOptions(['--set', set, '--keep', '--no-meter', '--no-card', '--no-referee',
+        ...(round === undefined ? [] : ['--round', round])], 'ear'), directory,
+        log: line => output.push(line), ear: async audio => {
+          const name = audio.data.toString();
+          readings.push(name);
+          const clip = clips.find(clip => clip.name === `${prefix}${name}`);
+          return earAnswer(clip.say.split(' ').map(word => word.split('-')));
+        } });
+      const expected = round === 'Round 1g' ? ['sal_clean', 'shiro_clean'] : names.slice(0, 4);
+      assert.equal(result.code, 0);
+      assert.deepEqual(readings, expected);
+      assert.deepEqual(result.rows.map(row => row.clip), expected.map(name => `${prefix}${name}`));
+      assert.equal(output[2], `Voice card: ${prefix}voice-check-2`);
+    }
+  }
+});
+
+test('--round rejects unknown sections and sections without recorded readings before either service', async t => {
+  const directory = await fixtureDirectory(t);
+  const store = recordingStore(await loadClips(), directory);
+  for (const name of ['voice-check', 'gal_clean', 'kamatz-card_clean']) await store.save(name, wav);
+  let calls = 0;
+  const service = async () => { calls += 1; };
+  for (const [round, message] of [
+    ['Round 9', 'Unknown section: Round 9.'],
+    ['round 1f', 'Unknown section: round 1f.'],
+    ['Round 1g', 'No recorded readings in section: Round 1g.'],
+    ['Voice check', 'No recorded readings in section: Voice check.'],
+    ['Card tests', 'No recorded readings in section: Card tests.'],
+  ]) {
+    await assert.rejects(runEar({ ...parseOptions(['--round', round], 'ear'), directory,
+      ear: service, phonemes: service, log: () => assert.fail('selection must be checked first') }), { message });
+  }
+  assert.equal(calls, 0);
 });
 
 test('voice check calibrates metered heard sounds while preserving ear sounds and audio-only calls', async (t) => {
@@ -474,19 +676,19 @@ test('voice check calibrates metered heard sounds while preserving ear sounds an
       calls += 1;
       assert.deepEqual(audio, { data: reading, format: 'wav' });
       assert.deepEqual(options, { model: 'primary', votes: defaultVotes(), reference: { data: voice, format: 'wav' } });
-      return earWords;
+      return earAnswer(earWords);
     } });
   assert.equal(calls, 1);
   assert.equal(result.code, 0);
   assert.equal(output[1], `Ear votes: ${defaultVotes()}`);
-  assert.equal(output[2], 'Vowel meter: on (ashkenazi voice check)');
-  assert.equal(output[3], 'Voice card to the ear: on');
-  assert.equal(output[4], 'Phoneme referee: off (no answer from the phoneme service)');
-  assert.equal(output[5], 'clip\tsaid\theard\tresult\tear\tmetered');
-  assert.equal(output[6], 'baruch_clean\tbo-ruch\tbo-ruch\tPASS\tba-ruch\tbo-ruch');
-  assert.equal(output.length, 7);
+  assert.equal(output[3], 'Vowel meter: on (ashkenazi voice check)');
+  assert.equal(output[4], 'Voice card to the ear: on');
+  assert.equal(output[5], 'Phoneme referee: off (no answer from the phoneme service)');
+  assert.equal(output[6], 'clip\tsaid\theard\tresult\tear\tmetered\tvotes');
+  assert.equal(output[7], 'baruch_clean\tbo-ruch\tbo-ruch\tPASS\tba-ruch\tbo-ruch\tba-ruch');
+  assert.equal(output.length, 8);
   assert.deepEqual(result.rows, [{ clip: 'baruch_clean', said: 'bo-ruch', heard: 'bo-ruch', result: 'PASS',
-    ear: 'ba-ruch', metered: 'bo-ruch' }]);
+    ear: 'ba-ruch', metered: 'bo-ruch', votes: 'ba-ruch' }]);
   assert.deepEqual(earWords, [['ba', 'ruch']]);
 });
 
@@ -503,13 +705,13 @@ test('--no-meter leaves heard and ear columns equal and omits an unusable voice 
       calls += 1;
       assert.deepEqual(audio.data, reading);
       assert.deepEqual(options, { model: defaultEarModel(), votes: defaultEarModel() === 'fallback' ? 1 : defaultVotes() });
-      return [['ba', 'ruch']];
+      return earAnswer([['ba', 'ruch']]);
     } });
   assert.equal(calls, 1);
   assert.equal(result.code, 1);
-  assert.equal(output[2], 'Vowel meter: off (--no-meter)');
-  assert.equal(output[3], 'Voice card to the ear: off (voice check unusable)');
-  assert.equal(output[6], 'baruch_clean\tbo-ruch\tba-ruch\tMISS\tba-ruch\tba-ruch');
+  assert.equal(output[3], 'Vowel meter: off (--no-meter)');
+  assert.equal(output[4], 'Voice card to the ear: off (voice check unusable)');
+  assert.equal(output[7], 'baruch_clean\tbo-ruch\tba-ruch\tMISS\tba-ruch\tba-ruch\tba-ruch');
   assert.equal(result.rows[0].heard, result.rows[0].ear);
 });
 
@@ -540,12 +742,12 @@ test('missing and unusable voice checks log meter status and fall back to the ea
       calls += 1;
       assert.deepEqual(audio.data, reading);
       assert.deepEqual(options, { model: defaultEarModel(), votes: defaultEarModel() === 'fallback' ? 1 : defaultVotes() });
-      return [['ba', 'ruch']];
+      return earAnswer([['ba', 'ruch']]);
     } });
     assert.equal(calls, 1);
-    assert.equal(output[2], `Vowel meter: ${status}`);
-    assert.equal(output[3], `Voice card to the ear: ${voice ? 'off (voice check unusable)' : 'off (no voice check recorded)'}`);
-    assert.equal(output[6], 'baruch_clean\tbo-ruch\tba-ruch\tMISS\tba-ruch\tba-ruch');
+    assert.equal(output[3], `Vowel meter: ${status}`);
+    assert.equal(output[4], `Voice card to the ear: ${voice ? 'off (voice check unusable)' : 'off (no voice check recorded)'}`);
+    assert.equal(output[7], 'baruch_clean\tbo-ruch\tba-ruch\tMISS\tba-ruch\tba-ruch\tba-ruch');
     assert.equal(result.rows[0].heard, result.rows[0].ear);
   }
 });
@@ -566,10 +768,10 @@ test('voice check is a reference for every reading even when the meter is disabl
       assert.deepEqual(audio, { data: reading, format: 'wav' });
       assert.deepEqual(options, { model: 'primary', votes: defaultVotes(), reference: { data: voice, format: 'wav' } });
       calls += 1;
-      return [['ba', 'ruch']];
+      return earAnswer([['ba', 'ruch']]);
     } });
   assert.equal(calls, 2);
-  assert.deepEqual(output.slice(2, 4), ['Vowel meter: off (--no-meter)', 'Voice card to the ear: on']);
+  assert.deepEqual(output.slice(3, 5), ['Vowel meter: off (--no-meter)', 'Voice card to the ear: on']);
   assert.ok(result.rows.every(row => row.heard === 'ba-ruch' && row.ear === 'ba-ruch'));
 });
 
@@ -588,11 +790,11 @@ test('merged vowels omit the voice card with the meter on or off', async t => {
         calls += 1;
         assert.deepEqual(audio, { data: reading, format: 'wav' });
         assert.deepEqual(options, { model: 'primary', votes: defaultVotes() });
-        return [['ba', 'ruch']];
+        return earAnswer([['ba', 'ruch']]);
       } });
     assert.equal(calls, 1);
-    assert.equal(output[2], meter ? 'Vowel meter: on (ashkenazi voice check)' : 'Vowel meter: off (--no-meter)');
-    assert.equal(output[3], 'Voice card to the ear: off (vowels merged on the card)');
+    assert.equal(output[3], meter ? 'Vowel meter: on (ashkenazi voice check)' : 'Vowel meter: off (--no-meter)');
+    assert.equal(output[4], 'Voice card to the ear: off (vowels merged on the card)');
     assert.equal(result.rows[0].heard, 'ba-ruch');
   }
 });
@@ -614,12 +816,12 @@ test('a usable Chassidish voice check omits the card while the same audio is a r
         const expected = { model: 'primary', votes: defaultVotes() };
         if (preset === 'ashkenazi') expected.reference = { data: voice, format: 'wav' };
         assert.deepEqual(options, expected);
-        return [['bo', 'ruch']];
+        return earAnswer([['bo', 'ruch']]);
       } });
     assert.equal(calls, 1);
     assert.equal(result.code, 0);
-    assert.equal(output[2], `Vowel meter: on (${preset} voice check)`);
-    assert.equal(output[3], `Voice card to the ear: ${preset === 'chassidish'
+    assert.equal(output[3], `Vowel meter: on (${preset} voice check)`);
+    assert.equal(output[4], `Voice card to the ear: ${preset === 'chassidish'
       ? 'off (kamatz not checked on the card)' : 'on'}`);
   }
 });
@@ -635,12 +837,12 @@ test('the fallback ear never gets the card, so the runner reports it off', async
     log: line => output.push(line), ear: async (_audio, options) => {
       assert.deepEqual(options, { model: 'fallback', votes: 1 });
       calls += 1;
-      return [['bo', 'ruch']];
+      return earAnswer([['bo', 'ruch']]);
     } });
   assert.equal(calls, 1);
   assert.equal(result.code, 0);
-  assert.deepEqual(output.slice(1, 4), [
-    'Ear votes: 1 (fallback ear)', 'Vowel meter: on (ashkenazi voice check)', 'Voice card to the ear: off (fallback ear)',
+  assert.deepEqual(output.slice(1, 5), [
+    'Ear votes: 1 (fallback ear)', 'Voice card: voice-check', 'Vowel meter: on (ashkenazi voice check)', 'Voice card to the ear: off (fallback ear)',
   ]);
 });
 
@@ -655,19 +857,19 @@ test('--no-card omits the reference while leaving the vowel meter enabled', asyn
     log: line => output.push(line), ear: async (_audio, options) => {
       assert.deepEqual(options, { model: 'primary', votes: defaultVotes() });
       calls += 1;
-      return [['ba', 'ruch']];
+      return earAnswer([['ba', 'ruch']]);
     } });
   assert.equal(calls, 1);
   assert.equal(result.code, 0);
   assert.equal(result.rows[0].heard, 'bo-ruch');
   assert.equal(result.rows[0].ear, 'ba-ruch');
-  assert.deepEqual(output.slice(2, 4), [
+  assert.deepEqual(output.slice(3, 5), [
     'Vowel meter: on (ashkenazi voice check)', 'Voice card to the ear: off (--no-card)',
   ]);
   await store.remove('voice-check');
   output.length = 0;
-  await runEar({ directory, meter: false, card: false, log: line => output.push(line), ear: async () => [['ba']] });
-  assert.equal(output[3], 'Voice card to the ear: off (--no-card)');
+  await runEar({ directory, meter: false, card: false, log: line => output.push(line), ear: async () => earAnswer([['ba']]) });
+  assert.equal(output[4], 'Voice card to the ear: off (--no-card)');
 });
 
 test('ear runner uses the selected preset for voice card labels', async (t) => {
@@ -677,10 +879,10 @@ test('ear runner uses the selected preset for voice card labels', async (t) => {
   await store.save('ani_clean', syntheticWav(['a', 'i']));
   const output = [];
   const result = await runEar({ ...parseOptions(['--preset', 'sephardi'], 'ear'), directory,
-    log: line => output.push(line), ear: async () => [['a', 'ne']] });
+    log: line => output.push(line), ear: async () => earAnswer([['a', 'ne']]) });
   assert.equal(result.code, 0);
-  assert.equal(output[2], 'Vowel meter: on (sephardi voice check)');
-  assert.equal(output[6], 'ani_clean\ta-ni\ta-ni\tPASS\ta-ne\ta-ni');
+  assert.equal(output[3], 'Vowel meter: on (sephardi voice check)');
+  assert.equal(output[7], 'ani_clean\ta-ni\ta-ni\tPASS\ta-ne\ta-ni\ta-ne');
 });
 
 test('child runner deletes voice checks after success, ear failure and voice-only runs, unless kept', async (t) => {
@@ -697,7 +899,7 @@ test('child runner deletes voice checks after success, ear failure and voice-onl
         calls += 1;
         assert.deepEqual(audio.data, reading);
         if (mode === 'failure') throw new Error('Synthetic ear failure');
-        return [['ba', 'ruch']];
+        return earAnswer([['ba', 'ruch']]);
       } });
     assert.equal(calls, ['voice-only', 'disabled'].includes(mode) ? 0 : 1);
     assert.equal(result.rows.length, calls);
@@ -723,15 +925,15 @@ test('child runner prints then deletes each clip before the next call, including
     }
   }, ear: async () => {
     calls += 1;
-    if (calls === 1) return [['o', 'meyn']];
+    if (calls === 1) return earAnswer([['o', 'meyn']]);
     await assert.rejects(access(join(directory, `${clips[0].name}.wav`)));
-    assert.equal(output.length, 7);
+    assert.equal(output.length, 8);
     throw new Error('Provider error that must not be printed');
   } });
   assert.equal(result.code, 1);
   assert.equal(calls, 2);
   assert.deepEqual(await readdir(directory), ['baruch_clean.wav']);
-  assert.equal(output[7], 'child_brocho_clean\tbe-ro-cho\tERROR\tMISS\tERROR\tERROR');
+  assert.equal(output[8], 'child_brocho_clean\tbe-ro-cho\tERROR\tMISS\tERROR\tERROR\tERROR');
   assert.ok(output.every((line) => !line.includes('Provider error')));
 });
 
@@ -741,7 +943,7 @@ test('--keep retains child audio and an all-PASS run succeeds', async (t) => {
   await recordingStore(clips, directory).save(clips[0].name, wav);
   const result = await runEar({ set: 'child', keep: true, directory, log: () => {}, ear: async (_audio, options) => {
     assert.deepEqual(options, { model: defaultEarModel(), votes: defaultEarModel() === 'fallback' ? 1 : defaultVotes() });
-    return [['o', 'meyn']];
+    return earAnswer([['o', 'meyn']]);
   } });
   assert.equal(result.code, 0);
   assert.deepEqual(await readFile(join(directory, `${clips[0].name}.wav`)), wav);
@@ -793,6 +995,42 @@ test('CLI flags have safe defaults and reject invalid sets, models, presets, por
   for (const args of [['--preset'], ['--preset', 'unknown'], ['--preset', 'toString']]) {
     assert.throws(() => parseOptions(args, 'ear'), /^Error: Preset must be one of: sephardi, ashkenazi, chassidish$/);
   }
+});
+
+test('--card and --round parse independently of the set and ear feature flags and require values', () => {
+  const options = parseOptions(['--card', 'voice-check-2', '--round', 'Round 1g', '--set', 'child', '--no-card'], 'ear');
+  assert.equal(options.cardName, 'voice-check-2');
+  assert.equal(options.round, 'Round 1g');
+  assert.equal(options.set, 'child');
+  assert.equal(options.card, false);
+  assert.equal(parseOptions([], 'ear').cardName, undefined);
+  assert.equal(parseOptions([], 'ear').round, undefined);
+  for (const [flag, message] of [
+    ['--card', 'Card name must be supplied with --card.'],
+    ['--round', 'Round section must be supplied with --round.'],
+  ]) {
+    for (const args of [[flag], [flag, ''], [flag, '  '], [flag, '--no-meter']]) {
+      assert.throws(() => parseOptions(args, 'ear'), { message });
+    }
+    assert.throws(() => parseOptions([flag, 'anything'], 'server'), /Unknown option:/);
+  }
+});
+
+test('ear CLI displays clear card and round selection errors', async t => {
+  const errors = [];
+  t.mock.method(console, 'error', line => errors.push(line));
+  t.mock.method(console, 'log', () => assert.fail('invalid selection'));
+  t.mock.method(globalThis, 'fetch', async () => assert.fail('invalid selection must not call a service'));
+  for (const [args, message] of [
+    [['--card'], 'Card name must be supplied with --card.'],
+    [['--round'], 'Round section must be supplied with --round.'],
+    [['--card', 'missing-card'], 'Voice card must name a voice clip: missing-card.'],
+    [['--round', 'Round 9'], 'Unknown section: Round 9.'],
+  ]) {
+    assert.equal(await earMain(args), 1);
+    assert.equal(errors.at(-1), message);
+  }
+  assert.equal(errors.length, 4);
 });
 
 test('--no-card parses independently of --no-meter and is only an ear option', () => {
@@ -850,12 +1088,12 @@ for (const [mode, expected] of [
         return mode === 'unavailable' ? null : mode === 'count' ? []
           : mode === 'merged' ? phonemeCard(0.55, 0.6) : phonemeCard();
       }, ear: async () => assert.fail('no readings'), log: line => output.push(line) });
-    assert.equal(output[3], 'Voice card to the ear: off (--no-card)');
-    assert.equal(output[4], `Phoneme referee: ${expected}`);
-    assert.equal(output[5], 'clip\tsaid\theard\tresult\tear\tmetered');
+    assert.equal(output[4], 'Voice card to the ear: off (--no-card)');
+    assert.equal(output[5], `Phoneme referee: ${expected}`);
+    assert.equal(output[6], 'clip\tsaid\theard\tresult\tear\tmetered\tvotes');
     assert.deepEqual(calls, ['disabled', 'missing'].includes(mode) ? []
       : ['unavailable', 'throws'].includes(mode) ? [[card], [card]] : [[card]]);
-    assert.deepEqual(output.slice(6), mode === 'on' ? ['Phoneme referee: checked 0 of 0 readings'] : []);
+    assert.deepEqual(output.slice(7), mode === 'on' ? ['Phoneme referee: checked 0 of 0 readings'] : []);
     assert.ok(output.every(line => !line.includes('private failure')));
   });
 }
@@ -874,15 +1112,15 @@ test('referee calibrates once and grades final sounds while keeping ear and mete
     phonemes: async (...args) => {
       calls.push(args);
       return calls.length === 1 ? phonemeCard() : [phonemeVowel(0.9), phonemeVowel(0.8)];
-    }, ear: async () => ++reads === 1 ? [['ga', 'mal']] : [['ka', 'tan']], log: line => output.push(line) });
+    }, ear: async () => earAnswer(++reads === 1 ? [['ga', 'mal']] : [['ka', 'tan']]), log: line => output.push(line) });
   assert.equal(result.code, 0);
   assert.deepEqual(calls, [[card], [reading], [reading]]);
   assert.deepEqual(result.rows, [
-    { clip: 'gomol_clean', said: 'go-mol', heard: 'go-mol', result: 'PASS', ear: 'ga-mal', metered: 'ga-mal' },
-    { clip: 'koton_clean', said: 'ko-ton', heard: 'ko-ton', result: 'PASS', ear: 'ka-tan', metered: 'ka-tan' },
+    { clip: 'gomol_clean', said: 'go-mol', heard: 'go-mol', result: 'PASS', ear: 'ga-mal', metered: 'ga-mal', votes: 'ga-mal' },
+    { clip: 'koton_clean', said: 'ko-ton', heard: 'ko-ton', result: 'PASS', ear: 'ka-tan', metered: 'ka-tan', votes: 'ka-tan' },
   ]);
-  assert.equal(output[7], 'koton_clean\tko-ton\tko-ton\tPASS\tka-tan\tka-tan');
-  assert.deepEqual(output.slice(8), ['Phoneme referee: checked 2 of 2 readings']);
+  assert.equal(output[8], 'koton_clean\tko-ton\tko-ton\tPASS\tka-tan\tka-tan\tka-tan');
+  assert.deepEqual(output.slice(9), ['Phoneme referee: checked 2 of 2 readings']);
 });
 
 test('referee runs after the meter and can undo its o while preserving the metered column', async t => {
@@ -892,13 +1130,13 @@ test('referee runs after the meter and can undo its o while preserving the meter
   await store.save('baruch_clean', syntheticWav(['o', 'u']));
   let calls = 0;
   const output = [];
-  const result = await runEar({ directory, ear: async () => [['ba', 'ruch']],
+  const result = await runEar({ directory, ear: async () => earAnswer([['ba', 'ruch']]),
     phonemes: async () => ++calls === 1 ? phonemeCard()
       : [phonemeVowel(0.07), { token: 'u', top: [['u', 1]] }], log: line => output.push(line) });
   assert.equal(result.code, 1);
   assert.deepEqual(result.rows, [{ clip: 'baruch_clean', said: 'bo-ruch', heard: 'ba-ruch', result: 'MISS',
-    ear: 'ba-ruch', metered: 'bo-ruch' }]);
-  assert.equal(output[6], 'baruch_clean\tbo-ruch\tba-ruch\tMISS\tba-ruch\tbo-ruch');
+    ear: 'ba-ruch', metered: 'bo-ruch', votes: 'ba-ruch' }]);
+  assert.equal(output[7], 'baruch_clean\tbo-ruch\tba-ruch\tMISS\tba-ruch\tbo-ruch\tba-ruch');
 });
 
 for (const failure of ['null', 'throws', 'count', 'object', 'unreadable']) {
@@ -909,7 +1147,7 @@ for (const failure of ['null', 'throws', 'count', 'object', 'unreadable']) {
     await store.save('baruch_clean', syntheticWav(['o', 'u']));
     let calls = 0;
     const output = [];
-    const result = await runEar({ directory, ear: async () => [['ba', 'ruch']], log: line => output.push(line),
+    const result = await runEar({ directory, ear: async () => earAnswer([['ba', 'ruch']]), log: line => output.push(line),
       phonemes: async () => {
         if (++calls === 1) return phonemeCard();
         if (failure === 'throws') throw new Error('private failure');
@@ -921,11 +1159,11 @@ for (const failure of ['null', 'throws', 'count', 'object', 'unreadable']) {
     assert.equal(result.rows[0].heard, 'bo-ruch');
     assert.equal(result.rows[0].metered, 'bo-ruch');
     assert.equal(calls, ['count', 'unreadable'].includes(failure) ? 2 : 3);
-    assert.deepEqual(output.slice(7), ['Phoneme referee: checked 0 of 1 readings', failure === 'count'
+    assert.deepEqual(output.slice(8), ['Phoneme referee: checked 0 of 1 readings', failure === 'count'
       ? 'Phoneme referee: vowels did not line up for baruch_clean'
       : failure === 'unreadable' ? 'Phoneme referee: failed on baruch_clean'
         : 'Phoneme referee: no answer for baruch_clean']);
-    assert.ok(output.slice(7).every(line => !line.includes('\t') && !line.includes('private failure')));
+    assert.ok(output.slice(8).every(line => !line.includes('\t') && !line.includes('private failure')));
   });
 }
 
@@ -944,7 +1182,7 @@ for (const failure of ['null', 'throws']) {
       ear: async (audio) => {
         reads += 1;
         assert.deepEqual(audio, { data: reading, format: 'wav' });
-        return [['ga', 'mal']];
+        return earAnswer([['ga', 'mal']]);
       }, phonemes: async (...args) => {
         calls.push(args);
         if (calls.length === 1) return phonemeCard();
@@ -959,8 +1197,8 @@ for (const failure of ['null', 'throws']) {
     assert.strictEqual(calls[1][0], calls[2][0]);
     assert.equal(result.code, 0);
     assert.deepEqual(result.rows, [{ clip: 'gomol_clean', said: 'go-mol', heard: 'go-mol', result: 'PASS',
-      ear: 'ga-mal', metered: 'ga-mal' }]);
-    assert.deepEqual(output.slice(7), ['Phoneme referee: checked 1 of 1 readings']);
+      ear: 'ga-mal', metered: 'ga-mal', votes: 'ga-mal' }]);
+    assert.deepEqual(output.slice(8), ['Phoneme referee: checked 1 of 1 readings']);
   });
 
   test(`a voice card with a ${failure} phoneme answer is retried once`, async t => {
@@ -982,8 +1220,8 @@ for (const failure of ['null', 'throws']) {
     assert.equal(result.code, 1);
     assert.deepEqual(calls, [[card], [card]]);
     assert.strictEqual(calls[0][0], calls[1][0]);
-    assert.equal(output[4], 'Phoneme referee: on (o 0.91, a 0.43, line 0.50)');
-    assert.deepEqual(output.slice(6), ['Phoneme referee: checked 0 of 0 readings']);
+    assert.equal(output[5], 'Phoneme referee: on (o 0.91, a 0.43, line 0.50)');
+    assert.deepEqual(output.slice(7), ['Phoneme referee: checked 0 of 0 readings']);
   });
 }
 
@@ -1002,7 +1240,7 @@ test('referee summary lists missed readings in order, excludes ear failures and 
       if (reads) await assert.rejects(access(join(directory, `${readings[reads - 1].name}.wav`)));
       reads += 1;
       if (reads === 5) throw new Error('private failure');
-      return [readings[reads - 1].say.split('-')];
+      return earAnswer([readings[reads - 1].say.split('-')]);
     }, phonemes: async () => {
       calls += 1;
       if (calls === 1) return phonemeCard();
@@ -1013,13 +1251,13 @@ test('referee summary lists missed readings in order, excludes ear failures and 
   assert.equal(calls, 7);
   assert.equal(result.rows.length, 5);
   assert.equal(result.rows[4].heard, 'ERROR');
-  assert.deepEqual(output.slice(11), [
+  assert.deepEqual(output.slice(12), [
     'Phoneme referee: checked 1 of 4 readings',
     'Phoneme referee: no answer for child_brocho_clean, child_shomayim_clean',
     'Phoneme referee: vowels did not line up for child_dovor_clean',
   ]);
-  assert.ok(output.slice(11).every(line => !line.includes('\t')));
-  assert.ok(output.slice(5, 11).every(line => line.split('\t').length === 6));
+  assert.ok(output.slice(12).every(line => !line.includes('\t')));
+  assert.ok(output.slice(6, 12).every(line => line.split('\t').length === 7));
   assert.deepEqual(await readdir(directory), []);
 });
 
@@ -1063,7 +1301,7 @@ test('ear runner passes --votes and prints the count immediately after the model
       log: line => output.push(line), ear: async (_audio, options) => {
         calls += 1;
         assert.deepEqual(options, { model: 'primary', votes });
-        return [['o', 'meyn']];
+        return earAnswer([['o', 'meyn']]);
       } });
     assert.equal(result.code, 0);
     assert.equal(calls, 1);
@@ -1093,7 +1331,7 @@ test('ear runner and options read EAR_VOTES while fallback always uses one', asy
     const result = await runEar({ ...settings, directory, log: text => output.push(text), ear: async (_audio, options) => {
       calls += 1;
       assert.deepEqual(options, { model: settings.model, votes });
-      return [['o', 'meyn']];
+      return earAnswer([['o', 'meyn']]);
     } });
     assert.equal(calls, 1);
     assert.equal(result.code, 0);
@@ -1134,7 +1372,7 @@ test('ear runner and CLI select and print the default model and honor explicit o
     const result = await runEar({ directory, log: line => output.push(line), ear: async (_audio, options) => {
       assert.equal(options.model, model);
       assert.equal(options.votes, votes);
-      return [['o', 'meyn']];
+      return earAnswer([['o', 'meyn']]);
     } });
     assert.equal(result.code, 0);
     assert.equal(output[0], `Ear model: ${model} (${id})`);
@@ -1148,7 +1386,7 @@ test('ear runner and CLI select and print the default model and honor explicit o
   await runEar({ ...explicit, directory, log: line => output.push(line), ear: async (_audio, options) => {
     assert.equal(options.model, 'primary');
     assert.equal(options.votes, defaultVotes());
-    return [['o', 'meyn']];
+    return earAnswer([['o', 'meyn']]);
   } });
   assert.equal(output[0], 'Ear model: primary (test-primary-model)');
   assert.equal(output[1], `Ear votes: ${defaultVotes()}`);
