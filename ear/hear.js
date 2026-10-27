@@ -3,6 +3,9 @@ import { readFile, stat } from 'node:fs/promises';
 import { extname } from 'node:path';
 import './env.js';
 import { looksLikeProse, parseEarOutput } from './parse.js';
+import { defaultVotes } from './votes.js';
+
+export { defaultVotes } from './votes.js';
 
 const prompt = readFileSync(new URL('./prompt.md', import.meta.url), 'utf8');
 const cardPrompt = readFileSync(new URL('./prompt-card.md', import.meta.url), 'utf8');
@@ -139,11 +142,6 @@ async function request(provider, audio, fetcher, reference) {
   }
 }
 
-export function defaultVotes(env = process.env) {
-  const votes = Number(env.EAR_VOTES);
-  return Number.isInteger(votes) && votes >= 1 && votes <= 5 ? votes : 3;
-}
-
 function mostCommon(values, key = value => value) {
   const counts = new Map();
   for (const value of values) {
@@ -163,7 +161,7 @@ function mostCommon(values, key = value => value) {
 }
 
 export function combineAnswers(answers) {
-  const readings = answers.map(answer => answer.words ?? answer);
+  const readings = answers.map(answer => answer.words ?? answer).filter(words => words.length > 0);
   const wordCount = mostCommon(readings.map(words => words.length));
   const matching = readings.filter(words => words.length === wordCount);
   return matching[0]?.map((_, index) => mostCommon(

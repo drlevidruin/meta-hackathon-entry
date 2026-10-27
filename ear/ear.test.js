@@ -240,6 +240,49 @@ test('combineAnswers chooses the most common word count with the earliest breaki
   }
 });
 
+test('combineAnswers ignores empty readings and keeps the earliest remaining ties', () => {
+  const words = [['ko', 'voyd']];
+  for (const answers of [
+    [[], [], words],
+    [[], words, []],
+    [words, [], []],
+    [[], words, [['ka', 'voyd']]],
+    [[], words, [['ka', 'voyd'], ['ba', 'ruch']]],
+  ]) {
+    assert.deepEqual(combineAnswers(answers), words);
+    assert.deepEqual(combineAnswers(answers.map(words => ({ words }))), words);
+  }
+});
+
+test('combineAnswers keeps all-empty and single answers unchanged', () => {
+  const words = [['ko', 'voyd']];
+  for (const [answers, expected] of [
+    [[], []],
+    [[[]], []],
+    [[[], []], []],
+    [[words], words],
+  ]) {
+    assert.deepEqual(combineAnswers(answers), expected);
+    assert.deepEqual(combineAnswers(answers.map(words => ({ words }))), expected);
+  }
+});
+
+test('listen keeps real words when two primary replies parse to no words without fallback', async t => {
+  setKeys(t);
+  for (const empty of ['Sounds:', '---']) {
+    const raws = [empty, empty, 'ko-voyd'];
+    const models = [];
+    const result = await listen(audio, { votes: 3, fetch: async (_url, init) => {
+      const raw = raws[models.length];
+      models.push(JSON.parse(init.body).model);
+      return answer(raw);
+    } });
+    assert.deepEqual(result.words, [['ko', 'voyd']]);
+    assert.deepEqual(result.votes, { asked: 3, answered: 3 });
+    assert.deepEqual(models, [PRIMARY, PRIMARY, PRIMARY]);
+  }
+});
+
 test('listen uses defaultVotes when votes is missing', async t => {
   setKeys(t);
   const previous = process.env.EAR_VOTES;

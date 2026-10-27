@@ -1,5 +1,5 @@
 import { checkSet } from './clips.js';
-import { defaultVotes } from '../../ear/hear.js';
+import { defaultVotes } from '../../ear/votes.js';
 import { PRESETS } from '../../rulebook/index.js';
 
 export function defaultEarModel(env = process.env) {

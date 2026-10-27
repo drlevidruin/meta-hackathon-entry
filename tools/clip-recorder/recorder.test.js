@@ -724,6 +724,16 @@ test('child audio is still deleted when printing fails; empty sets make no ear c
   assert.equal((await runEar({ directory, log: () => {}, ear: async () => { assert.fail('No recordings'); } })).code, 1);
 });
 
+test('recorder options use dependency-free vote defaults without importing the ear', async () => {
+  const [votes, options] = await Promise.all([
+    readFile(new URL('../../ear/votes.js', import.meta.url), 'utf8'),
+    readFile(new URL('./options.js', import.meta.url), 'utf8'),
+  ]);
+  assert.doesNotMatch(votes, /\bimport\b/);
+  assert.doesNotMatch(options, /['"]\.\.\/\.\.\/ear\/hear\.js['"]/);
+  assert.match(options, /from ['"]\.\.\/\.\.\/ear\/votes\.js['"]/);
+});
+
 test('CLI flags have safe defaults and reject invalid sets, models, presets, ports and unknown flags', () => {
   assert.deepEqual(parseOptions([], 'server'), { set: 'adult', port: 8790 });
   assert.deepEqual(parseOptions(['--set', 'child', '--port', '9123'], 'server'), { set: 'child', port: 9123 });
