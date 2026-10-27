@@ -32,7 +32,7 @@ In Roster, tap Edit for Nubo, choose Level 2, then Save. Leave all three unread 
 2. `בֻּץ בִּיךְ בִּן בֵּין בִּיל`. Read as printed.
 3. `דָן אָץ דָךְ רָן לָם`. Read as printed.
 
-Read every other sound in Ashkenazi pronunciation, the preset Nubo uses. A sound read another way gets its own amber mark. In a rehearsal with an Israeli synthetic voice, line 1 showed three extra amber marks for that reason.
+Read every other sound in Ashkenazi pronunciation, the preset Nubo uses. A sound read another way gets its own amber mark. In a rehearsal with an Israeli synthetic voice, line 1 showed three extra amber marks for that reason. The October 27 adult round found the same with a real Ashkenazi voice: the ear wrote Israeli vowels, so correct Ashkenazi vowels may show amber until an ear passes. See the [ear test](ear-test.md#round-1-results-october-27).
 
 Allow microphone access before capture. For each line, tap the microphone, read the whole line without a long pause, then stay quiet. Recording stops by itself about a second after speech ends, with a 20 second maximum. Never tap again after it stops. Wait for the marks before reading the next line.
 

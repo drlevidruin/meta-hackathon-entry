@@ -40,13 +40,13 @@ flowchart LR
 
 ## Meta models, and what we learned
 
-The [ear test notes](docs/ear-test.md) record the synthetic trials. The [live run](docs/live-run.md) records a full turn through the server.
+The [ear test notes](docs/ear-test.md) record the synthetic trials and the adult round. The [live run](docs/live-run.md) records a full turn through the server.
 
 | Job | Meta model | What happened |
 | --- | --- | --- |
 | Ear | Muse Spark 1.3 | Corrected children toward real words: it heard `sha-vos` and wrote `sha-bos`. With made-up example sounds in the prompt, it wrote the planted mistake on 1 and then 4 of the 7 plants, and wrote `?` on 7 and then 4 of the 13 clips. |
 | Ear | Muse Spark 1.2 | Answered in English prose on about a third of the clips with the first prompt. With made-up example sounds, it wrote 2 of the 7 plants in each run and answered in prose on 3 and then 2 of the 13 clips. Prose counts as a failed call. |
-| Ear | Muse Wonder 1.0 (`muse-wonder-1.0`), Meta Model API | Chosen. Wrote the planted mistake on 5 of the 7 plants in each of two runs, with no prose. Minimal reasoning brought it to 2.4 seconds a clip, from about 15. Used as the ear in the full server run. |
+| Ear | Muse Wonder 1.0 (`muse-wonder-1.0`), Meta Model API | Chosen. Wrote the planted mistake on 5 of the 7 plants in each of two runs, with no prose. Minimal reasoning brought it to 2.4 seconds a clip, from about 15. Used as the ear in the full server run. On a real adult voice the grader marked 9 of 10 planted mistakes from its answers, but it wrote Israeli vowels for an Ashkenazi reading, so the adult round did not pass. |
 | Ear | Muse Voice Transcribe 1.0, Meta transcription API | Tried and rejected. Fast, but writes words, corrects toward real ones and drops nikud. |
 | Ear | Muse Spark Open (`meta-models/muse-spark-open-1026`), Baseten | Wired as the primary ear, not yet run. |
 | Coach | Muse Spark 1.3 (`muse-spark-1.3`), Meta Model API | First failed live by spending its whole 2,000 token limit on reasoning. With 16,000 tokens and minimal reasoning, answered 7 of 7 checkpoints in the live run. All picks passed validation. |
@@ -55,13 +55,13 @@ Meta may train on content sent in contributor mode, so only standard tier is use
 
 ## What the tests show so far
 
-### Status as of 2026-10-26
+### Status as of 2026-10-27
 
 - **Rulebook.** AI reviewers checked every distinct siddur word in all three traditions. A second AI review confirmed each finding. Fixes have regression tests and a before and after comparison of every word. No human kriah teacher has reviewed it yet. [Review](docs/check/rulebook-review.md) and [Shema page for the hand check](docs/check/shema.md).
 - **Synthetic ear test.** The script defines 13 clips: 7 planted mistakes and 6 clean controls. Wonder reported 5 of the 7 plants in each of two recorded runs. The saved notes do not support a complete grader accuracy rate. [Results and limits](docs/ear-test.md).
 - **Live server run.** Synthetic speech completed 25 of 25 lines. The coach answered 7 of 7 checkpoints with valid picks. This checks the full path through the server, not accuracy on real voices. [Run record](docs/live-run.md).
 - **Offline tests.** 560 root tests and 88 station tests pass. They cover sheva na and nach, kamatz katan, dagesh, silent letters, the divine names, restarts and rereads in the alignment, and all three traditions. They also check server retries, saved progress, packet selection and station screens. Synthetic inputs and model substitutes do not establish accuracy on real voices.
-- **Real voices.** Neither the adult nor child round has run. The real-voice test is still the go or no-go.
+- **Real voices.** The adult round ran on October 27 and did not pass. The grader marked 9 of the 10 planted mistakes, but Muse Wonder 1.0 wrote Israeli vowels for an Ashkenazi reader, so 7 or 8 correct sounds per run were marked wrong. Prompt and reasoning changes did not fix it. Muse Spark Open on Baseten is next. The child round has not run. [Results](docs/ear-test.md#round-1-results-october-27).
 
 ### Before the child round
 

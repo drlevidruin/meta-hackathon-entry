@@ -2,7 +2,7 @@
 
 Rabbi Dr. Levi Druin designed Kriah Listener and directed the build. Claude Code and Codex wrote the code to his brief. The history below follows `git log --reverse --format='%h %ad %s' --date=iso` and the merge commits. Every commit was made during the event, starting the evening of October 26, 2026.
 
-Work ran on several branches side by side that day. The merge order is not a strict build order. The grader, coach, station and server were built against synthetic voices so the go or no-go test can run when real clips exist. The real-voice test has not run.
+Work ran on several branches side by side that day. The merge order is not a strict build order. The grader, coach, station and server were built against synthetic voices so the go or no-go test could run once real clips existed. The adult round ran on October 27.
 
 ## Rulebook and bank
 
@@ -24,7 +24,7 @@ The script defines 13 clips: 7 planted mistakes and 6 clean controls. The notes 
 
 `c513d2c` added word and pair alignment, verdicts, restart handling, other-tradition readings and divine-name substitutions. It merged in `d7371e2`. `ac52d9a` required a complete substitute reading after a prefixed divine name.
 
-The grader was tested with synthetic sound strings and reported synthetic ear outputs. Its behavior on real voices remains untested.
+The grader was tested with synthetic sound strings and reported synthetic ear outputs. On October 27 it scored the ear's answers for Levi's adult clips.
 
 ## Coach
 
@@ -55,3 +55,7 @@ Fix round 2 merged in `95a163f`: turn resets, alignment, packet selection and co
 `8fb9c22` and `ea2739e` fixed what a full review of the repo and its docs found. [Record](reviews/2026-10-26-review-fixes.md). `7582c7b` recorded a dress rehearsal of the [demo script](demo-script.md) on the real server. `6598d59` added optional https, because browsers allow the microphone only on https or localhost.
 
 The current offline root and station test suites pass. Their synthetic inputs and model substitutes support implementation checks. They do not replace an adult round, a consented child round or a human kriah teacher's review.
+
+## Adult round
+
+On October 27 Levi recorded the 12 adult clips. In each of three runs the grader marked 9 of the 10 planted mistakes from Muse Wonder 1.0's answers, but the ear wrote Israeli vowels for his Ashkenazi reading, so correct kamatz, tzere and sheva sounds were marked wrong. More reasoning and two prompt changes did not fix it. The round did not pass. [Results](ear-test.md#round-1-results-october-27).

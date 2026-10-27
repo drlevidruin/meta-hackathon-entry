@@ -2,7 +2,7 @@
 
 The ear must report the sounds that were spoken, including mistakes. It receives audio and a sound alphabet. It never sees the printed line. It can still mishear or replace a mistake with a familiar word.
 
-Muse Wonder 1.0 was chosen after the synthetic trials below. Neither the adult nor child round has run. The real-voice test is still the go or no-go.
+Muse Wonder 1.0 was chosen after the synthetic trials below. The adult round ran on October 27 and did not pass: Wonder kept the planted consonants, syllables and words, but wrote Israeli vowels for an Ashkenazi reading. The child round has not run.
 
 ## Round 0: synthetic voices
 
@@ -78,6 +78,31 @@ Read each clip once, at a normal pace, in Ashkenazi pronunciation. One clip per 
 | ani_clean | אֲנִי | a-ni | nothing | a-ni |
 | lefanecha_pei-for-fei | לְפָנֶיךָ | le-po-ne-cho | פ read as פּ | le-po-ne-cho |
 | shema-line_skipped-word | שְׁמַע יִשְׂרָאֵל יְהֹוָה אֱלֹהֵינוּ יְהֹוָה אֶחָד | she-ma yis-ro-eyl a-do-noy a-do-noy e-chod | אֱלֹהֵינוּ skipped | five words, no e-loy-key-nu |
+
+## Round 1 results, October 27
+
+Levi read all 12 clips into the local recorder on an iMac, in Ashkenazi pronunciation. Muse Wonder 1.0 heard them through the Meta Model API at minimal reasoning. The grader then scored each answer with the Ashkenazi preset. First run:
+
+| Clip | Said | Ear wrote | Grader, Ashkenazi preset |
+| --- | --- | --- | --- |
+| shabbos_va-for-ba | sha-vos | sha-vas | Plant marked |
+| baruch_clean | bo-ruch | ba-ruch | False mark: kamatz |
+| shalom_patach-for-kamatz | sha-loym | sha-loym | Plant marked |
+| melech_skipped-syllable | mech | mech | Plant marked |
+| haolam_wrong-word | ha-ma-kom | ha-ma-kom | Plant marked |
+| yisrael_shin-for-sin | yish-ro-eyl | yesh ro el | Plant marked; false marks: chirik, tzere |
+| elokeinu_segol-for-tzere | e-loy-ke-nu | e-lo-ke-nu | Plant marked |
+| echad_extra-syllable | e-cho-de | a-cha-da | Plant marked; rest of the word not decoded |
+| modeh_shuruk-for-cholam | mu-de | mu-de | Plant marked |
+| ani_clean | a-ni | a-ni | Clean |
+| lefanecha_pei-for-fei | le-po-ne-cho | la-pa-na-cha | Plant missed; word not decoded |
+| shema-line_skipped-word | she-ma yis-ro-eyl a-do-noy a-do-noy e-chod | sha-ma yis-ra-el a-do-noy a-do-noy e-chad | Plant marked; false marks: sheva, kamatz, tzere, kamatz |
+
+Two more runs on the committed prompt, one at minimal and one at low reasoning, gave nearly the same answers. In all three runs the grader marked 9 of the 10 planted mistakes, and the strict check above passed 5, 5 and 4 of 12. The ear wrote Israeli vowels where Levi said Ashkenazi ones: kamatz said as o came back as a, tzere said as ey came back as e, and a sheva said as e came back as a. That put 7 or 8 false wrong-vowel marks in each run, including the clean baruch, and left one or two words undecoded. In lefanecha every vowel came back as a, so the grader could not decode the word and missed its planted פ.
+
+Two prompt changes were tried in a scratch copy and not committed: a sentence telling the ear never to change vowels to Israeli or any other pronunciation, and an added `aw` vowel. Neither changed the vowels.
+
+Round 1 does not pass for Ashkenazi vowels. The next test sends the same clips to Muse Spark Open on Baseten, the primary ear. Sephardi readings have not been tested.
 
 ## Round 2: a child's voice
 

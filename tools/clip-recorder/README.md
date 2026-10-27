@@ -2,7 +2,7 @@
 
 This tool records the real-voice ear test. It is separate from the classroom station. It reads the adult clip table in [docs/ear-test.md](../../docs/ear-test.md). The child set uses the same readings with `child_` prefixed to each filename.
 
-Neither real-voice round has run. Only Muse Wonder 1.0 through the Meta Model API has run as the ear on synthetic clips. Muse Spark Open through Baseten is wired and has never run.
+The adult round ran on October 27 with Muse Wonder 1.0 through the Meta Model API and did not pass; see the [results](../../docs/ear-test.md#round-1-results-october-27). The child round has not run. Muse Spark Open through Baseten is wired and has never run.
 
 ## Record
 

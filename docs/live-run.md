@@ -26,4 +26,4 @@ The model's reasons named the child's actual confusions. For example: "Misses cl
 ## What it does not show
 
 - The score, 64 of 130 sounds, says nothing about the ear's accuracy. A synthetic voice reading isolated level 1 syllables is a poor stand-in for a child, and the run had no planted mistakes to check against.
-- Real voices have not been tested. The adult round and the child round are next.
+- This run used synthetic speech. The adult round ran separately on October 27 and did not pass ([results](ear-test.md#round-1-results-october-27)). The child round has not run.
