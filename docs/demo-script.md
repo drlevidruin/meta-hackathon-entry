@@ -10,7 +10,13 @@ Use Node 22.12 or newer and the installed station dependencies. Use a desktop vi
 
 Keep `.env` and PIN entry out of frame. In the root `.env`, set `META_API_KEY` and a `TEACHER_PIN` of 4 to 12 digits. Leave the ear model and reasoning settings at their `.env.example` defaults. Use a terminal with no exported key, PIN or model overrides. The blank Baseten key in the command below turns off the fallback ear, so every line in the film is heard by Muse Wonder 1.0. Missing or invalid PINs stop startup. Without a Meta key, this demo command cannot hear; failed lines stay gray.
 
-Copy this one block from the repo root. It builds the station and starts the server with an empty temporary data folder:
+Start the phoneme service first, in its own terminal at the repo root, so the referee is on. Run `npm run phonemes:setup` once beforehand if `phonemes/.venv` is missing. Wait for `Model pinned in memory`, and leave it running.
+
+```bash
+npm run phonemes
+```
+
+Copy this one block from the repo root, in a second terminal. It builds the station and starts the server with an empty temporary data folder. Its startup lines must include `Phoneme referee: on`:
 
 ```bash
 npm --prefix station run build -- --configLoader native
@@ -32,7 +38,7 @@ In Roster, tap Edit for Nubo, choose Level 2, then Save. Leave all three unread 
 2. `בֻּץ בִּיךְ בִּן בֵּין בִּיל`. Read as printed.
 3. `דָן אָץ דָךְ רָן לָם`. Read as printed.
 
-Read every other sound in Ashkenazi pronunciation, the preset Nubo uses. A sound read another way gets its own amber mark. In a rehearsal with an Israeli synthetic voice, line 1 showed three extra amber marks for that reason. The October 27 adult round found the same with a real Ashkenazi voice: the ear wrote Israeli vowels, so correct Ashkenazi vowels may show amber until an ear passes. See the [ear test](ear-test.md#round-1-results-october-27).
+Read every other sound in Ashkenazi pronunciation, the preset Nubo uses. A sound read another way gets its own amber mark. In a rehearsal with an Israeli synthetic voice, line 1 showed three extra amber marks for that reason. The October 27 adult rounds found the same with a real Ashkenazi voice: the ear wrote Israeli vowels. The phoneme referee now corrects most of them, but on the sealed words a correct vowel was still marked in two of three runs, so one may show amber. See the [ear test](ear-test.md#round-1e-results-october-27).
 
 Allow microphone access before capture. For each line, tap the microphone, read the whole line without a long pause, then stay quiet. Recording stops by itself about a second after speech ends, with a 20 second maximum. Never tap again after it stops. Wait for the marks before reading the next line.
 
@@ -151,8 +157,8 @@ This is simulated history, not evidence from children.
 
 ## 2:40 to 3:00 | Evidence and next rounds
 
-**Screen:** At 1440 wide, show the Round 0 results in [ear-test.md](ear-test.md#round-0-synthetic-voices), then the results and limits in [live-run.md](live-run.md). End on the real station. Keep this card readable: “Synthetic clips: 5/7 plants in each of two runs; no prose reported. Synthetic server run: 25/25 lines; 3.8 s average including speech-file creation; coach 7/7. Real-voice accuracy not established.”
+**Screen:** At 1440 wide, show the Round 1e results in [ear-test.md](ear-test.md#round-1e-results-october-27), then the results and limits in [live-run.md](live-run.md). End on the real station. Keep this card readable: “One adult voice, 12 sealed words, three runs: false marks 10 without the phoneme referee, 6 with it; plants caught 10 of 12 both ways. No run passed yet. Synthetic server run: 25/25 lines; coach 7/7. No child round yet.”
 
-**Voiceover:** “Synthetic clips: five of seven planted mistakes in each of two runs. No prose was reported. A separate synthetic server run graded all twenty-five lines, averaging 3.8 seconds including speech creation. The planned adult and child test rounds are next. Audio stays in memory and is never written to disk; standard tier only.”
+**Voiceover:** “On twelve sealed words read by an adult, Meta's open phoneme model, running on this computer, cut false marks from ten to six and caught as many planted mistakes. No run has passed yet. A synthetic server run graded all twenty-five lines. The child round comes after the adult round passes. Audio stays in memory and is never written to disk; standard tier only.”
 
-These are recorded observations. Completed grades do not measure correct verdicts. The saved notes do not establish a grader accuracy rate. The child round requires a passing adult round, written parent consent and a paid Meta plan with free credits off. Make no claim of classroom use or real-voice accuracy.
+These are recorded observations. Completed grades do not measure correct verdicts. One adult voice does not establish a grader accuracy rate. The child round requires a passing adult round, written parent consent and a paid Meta plan with free credits off. Make no claim of classroom use or of accuracy on children's voices.

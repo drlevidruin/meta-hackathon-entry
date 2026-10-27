@@ -423,6 +423,53 @@ Read each clip once, in Ashkenazi pronunciation. Round 1d has been read, so thes
 | gan_kamatz-for-patach | גַּן | gon | patach read as kamatz | gon |
 | daf_kamatz-for-patach | דַּף | dof | patach read as kamatz | dof |
 
+## Round 1e results, October 27
+
+Levi read Round 1e at 3:12 PM. The settings were final at `1a9a038`: the primary ear asked three times per reading with the card when the gate passes, then the meter, then the phoneme referee. His card passed the gate and calibrated the referee at o 0.91 and a 0.43. Nobody read the answers on these words before the first run, from 3:15 to 3:26 PM.
+
+Runs 2 and 3 used the same settings, from 3:55 to 4:03 PM and from 4:04 to 4:11 PM, after the memory fix described below.
+
+| Judge | Plants caught of 4 | False marks |
+| --- | --- | --- |
+| Ear, three answers voted | 3, 3, 4 | 6, 3, 1 |
+| Ear and meter | 3, 3, 4 | 6, 3, 1 |
+| Ear, meter and referee | 3, 3, 4 | 5, 0, 1 |
+
+| File name | Say | Ear and meter, three runs | With the referee, three runs |
+| --- | --- | --- | --- |
+| shom_clean | shom | sham twice, clean once | clean each run |
+| poro_clean | po-ro | clean each run | clean each run |
+| kosav_clean | ko-sav | ka-sav twice, clean once | ka-sav in run 1, when the referee got no answer; clean twice |
+| nofal_clean | no-fal | na-fal once, clean twice | clean each run |
+| chag_clean | chag | clean each run | clean each run |
+| kadur_clean | ka-dur | clean each run | clean each run |
+| sabo_clean | sa-bo | clean each run | clean each run |
+| kal_clean | kal | kol twice, clean once | kol twice, clean once |
+| ochal_patach-for-kamatz | a-chal | a-chol once, plant marked twice | a-chol once, plant marked twice |
+| kom_patach-for-kamatz | kam | kom once, plant marked twice | kom once, plant marked twice |
+| gan_kamatz-for-patach | gon | plant marked each run | plant marked each run |
+| daf_kamatz-for-patach | dof | plant marked each run | plant marked each run |
+
+Over the three runs the referee caught 10 of 12 plants, as many as without it, and cut false marks from 10 to 6. It changed four answers on these words, each to the vowel Levi said, and never wrote o for a patach he said. The meter changed no answer on these words. No run passed: run 2 left no false marks but missed a plant, and run 3 caught every plant with one false mark.
+
+The referee fixed shom, where the ear and the meter wrote sham. In the first run it missed kosav for a reason outside its rule: the phoneme service gave no answer on that reading. The Mac was short of memory, macOS had swapped the idle model out, and the reading took longer than the time limit. The runner did not say so. Asked again later, the model heard kosav's kamatz as a back vowel, 0.95 against the line of 0.5. Swapped out, half a second of audio took 27 to 57 seconds that afternoon. The fix pins the model in RAM: pinned, the 21-second card takes about a second, and short readings under a tenth of a second. The runner now also tries a missed reading once more and names any reading the referee did not check.
+
+With the model pinned, the referee checked 57 of the 58 readings in runs 2 and 3. It skipped only the Shema line, whose vowels did not line up. In run 2 it fixed shom, kosav and nofal. The ear wrote kom for the planted kam, and the referee left it: the phoneme model heard that vowel as a front a, with a back share of 0.37. That is below the line, so the a did not become o, but not below 0.15, where an o becomes a. Levi's card puts his own a at 0.43, so for his voice that undo almost never happens. In run 3 the ear itself wrote every kamatz on these words as Levi said it.
+
+Apart from kosav in run 1, every error left on these words is the ear writing o where Levi said a: kal, a-chal and kom. No judge fixed kal, in two runs, or a-chal, in one. For a patach before a final l, the ear wrote kol and a-chol, and the phoneme model heard that vowel as the diphthong `aʊ`, which the referee leaves alone. In run 1 the planted a of a-chal was heard right, but the grader could not read a-chol as אָכַל, so it marked every letter of the word not decoded instead of marking the kamatz, and the plant does not count as caught.
+
+Across all 58 clips, in the same three runs:
+
+| Judge | Plants caught of 26 | False marks |
+| --- | --- | --- |
+| Ear, three answers voted | 22, 22, 25 | 43, 38, 28 |
+| Ear and meter | 24, 24, 25 | 31, 27, 19 |
+| Ear, meter and referee | 24, 24, 25 | 15, 9, 9 |
+
+Rounds 1 to 1d shaped the meter, the card, the vote and the referee's rule, so these totals are not a test. Only Round 1e is. Over the three runs the referee changed 33 answers, and 32 moved a vowel to the one Levi said. One was worse: in run 3 the ear wrote na-chal for the planted no-chal, and the referee made it no-chol, the flaw seen when its rule was designed. The plant was missed either way, but the grader could not read no-chol, so it marked all three letters.
+
+The pin and the retry changed how the service runs, not what the referee decides, so run 1 counts. Round 1e has now been read, so it no longer counts as a sealed test. A change made from here needs new words.
+
 ## Round 2: a child's voice
 
 The adult round must pass first. Recording a child requires written parent consent. Turn Meta Model API free credits off and use a paid plan before sending children's audio. Meta's free-credit terms allow content to be used for product improvement.

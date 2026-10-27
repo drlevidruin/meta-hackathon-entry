@@ -20,10 +20,14 @@ Kriah is learning to decode Hebrew with its vowel marks, called nekudos. It is t
 flowchart LR
   child([Child reads]) --> station[Child's screen]
   station -- audio only --> server[Server]
-  server -- audio, voice card and sound alphabet --> ear[Meta ear model]
+  server -- audio, voice card and sound alphabet --> ear[Meta ear model, asked three times]
   ear -- syllables --> server
+  server -- audio only --> phonemes[Meta phoneme model on this computer]
+  phonemes -- IPA sounds --> server
   server -- audio, syllables and voice profile --> meter[Vowel meter on server]
   meter -- checked syllables --> server
+  server -- syllables, IPA sounds and card calibration --> referee[Phoneme referee on server]
+  referee -- checked syllables --> server
   server -- syllables and printed line --> grader[Grader]
   rulebook[Rulebook] -- expected sounds --> grader
   grader -- verdicts --> server
@@ -36,10 +40,11 @@ flowchart LR
   server -- groups, map and packet --> teacher[Teacher view]
 ```
 
-1. **Ear.** A child taps an animal and reads a line. The model gets audio and a sound alphabet. It never sees the printed line, so the line cannot steer its answer. If the child says `sha-vos`, the ear writes `sha-vos`. It can still mishear. Prose, including short refusals, counts as a failed call; syllables outside the sound alphabet become `?`.
+1. **Ear.** A child taps an animal and reads a line. The model gets audio and a sound alphabet. It never sees the printed line, so the line cannot steer its answer. If the child says `sha-vos`, the ear writes `sha-vos`. It can still mishear. The primary ear is asked three times at once, and the server keeps the answer most of the calls agree on, word by word. Prose, including short refusals, counts as a failed call; syllables outside the sound alphabet become `?`.
 2. **Vowel meter.** Before a child's first line, the station shows a card of the vowels the child has learned: fifteen sounds for a child who knows them all. The server measures how this child says a, o, e and i and keeps those averages. On each graded line it measures every vowel in the audio. Where the ear wrote a, the meter compares that vowel with the child's own a, o and e; where it wrote e, with the child's e and i. If another of the child's vowels fits clearly better, the meter writes that one. This answers the ear's habit of writing Israeli vowels for an Ashkenazi reader. It never adds or removes a syllable, and it leaves the line alone when the sounds it finds do not match the ear's syllable count. The primary ear also hears the child's card recording before each line, so it can compare this child's kamatz and patach in one voice. The card goes only when the child kept each vowel pair apart on it, because a card read wrong teaches the ear wrong.
-3. **Rulebook and grader.** Plain code defines expected sounds in all three traditions. The [grader](grader/README.md) compares `sha-vos` with what שַׁבָּת should sound like in the child's tradition. In Ashkenazi pronunciation the bet should be b, so the amber mark lands under the bet. The previous line shows green and amber marks while the child reads the next line. Flagged cases accept alternative readings.
-4. **Coach.** The server runs the [coach](coach/README.md) at each checkpoint to pick the next bank ids. Code checks the ids and allowed levels, then resolves them to bank lines. A rule selects lines when the model is unavailable or its answer fails validation.
+3. **Phoneme referee.** The ear knows Hebrew words, and for a word it knows it often still writes the Israeli vowel. Meta's open phoneme model, wav2vec2, runs on the same computer as the server. It writes what it hears in IPA and knows no words. It hears the child's card first, which sets where this child's kamatz and patach fall. On each line the referee checks only the ear's a, o and e: it writes o where the model clearly heard a back vowel, and undoes an o where the model clearly heard a front one. It never sees the printed line, and it leaves the line alone when the vowel counts do not match. The audio for this check never leaves the computer.
+4. **Rulebook and grader.** Plain code defines expected sounds in all three traditions. The [grader](grader/README.md) compares `sha-vos` with what שַׁבָּת should sound like in the child's tradition. In Ashkenazi pronunciation the bet should be b, so the amber mark lands under the bet. The previous line shows green and amber marks while the child reads the next line. Flagged cases accept alternative readings.
+5. **Coach.** The server runs the [coach](coach/README.md) at each checkpoint to pick the next bank ids. Code checks the ids and allowed levels, then resolves them to bank lines. A rule selects lines when the model is unavailable or its answer fails validation.
 
 ## Meta models, and what we learned
 
@@ -49,7 +54,8 @@ The [ear test notes](docs/ear-test.md) record the synthetic trials and the adult
 | --- | --- | --- |
 | Ear | Muse Spark 1.3 | Corrected children toward real words: it heard `sha-vos` and wrote `sha-bos`. With made-up example sounds in the prompt, it wrote the planted mistake on 1 and then 4 of the 7 plants, and wrote `?` on 7 and then 4 of the 13 clips. |
 | Ear | Muse Spark 1.2 | Answered in English prose on about a third of the clips with the first prompt. With made-up example sounds, it wrote 2 of the 7 plants in each run and answered in prose on 3 and then 2 of the 13 clips. Prose counts as a failed call. |
-| Ear | Muse Wonder 1.0 (`muse-wonder-1.0`), Meta Model API | Chosen as the primary ear. Wrote the planted mistake on 5 of the 7 plants in each of two runs, with no prose. Minimal reasoning brought it to 2.4 seconds a clip, from about 15. Used as the ear in the full server run. On a real adult voice the grader marked 9 of 10 planted mistakes from its answers, but it wrote Israeli vowels for an Ashkenazi reading, so the adult round did not pass. Hearing the reader's voice card first cut those false marks by about a third, but it then sometimes wrote o for a patach that was said, which hid some planted mistakes. |
+| Ear | Muse Wonder 1.0 (`muse-wonder-1.0`), Meta Model API | Chosen as the primary ear. Wrote the planted mistake on 5 of the 7 plants in each of two runs, with no prose. Minimal reasoning brought it to 2.4 seconds a clip, from about 15. Used as the ear in the full server run. On a real adult voice the grader marked 9 of 10 planted mistakes from its answers, but it wrote Israeli vowels for an Ashkenazi reading, so the adult round did not pass. Hearing the reader's voice card first cut those false marks by about a third, but it then sometimes wrote o for a patach that was said, which hid some planted mistakes. It is now asked three times per reading, and the majority answer is kept. |
+| Referee | wav2vec2 Large LV-60 phonemes (`facebook/wav2vec2-lv-60-espeak-cv-ft`), open weights, on this computer | Knows no words, so it cannot correct toward one. On Levi's voice it heard kamatz as a back vowel and patach as a front one on all 12 syllables of the card tests and on 52 of 58 syllables in his readings. Run after the meter on the saved Round 1d answers, the clips its rule was designed on, it cut false marks from 72 to 36 and caught 62 of 66 plants against 60. On 12 sealed words over three runs it cut false marks from 10 to 6 and caught as many plants, 10 of 12. |
 | Ear | Muse Voice Transcribe 1.0, Meta transcription API | Tried and rejected. Fast, but writes words, corrects toward real ones and drops nikud. |
 | Ear | Muse Spark Open (`meta-models/muse-spark-open-1026`), Baseten | The fallback ear. Filled in a skipped word from memory. On the Shema line of the adult round it wrote back the word the reader skipped, without seeing the text. The grader marked 6 of 10 planted mistakes from its answers, fewer than Wonder. |
 | Coach | Muse Spark 1.3 (`muse-spark-1.3`), Meta Model API | First failed live by spending its whole 2,000 token limit on reasoning. With 16,000 tokens and minimal reasoning, answered 7 of 7 checkpoints in the live run. All picks passed validation. |
@@ -63,10 +69,11 @@ Meta may train on content sent in contributor mode, so only standard tier is use
 - **Rulebook.** AI reviewers checked every distinct siddur word in all three traditions. A second AI review confirmed each finding. Fixes have regression tests and a before and after comparison of every word. No human kriah teacher has reviewed it yet. [Review](docs/check/rulebook-review.md) and [Shema page for the hand check](docs/check/shema.md).
 - **Synthetic ear test.** The script defines 13 clips: 7 planted mistakes and 6 clean controls. Wonder reported 5 of the 7 plants in each of two recorded runs. The saved notes do not support a complete grader accuracy rate. [Results and limits](docs/ear-test.md).
 - **Live server run.** Synthetic speech completed 25 of 25 lines. The coach answered 7 of 7 checkpoints with valid picks. This checks the full path through the server, not accuracy on real voices. [Run record](docs/live-run.md).
-- **Offline tests.** 711 root tests and 139 station tests pass. They cover sheva na and nach, kamatz katan, dagesh, silent letters, the divine names, restarts and rereads in the alignment, and all three traditions. They also check server retries, saved progress, packet selection and station screens. Synthetic inputs and model substitutes do not establish accuracy on real voices.
+- **Offline tests.** 856 root tests, 139 station tests and 30 phoneme service tests pass. They cover sheva na and nach, kamatz katan, dagesh, silent letters, the divine names, restarts and rereads in the alignment, and all three traditions. They also check server retries, saved progress, packet selection and station screens. Synthetic inputs and model substitutes do not establish accuracy on real voices.
 - **Real voices.** The adult round ran on October 27 and did not pass. The grader marked 9 of the 10 planted mistakes, but Muse Wonder 1.0 wrote Israeli vowels for an Ashkenazi reader, so 7 or 8 correct sounds per run were marked wrong. Prompt and reasoning changes did not fix it. Muse Spark Open on Baseten did worse: 6 of 10, and it filled in a skipped word of Shema from memory. [Results](docs/ear-test.md#round-1-results-october-27).
 - **Vowel meter.** Built the same morning to answer the Israeli vowels. On Levi's saved answers it marked 10 of 10 plants with 4 false marks on Round 1, against 16 for the ear alone, and 4 of 4 with 3 false marks on 11 new words. Those words helped find the fix. On 11 sealed words it caught all 4 plants but cut false marks only from 17 to 15, because inside words Levi's kamatz measures close to his patach. [Results](docs/ear-test.md#vowel-meter-results-october-27) and [sealed words](docs/ear-test.md#round-1c-results-october-27).
-- **Voice card to the ear.** The primary ear now hears the child's voice card before each line, when the card kept each vowel pair apart. On 12 more sealed words, with the meter, it caught 10 of 12 plants against 9 without the card and left 14 false marks against 20 over three runs. In 3 of 36 readings it wrote o for a patach that was said, which once hid a planted mistake: yam came back as yom. The adult round still does not pass, and the child round has not run. [Results](docs/ear-test.md#round-1d-results-october-27).
+- **Voice card to the ear.** The primary ear now hears the child's voice card before each line, when the card kept each vowel pair apart. On 12 more sealed words, with the meter, it caught 10 of 12 plants against 9 without the card and left 14 false marks against 20 over three runs. In 3 of 36 readings it wrote o for a patach that was said, which once hid a planted mistake: yam came back as yom. [Results](docs/ear-test.md#round-1d-results-october-27).
+- **Vote and phoneme referee.** The primary ear is now asked three times per reading, and the majority is kept. Then Meta's open phoneme model, on this computer, checks the a and o in its answer against the child's voice card. On 12 more sealed words over three runs, the referee caught 10 of 12 plants, as many as without it, and cut false marks from 10 to 6. No run passed: one left no false marks but missed a plant, and one caught every plant with one false mark. Apart from one reading the referee did not get, each error left is the ear writing o where the reader said a. The child round has not run. [Results](docs/ear-test.md#round-1e-results-october-27).
 
 ### Before the child round
 
@@ -78,7 +85,7 @@ Meta may train on content sent in contributor mode, so only standard tier is use
 
 The ear never sees the text it grades. No model writes Hebrew a child reads. There is no chat or free-text AI feedback anywhere: child screens, teacher screens and the parent line all use templates. Model reasons appear only in the PIN-protected developer trace when enabled. Keys stay on the server.
 
-The station and server grade audio in memory and drop it. They never write audio to disk or a log. When a child's voice card goes to the ear, the server keeps that one recording in memory to play before each line. It is dropped when the voice check is cleared, skipped or made stale, when the child is removed, and when the server stops. `data/store.json` holds first names, avatars, pronunciation presets, progress profiles, per-letter and vowel read history, stars and turn summaries with coded decisions and template logs. After the voice check it also holds the child's vowel averages: two numbers each for a, o, e and i. Teachers can clear them from the roster, and a preset change clears them. It holds no audio, transcripts or coach reasons. The store keeps the last 60 turns per child; the detail screen shows the last 20. The server computes earned stars from its own grades and caps the browser's requested award. Teachers must enter first names only; the server enforces a single word, not whether it is a first name.
+The station and server grade audio in memory and drop it. They never write audio to disk or a log. When a child's voice card goes to the ear, the server keeps that one recording in memory to play before each line. It is dropped when the voice check is cleared, skipped or made stale, when the child is removed, and when the server stops. For the phoneme referee, the server sends the card and each reading only to the [phoneme service](phonemes/README.md) on the same computer, at `127.0.0.1`. That service holds the audio in memory, writes no files and logs nothing per request. `data/store.json` holds first names, avatars, pronunciation presets, progress profiles, per-letter and vowel read history, stars and turn summaries with coded decisions and template logs. After the voice check it also holds the child's vowel averages, two numbers each for a, o, e and i, and the referee's calibration: how far back the phoneme model heard the card's a and o, and how many of each it heard. Teachers can clear them from the roster, and a preset change clears them. It holds no audio, transcripts or coach reasons. The store keeps the last 60 turns per child; the detail screen shows the last 20. The server computes earned stars from its own grades and caps the browser's requested award. Teachers must enter first names only; the server enforces a single word, not whether it is a first name.
 
 The separate [local clip recorder](tools/clip-recorder/README.md) saves test WAVs in gitignored `recordings/private/`. Child recording requires written parent consent. Its child test runner deletes each clip after printing the result, including failures, unless `--keep` is set. Adult clips remain until manually removed. Closing the recorder does not delete saved clips.
 
@@ -108,6 +115,13 @@ Set the API key and `TEACHER_PIN` in `.env`, then run:
 
 ```bash
 npm start
+```
+
+For the phoneme referee, set up the local phoneme service once, then start it in a second terminal before `npm start`. Setup needs Python 3 and a network connection, and downloads the model into `phonemes/.models`, about 1.3 GB. While it runs, the service keeps the model in RAM, about 1.2 GB. Without it the referee is off and the rest works.
+
+```bash
+npm run phonemes:setup
+npm run phonemes
 ```
 
 `npm start` runs `node server/index.js`. On the computer running the server, open http://localhost:8787. The server binds to `127.0.0.1` unless `HOST` is set. Browsers allow the microphone only on https or localhost. Localhost works without https. The server uses http when both `TLS_CERT` and `TLS_KEY` are empty. Set both paths to use https. If only one path is set or either file cannot be read, startup stops with one plain line naming the variable.
@@ -143,6 +157,8 @@ The first screen is empty until a teacher adds children: tap Teacher, enter the 
 | `EAR_PRIMARY_MODEL` | Meta ear model id; defaults to `muse-wonder-1.0`. |
 | `EAR_FALLBACK_MODEL` | Baseten model id; defaults to `meta-models/muse-spark-open-1026`. |
 | `EAR_REASONING_EFFORT` | Meta ear reasoning effort; defaults to `minimal`. |
+| `EAR_VOTES` | Primary ear calls per reading, 1 to 5; defaults to 3. |
+| `PHONEME_URL` | Local phoneme service; defaults to `http://127.0.0.1:8791`. `off` turns the referee off. Only a local http address is accepted. |
 
 Run the offline checks from the repo root:
 
@@ -156,7 +172,7 @@ Other tools, also from the repo root:
 
 - `npm run rulebook -- "שַׁבָּת"` prints tab-separated readings: word, Sephardi, Ashkenazi, Chassidish, flags. Arguments are positional Hebrew text, joined with spaces; quote a whole line or supply separate words. It has no preset flag.
 - `npm run record` starts the local clip recorder and prints its address.
-- `npm run ear-test` compares recorded clips with their scripted sounds. It uses the Meta primary when `META_API_KEY` is set, otherwise the Baseten fallback, and prints the selected model. When a voice check clip is recorded it runs the vowel meter; `--no-meter` turns it off. `--model primary` or `--model fallback` overrides this choice. It checks transcription, not grader verdicts.
+- `npm run ear-test` compares recorded clips with their scripted sounds. It uses the Meta primary when `META_API_KEY` is set, otherwise the Baseten fallback, and prints the selected model. When a voice check clip is recorded it runs the vowel meter, and it sends the card to the primary ear and runs the phoneme referee when their checks pass; `--no-meter`, `--no-card` and `--no-referee` turn each off, and `--votes` sets the primary ear's calls per reading. `--model primary` or `--model fallback` overrides this choice. It checks transcription, not grader verdicts.
 - `npm run check:page -- shema` rebuilds the page for a kriah teacher to check.
 - `npm run grade -- --preset ashkenazi --line "שַׁבָּת" --heard "sha-vos"` grades typed sounds.
 
@@ -166,7 +182,8 @@ Other tools, also from the repo root:
 | --- | --- |
 | `rulebook/` | Expected sounds and skill tags. |
 | `bank/` | Generated and committed items, source text and blocklist. |
-| `ear/` | Audio model calls, sound parser, vowel meter and [the prompt](ear/prompt.md). |
+| `ear/` | Audio model calls, the vote, sound parser, vowel meter, phoneme referee and [the prompt](ear/prompt.md). |
+| `phonemes/` | The [local phoneme service](phonemes/README.md), in Python, that runs Meta's wav2vec2 phoneme model for the referee. |
 | `grader/` | Sound alignment and verdicts. See [grader/README.md](grader/README.md). |
 | `coach/` | Rule selection and validated model picks. See [coach/README.md](coach/README.md). |
 | `server/` | API, roster, saved progress, groups and packets. Each packet includes a challenge from the bank's 150 challenge items. |
