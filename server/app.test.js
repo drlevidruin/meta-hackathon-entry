@@ -495,6 +495,30 @@ test('grading sends a card only with a saved profile and readable file, includin
   assert.equal(read.mock.callCount(), 1);
 });
 
+for (const apart of [true, false]) {
+  test(`grading ${apart ? 'sends a separated card' : 'omits a merged card without reading it'}`, async t => {
+    const { app, dataDir } = setup();
+    const child = await add(app, { preset: 'ashkenazi' });
+    assert.equal((await voice(app, child)).status, 200);
+    const saved = disk(dataDir);
+    saved.children[child.id].voice = { version: 2, vowels: {
+      a: { f1: 6, f2: 9, n: 3 }, o: { f1: apart ? 7.14 : 6.08, f2: 9, n: 3 },
+      e: { f1: 6, f2: 12, n: 3 }, i: { f1: 2, f2: 14, n: 3 },
+    }, spread: 0.135 };
+    fs.writeFileSync(path.join(dataDir, 'store.json'), JSON.stringify(saved));
+    const reloaded = setup({ dataDir });
+    const turn = await start(reloaded.app, child.id);
+    const read = t.mock.method(fs.promises, 'readFile');
+    const data = Buffer.from('reading fixture');
+    assert.equal((await grade(reloaded.app, turn.turnId, 'kamatz-0', { data })).status, 200);
+    const expected = [{ data, format: 'wav' }];
+    if (apart) expected.push({ reference: { data: voiceAudio(child.preset), format: 'wav' } });
+    assert.deepEqual(reloaded.listen.mock.calls.at(-1).arguments, expected);
+    assert.equal(read.mock.callCount(), apart ? 1 : 0);
+    if (apart) assert.deepEqual(read.mock.calls[0].arguments, [path.join(dataDir, 'voice', `${child.id}.wav`)]);
+  });
+}
+
 for (const removal of ['clear', 'skip', 'vowels', 'preset', 'child']) {
   test(`${removal} removes the saved voice card and tolerates a missing file`, async () => {
     const { app, dataDir } = setup();

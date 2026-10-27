@@ -420,7 +420,7 @@ test('voice check calibrates metered heard sounds while preserving ear sounds an
   assert.deepEqual(earWords, [['ba', 'ruch']]);
 });
 
-test('--no-meter skips calibration and leaves heard and ear columns equal', async (t) => {
+test('--no-meter leaves heard and ear columns equal and omits an unusable voice card', async (t) => {
   const directory = await fixtureDirectory(t);
   const store = recordingStore(await loadClips(), directory);
   await store.save('voice-check', Buffer.from('Unusable synthetic WAV'));
@@ -429,15 +429,16 @@ test('--no-meter skips calibration and leaves heard and ear columns equal', asyn
   const output = [];
   let calls = 0;
   const result = await runEar({ ...parseOptions(['--no-meter'], 'ear'), directory,
-    log: line => output.push(line), ear: async (audio) => {
+    log: line => output.push(line), ear: async (audio, options) => {
       calls += 1;
       assert.deepEqual(audio.data, reading);
+      assert.deepEqual(options, { model: defaultEarModel() });
       return [['ba', 'ruch']];
     } });
   assert.equal(calls, 1);
   assert.equal(result.code, 1);
   assert.equal(output[1], 'Vowel meter: off (--no-meter)');
-  assert.equal(output[2], 'Voice card to the ear: on');
+  assert.equal(output[2], 'Voice card to the ear: off (voice check unusable)');
   assert.equal(output[4], 'baruch_clean\tbo-ruch\tba-ruch\tMISS\tba-ruch');
   assert.equal(result.rows[0].heard, result.rows[0].ear);
 });
@@ -465,14 +466,15 @@ test('missing and unusable voice checks log meter status and fall back to the ea
     if (voice) await store.save('voice-check', voice);
     const output = [];
     let calls = 0;
-    const result = await runEar({ directory, preset, log: line => output.push(line), ear: async (audio) => {
+    const result = await runEar({ directory, preset, log: line => output.push(line), ear: async (audio, options) => {
       calls += 1;
       assert.deepEqual(audio.data, reading);
+      assert.deepEqual(options, { model: defaultEarModel() });
       return [['ba', 'ruch']];
     } });
     assert.equal(calls, 1);
     assert.equal(output[1], `Vowel meter: ${status}`);
-    assert.equal(output[2], `Voice card to the ear: ${voice ? 'on' : 'off (no voice check recorded)'}`);
+    assert.equal(output[2], `Voice card to the ear: ${voice ? 'off (voice check unusable)' : 'off (no voice check recorded)'}`);
     assert.equal(output[4], 'baruch_clean\tbo-ruch\tba-ruch\tMISS\tba-ruch');
     assert.equal(result.rows[0].heard, result.rows[0].ear);
   }
@@ -482,21 +484,47 @@ test('voice check is a reference for every reading even when the meter is disabl
   const directory = await fixtureDirectory(t);
   const clips = await loadClips();
   const store = recordingStore(clips, directory);
-  const voice = Buffer.from('voice fixture with meter disabled');
+  const voice = syntheticWav(cardLabels('ashkenazi'));
   await store.save('voice-check', voice);
   const readings = clips.filter(clip => clip.kind === 'reading').slice(0, 2);
-  for (const clip of readings) await store.save(clip.name, wav);
+  const reading = syntheticWav(['o', 'u']);
+  for (const clip of readings) await store.save(clip.name, reading);
   let calls = 0;
   const output = [];
-  await runEar({ directory, meter: false, model: 'primary', log: line => output.push(line),
+  const result = await runEar({ directory, meter: false, model: 'primary', log: line => output.push(line),
     ear: async (audio, options) => {
-      assert.deepEqual(audio, { data: wav, format: 'wav' });
+      assert.deepEqual(audio, { data: reading, format: 'wav' });
       assert.deepEqual(options, { model: 'primary', reference: { data: voice, format: 'wav' } });
       calls += 1;
-      return [['ba']];
+      return [['ba', 'ruch']];
     } });
   assert.equal(calls, 2);
   assert.deepEqual(output.slice(1, 3), ['Vowel meter: off (--no-meter)', 'Voice card to the ear: on']);
+  assert.ok(result.rows.every(row => row.heard === 'ba-ruch' && row.ear === 'ba-ruch'));
+});
+
+test('merged vowels omit the voice card with the meter on or off', async t => {
+  const directory = await fixtureDirectory(t);
+  const store = recordingStore(await loadClips(), directory);
+  const labels = cardLabels('ashkenazi').map(label => label === 'o' ? 'a' : label);
+  await store.save('voice-check', syntheticWav(labels));
+  const reading = syntheticWav(['a', 'u']);
+  await store.save('baruch_clean', reading);
+  for (const meter of [true, false]) {
+    let calls = 0;
+    const output = [];
+    const result = await runEar({ directory, meter, model: 'primary', log: line => output.push(line),
+      ear: async (audio, options) => {
+        calls += 1;
+        assert.deepEqual(audio, { data: reading, format: 'wav' });
+        assert.deepEqual(options, { model: 'primary' });
+        return [['ba', 'ruch']];
+      } });
+    assert.equal(calls, 1);
+    assert.equal(output[1], meter ? 'Vowel meter: on (ashkenazi voice check)' : 'Vowel meter: off (--no-meter)');
+    assert.equal(output[2], 'Voice card to the ear: off (vowels merged on the card)');
+    assert.equal(result.rows[0].heard, 'ba-ruch');
+  }
 });
 
 test('--no-card omits the reference while leaving the vowel meter enabled', async t => {
