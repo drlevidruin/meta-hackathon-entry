@@ -30,12 +30,18 @@ function setLatinText(element, text) {
   }));
 }
 
+// The voice check card reads as rows of five syllables, one consonant per row.
+const cardRows = (text) => text.split(/\s+/).reduce((rows, syllable, index) =>
+  `${rows}${index && index % 5 === 0 ? '\n' : index ? ' ' : ''}${syllable}`, '');
+
 function render() {
   byId('child-actions').hidden = set !== 'child';
   const clip = clips[current];
   if (!clip) return;
-  byId('hebrew').textContent = clip.hebrew;
-  setLatinText(byId('say'), clip.say);
+  const card = clip.kind === 'voice';
+  byId('hebrew').textContent = card ? cardRows(clip.hebrew) : clip.hebrew;
+  setLatinText(byId('say'), card ? cardRows(clip.say) : clip.say);
+  for (const id of ['hebrew', 'say']) byId(id).classList.toggle('card', card);
   setLatinText(byId('planted'), clip.planted);
   for (const [index, chip] of [...chipsElement.children].entries()) {
     chip.classList.toggle('done', clips[index].done);

@@ -65,6 +65,8 @@ main { width: min(100%, 1100px); flex: 1; margin-inline: auto; padding: 22px 24p
 .reading { min-height: 310px; display: flex; flex-direction: column; justify-content: center; }
 .hebrew { font: 700 clamp(56px, 6.5vw, 94px)/2 'Frank Ruhl Libre', serif; margin: 0; overflow-wrap: break-word; }
 .say { font-size: clamp(28px, 3.3vw, 44px); line-height: 1.65; font-weight: 700; margin: 12px 0 0; overflow-wrap: break-word; }
+.hebrew.card, .say.card { white-space: pre-line; word-spacing: .5em; }
+.say.card { font-size: clamp(20px, 2.2vw, 30px); }
 .planted { font-size: 14px; color: #737e82; line-height: 1.7; margin: 12px 0 26px; }
 .record { display: grid; place-items: center; width: 116px; height: 116px; border-radius: 50%; border: 0; margin: 30px auto; background: var(--green); color: #fff; box-shadow: 0 0 0 12px #edf5ef; }
 .microphone { width: 49px; height: 49px; fill: currentColor; }
