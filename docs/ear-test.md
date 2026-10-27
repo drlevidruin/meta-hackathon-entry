@@ -485,6 +485,51 @@ Where the ear wrote o and Levi said a, the model's back share was 0.06 to 0.10, 
 
 For Levi's voice the phoneme model cannot tell kom's a from the o of mitz-vo, so the threshold stays at 0.15, and no sealed round is needed to test it.
 
+## Referee rules from the design rounds, October 27
+
+Every rule in this section was designed on the 46 clips of Rounds 1 to 1d, replayed over saved answers: the four Round 1d sets, the answers to those clips from the three Round 1e runs, and three sets from the vote test below. No Round 1e word was used.
+
+### More calls and more thinking
+
+Five calls per reading did no better than three or one: after the shipped referee, each left 10 false marks on the design clips. The ear makes the same mistake on the same recording from call to call, so a vote cannot remove it.
+
+| Ear, three calls voted | Seconds per reading, median | Ear alone: plants caught of 22 | Hidden | Ear alone: false marks |
+| --- | --- | --- | --- | --- |
+| Minimal reasoning | 5.9 | 20 | 2 | 29 |
+| Medium reasoning | 25.1 | 15 | 6 | 26 |
+
+The calls ran in parallel, five per reading at minimal and three at medium. With more thinking, the ear writes the word it recognizes, not the sounds it heard: at medium reasoning it hid 6 of the 22 planted mistakes. At high reasoning one call took 47 seconds and wrote na-chal for the planted no-chal. The ear stays at minimal.
+
+### The rules
+
+The referee still changes only an a, o or e in the ear's answer, and it still never reads the printed line.
+
+- **Before a final l.** In chal or kol the phoneme model hears every a and o as back, so its score no longer turns an a into o there. The vowel meter decides, against the reader's card: an a it measures as o becomes o, an o it measures as a becomes a, and an o it cannot place becomes a whole-syllable `?`, which the grader marks uncertain, never wrong.
+- **The middle band.** An ear o whose back share sits between 0.15 and the line gets the same question. That is where Round 1e's planted kam came back kom.
+- **A word's last open syllable.** In toy-ro the reader's unstressed vowel is reduced. There the phoneme model's back verdict was right on 9 of 10 design syllables, but it heard toy-ro's o as front. So there it can still turn an a into o, but not an o into a. When it hears a front vowel, the meter decides, and a vowel the meter cannot place becomes `?`. An o in the middle band keeps the ear's o without asking the meter, which measured some of Levi's kamatz vowels next to his patach (the do of tze-do-ko, in the Round 1c results); asking it there changed nothing on the design clips. A one-syllable word is left out, because it carries the stress.
+- **u.** An ear o that the phoneme model heard as a rounded vowel, `u`, `ʊ`, `ʉ`, `y`, `ʏ`, `ø` or `œ`, becomes u, unless the meter measures that syllable as a, so a measured a never becomes u. Levi's u was heard that way in 5 of 5 syllables, and none of his 44 o or oy syllables was. The ear wrote ka-sov for ko-suv.
+- **Lining up.** When the ear and the phoneme model hear different numbers of vowels, the referee lines them up instead of skipping the line, and acts only on the pairs that every best line-up agrees on. On the Shema line, with two vowels missing, a tied line-up paired the second a-do-noy's a with the first do's vowel and wrote o-do-noy.
+- **A `?` needs a card that keeps a and o apart, and a measurement of that syllable.** Without them, the ear's vowel stands.
+- **tz.** The ear wrote tse-da-ka for tze-do-ko in 12 of 48 answers, so its ts is read as tz, the alphabet's spelling of tzadi. Before h it stays t, then sh, as in tshu-vo.
+
+Every rule here was designed on one adult reading in Ashkenazi pronunciation. None has been tried with a Sephardi reader or a child.
+
+### A grader fix on the Shema line
+
+The replay also turned up a grader bug. When the reader skips אֱלֹהֵינוּ, the second a-do-noy can be read two ways: as a restart of the first יְהֹוָה, or as a separate read of the second. The grader chose the restart, so it marked the first יְהֹוָה skipped and אֱלֹהֵינוּ not decoded, instead of marking אֱלֹהֵינוּ skipped. The Shema plant in every earlier section was scored against those misplaced marks: it counted as caught when the grader's marks matched them. `19a6665` keeps the separate read open when the repeated word follows one skipped word. The counts below use the fixed grader.
+
+### Replay
+
+Over the ten saved sets at minimal reasoning, 460 readings:
+
+| Referee | Plants caught of 220 | Hidden | False marks | Uncertain |
+| --- | --- | --- | --- | --- |
+| As shipped at Round 1e | 210 | 0 | 99 | 0 |
+| Final l, band and lining up | 220 | 0 | 61 | 0 |
+| All the rules above | 220 | 0 | 33 | 10 |
+
+The 10 uncertain marks are toy-ro, once per set: the ear, the phoneme model and the meter all missed its o. Eight of the ten sets are left with 3 false marks: the tzere of yis-ro-eyl heard as e, in two clips, which stays marked, and yi heard as ye. One set has a fourth, where the ear split o-meyn into two words, and one has five, where it wrote a-do-ney for a-do-noy both times on the Shema line. The rules were designed on these clips, so these numbers are not a test. Round 1f tries them on fresh words, and Round 1g is the sealed test.
+
 ## Voice check 2
 
 Read this card first, in the sitting for Rounds 1f and 1g. Those two rounds use it in place of the first card, so the card and the words come from the same sitting.
@@ -495,7 +540,7 @@ Read this card first, in the sitting for Rounds 1f and 1g. Those two rounds use 
 
 ## Round 1f: design words
 
-Read each clip once, in Ashkenazi pronunciation, right after Voice check 2 and in the same sitting as Round 1g. These words test a vowel before a final l, kamatz after r, and a kamatz read as patach before m. They are design words: the rules may change after their answers are read.
+Read each clip once, in Ashkenazi pronunciation, right after Voice check 2 and in the same sitting as Round 1g. These words test a vowel before a final l, kamatz after r, and a kamatz read as patach before m. They are design words: the rules may change after their answers are read. `npm run ear-test -- --round "Round 1f"` grades them against Voice check 2.
 
 | File name | Hebrew | Say | Planted | The ear should write |
 | --- | --- | --- | --- | --- |
@@ -515,7 +560,7 @@ Read each clip once, in Ashkenazi pronunciation, right after Voice check 2 and i
 
 ## Round 1g: sealed test
 
-Read each clip once, in the same sitting as Round 1f. Round 1e has been read, so these thirteen words take its place as the sealed test. Nobody reads the ear's or the phoneme model's answers on them until the rules are frozen, and the pass rule is set before the first run.
+Read each clip once, in the same sitting as Round 1f. Round 1e has been read, so these thirteen words take its place as the sealed test. Nobody reads the ear's or the phoneme model's answers on them until the rules are frozen, and the pass rule is set before the first run. Once they are, `npm run ear-test -- --round "Round 1g"` runs three times, against Voice check 2.
 
 | File name | Hebrew | Say | Planted | The ear should write |
 | --- | --- | --- | --- | --- |

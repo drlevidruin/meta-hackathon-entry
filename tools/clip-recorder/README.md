@@ -72,9 +72,20 @@ To turn the referee off for a run:
 npm run ear-test -- --no-referee
 ```
 
-This prints `Phoneme referee: off (--no-referee)`. The flag is independent of `--no-meter` and `--no-card`. The referee can use the recorded voice check even when both are off.
+This prints `Phoneme referee: off (--no-referee)`. The flag is independent of `--no-meter` and `--no-card`. The referee can use the recorded voice check even when both are off. With `--no-meter` the referee does not ask the meter either; where its rules would, the ear's vowel stands.
 
-Each row has six columns: `clip`, `said`, `heard`, `result`, `ear`, and `metered`. `ear` is the ear's original answer. `metered` is the answer after the vowel meter, before the referee. `heard` is the final answer after the referee, and `result` is its `PASS` or `MISS`. When the referee is off or changes nothing, `metered` and `heard` are equal. Comparison ignores case and spaces within each word. It preserves syllable boundaries, word boundaries, order and count. Only audio reaches the ear. The phoneme service runs on this computer and never sees the printed text. The runner does not call the grader. It exits with status 1 if any clip misses, a call fails, or no clips are recorded.
+Each row has seven columns: `clip`, `said`, `heard`, `result`, `ear`, `metered` and `votes`. `ear` is the ear's answer after the vote, and `votes` lists each call's answer, separated by ` | `, with `ERROR` for a call that did not answer. `metered` is the answer after the vowel meter, before the referee. `heard` is the final answer after the referee, and `result` is its `PASS` or `MISS`. When the referee is off or changes nothing, `metered` and `heard` are equal. Comparison ignores case and spaces within each word. It preserves syllable boundaries, word boundaries, order and count. Only audio reaches the ear. The phoneme service runs on this computer and never sees the printed text. The runner does not call the grader. It exits with status 1 if any clip misses, a call fails, or no clips are recorded.
+
+## One round, and its card
+
+Each table in `docs/ear-test.md` names the voice card read in its sitting: Rounds 1 to 1e use `voice-check`, and Rounds 1f and 1g use `voice-check-2`. The runner grades each reading against its own card and prints a `Voice card:` block for each card it uses. `--round` grades one table, and `--card` uses one card for every reading:
+
+```bash
+npm run ear-test -- --round "Round 1f"
+npm run ear-test -- --card voice-check
+```
+
+A round whose card is not recorded stops before any call to the ear. With `--set child`, `--round` needs `--keep`, because the run deletes the child's recordings when it ends, including rounds it did not grade. A child run without `--keep` also stops before any call when a reading's card is not recorded, since it would grade without the card and then delete the audio.
 
 ## Offline checks
 
