@@ -180,6 +180,16 @@ Read each clip once, after Round 1b, in Ashkenazi pronunciation. Their results s
 | leyv_chirik-for-tzere | לֵב | liv | tzere read as chirik | liv |
 | beney_patach-for-sheva | בְּנֵי | ba-ney | sheva read as patach | ba-ney |
 
+## Card tests
+
+Read these after Round 1c, syllable by syllable, with a short pause between syllables. The first is the voice check for a reader who has learned only kamatz. The other two are read wrong on purpose, every kamatz as patach, to test that a wrong voice check cannot hide a mistake.
+
+| File name | Hebrew | Say | Planted | The ear should write |
+| --- | --- | --- | --- | --- |
+| kamatz-card_clean | בָּ דָ מָ גָ תָּ קָ | bo do mo go to ko | nothing | not graded |
+| kamatz-card_patach-for-kamatz | בָּ דָ מָ גָ תָּ קָ | ba da ma ga ta ka | every kamatz read as patach | not graded |
+| voice-check_patach-for-kamatz | בָּ בַּ בֶּ בִּ בֹּ דָ דַ דֶ דִ דֹ מָ מַ מֶ מִ מֹ | ba ba be bi boy da da de di doy ma ma me mi moy | every kamatz read as patach | not graded |
+
 ## Round 2: a child's voice
 
 The adult round must pass first. Recording a child requires written parent consent. Turn Meta Model API free credits off and use a paid plan before sending children's audio. Meta's free-credit terms allow content to be used for product improvement.
