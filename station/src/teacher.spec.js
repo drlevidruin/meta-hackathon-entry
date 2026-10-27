@@ -19,6 +19,8 @@ it('requires a checked PIN and keeps it in session storage', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Enter' }));
   expect(await screen.findByRole('heading', { name: 'Class' })).toBeTruthy();
   expect(check).toHaveBeenCalledWith('1234'); expect(loadPin()).toBe('1234');
+  expect(screen.getAllByRole('link', { name: 'Roster' })).toHaveLength(1);
+  expect(within(screen.getByRole('navigation', { name: 'Teacher' })).getByRole('link', { name: 'Roster' })).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Lock' }));
   expect(screen.getByRole('heading', { name: 'Teacher PIN' })).toBeTruthy(); expect(loadPin()).toBe('');
 });
@@ -28,7 +30,10 @@ it('renders groups before children and opens a skill packet', async () => {
   const groups = await screen.findByRole('heading', { name: 'Practice groups' });
   expect(groups.compareDocumentPosition(screen.getByRole('heading', { name: 'Children' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(within(groups.parentElement).getByRole('link', { name: /Sheva/ }).getAttribute('href')).toBe('#/teacher/packet/skill/vowel%3Asheva_na/1');
-  expect(screen.getAllByText('18 of 20 sounds')).toHaveLength(3);
+  expect(document.querySelectorAll('.group-card')).toHaveLength(5);
+  expect(document.querySelectorAll('.child-row')).toHaveLength(12);
+  expect(screen.getAllByText('18 of 20 sounds')).toHaveLength(1);
+  expect(screen.getByText('No turns yet')).toBeTruthy();
   expect(screen.getByRole('img', { name: 'Bim' })).toBeTruthy();
 });
 

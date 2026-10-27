@@ -1,17 +1,26 @@
 import { readSession, writeSession } from './storage.js';
 import { skillLabel } from './messages.js';
 
-const KEY = 'kriah.mock.v2';
+const KEY = 'kriah.mock.v3';
 const initialChildren = [
-  { id: 'bim', name: 'Bim', avatar: 'lion', preset: 'sephardi', level: 1, stars: 12, best: 5 },
-  { id: 'nubo', name: 'Nubo', avatar: 'owl', preset: 'ashkenazi', level: 2, stars: 24, best: 7 },
-  { id: 'zuzu', name: 'Zuzu', avatar: 'turtle', preset: 'chassidish', level: 1, stars: 8, best: 3 },
+  { id: 'bim', name: 'Bim', avatar: 'lion', preset: 'sephardi', level: 1, stars: 12, best: 5, next: 'vowel:sheva_na' },
+  { id: 'nubo', name: 'Nubo', avatar: 'owl', preset: 'ashkenazi', level: 2, stars: 24, best: 7, next: 'vowel:chirik' },
+  { id: 'zuzu', name: 'Zuzu', avatar: 'turtle', preset: 'chassidish', level: 1, stars: 8, best: 3, next: 'vowel:sheva_na' },
+  { id: 'tok', name: 'Tok', avatar: 'fox', preset: 'ashkenazi', level: 3, stars: 38, best: 8, next: 'letter:bet' },
+  { id: 'lulo', name: 'Lulo', avatar: 'bear', preset: 'sephardi', level: 4, stars: 56, best: 9, next: 'vowel:cholam' },
+  { id: 'mipo', name: 'Mipo', avatar: 'rabbit', preset: 'chassidish', level: 2, stars: 16, best: 5, next: 'vowel:chirik' },
+  { id: 'quib', name: 'Quib', avatar: 'whale', preset: 'sephardi', level: 3, stars: 31, best: 6, next: 'letter:bet' },
+  { id: 'plo', name: 'Plo', avatar: 'bee', preset: 'ashkenazi', level: 1, stars: 6, best: 2, next: 'vowel:sheva_na' },
+  { id: 'yibo', name: 'Yibo', avatar: 'cat', preset: 'chassidish', level: 4, stars: 63, best: 9, next: 'vowel:cholam' },
+  { id: 'voppo', name: 'Voppo', avatar: 'dog', preset: 'sephardi', level: 2, stars: 22, best: 6, next: 'vowel:chirik' },
+  { id: 'fuzzle', name: 'Fuzzle', avatar: 'frog', preset: 'ashkenazi', level: 3, stars: 43, best: 8, next: 'pattern:closed_syllable' },
+  { id: 'dibbo', name: 'Dibbo', avatar: 'panda', preset: 'chassidish', level: 1, stars: 0, best: 0, next: 'vowel:sheva_na' },
 ];
 const lines = ['בָּ בַּ בֵּ', 'מָ מַ מִ', 'לָ לַ לִ', 'בִּ בֵּ בֻּ', 'שָׁ שַׁ שִׁ', 'נָ נַ נִ'];
 export const items = lines.map((text, index) => ({
   id: `mock-${index}`, level: 1, text, words: text.split(' '),
   skills: ['vowel:kamatz', 'vowel:patach', 'vowel:chirik'], focus: 'vowel:kamatz',
-  source: { generated: true, challenge: index % 2 === 0 },
+  source: { generated: true, challenge: index % 2 === 1 },
 }));
 const clone = value => JSON.parse(JSON.stringify(value));
 const database = () => readSession(KEY) || { children: clone(initialChildren), turns: {} };
@@ -79,8 +88,20 @@ export async function finish({ turnId, stars }) {
   }
   return { child: clone(child) };
 }
-const sampleTurn = () => ({ date: new Date().toISOString(), startLevel: 1, endLevel: 2, ok: 18, pairs: 20, stars: 4,
-  log: ['Held the current level after steady reading.', 'Practiced sheva after two missed sounds.'] });
+const sampleTurns = {
+  bim: { daysAgo: 0, startLevel: 1, endLevel: 1, ok: 18, pairs: 20, stars: 4,
+    log: ['Held the current level after steady reading.', 'Practiced sheva after two missed sounds.'] },
+  nubo: { daysAgo: 1, startLevel: 1, endLevel: 2, ok: 26, pairs: 30, stars: 6 },
+  zuzu: { daysAgo: 0, startLevel: 1, endLevel: 1, ok: 11, pairs: 16, stars: 2 },
+  tok: { daysAgo: 2, startLevel: 2, endLevel: 3, ok: 31, pairs: 36, stars: 7 },
+  lulo: { daysAgo: 1, startLevel: 4, endLevel: 4, ok: 35, pairs: 40, stars: 8 },
+  mipo: { daysAgo: 3, startLevel: 2, endLevel: 2, ok: 16, pairs: 24, stars: 3 },
+  quib: { daysAgo: 0, startLevel: 3, endLevel: 3, ok: 22, pairs: 27, stars: 5 },
+  plo: { daysAgo: 2, startLevel: 1, endLevel: 1, ok: 8, pairs: 12, stars: 2 },
+  yibo: { daysAgo: 1, startLevel: 3, endLevel: 4, ok: 41, pairs: 45, stars: 9 },
+  voppo: { daysAgo: 0, startLevel: 2, endLevel: 2, ok: 23, pairs: 28, stars: 5 },
+  fuzzle: { daysAgo: 4, startLevel: 2, endLevel: 3, ok: 29, pairs: 33, stars: 7 },
+};
 function turnsFor(db, childId) {
   const saved = Object.values(db.turns).filter(turn => turn.childId === childId && turn.finished).reverse().map(turn => ({
     date: turn.date, startLevel: turn.startLevel, endLevel: turn.level, stars: turn.stars,
@@ -88,12 +109,15 @@ function turnsFor(db, childId) {
     pairs: Object.values(turn.grades).reduce((n, grade) => n + grade.summary.pairs, 0),
     log: ['Held the level at the first checkpoint.', 'Advanced after the second checkpoint.'],
   }));
-  return [...saved, sampleTurn()].slice(0, 20);
+  const sample = sampleTurns[childId];
+  return [...saved, ...(sample ? [{ ...sample, date: new Date(Date.now() - sample.daysAgo * 86400000).toISOString(),
+    log: sample.log || ['Practiced the current skill.', 'Kept steady reading through the last line.'],
+  }] : [])].slice(0, 20);
 }
 export async function classView() {
   const db = database();
-  const children = db.children.map((child, index) => ({ ...child,
-    next: index === 1 ? 'vowel:chirik' : 'vowel:sheva_na', lastTurn: turnsFor(db, child.id)[0],
+  const children = db.children.map(child => ({ ...child,
+    next: child.next || 'vowel:kamatz', lastTurn: turnsFor(db, child.id)[0],
   }));
   const groups = [...new Set(children.map(child => child.next))].map(skill => ({
     skill, label: skillLabel(skill), childIds: children.filter(child => child.next === skill).map(child => child.id),
@@ -135,7 +159,7 @@ export async function packet({ childId, skillId }) {
   return { title: childId ? findChild(database(), childId).name : skillLabel(skillId), sections: [
     { heading: 'Warm up', items: clone(items.slice(0, 2)) },
     { heading: 'Practice', items: clone(items) },
-    { heading: 'Challenge', items: clone([items[4]]) },
+    { heading: 'Challenge', items: clone([items[5]]) },
   ] };
 }
 export async function trace() {

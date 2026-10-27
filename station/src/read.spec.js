@@ -21,16 +21,39 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals(); document.querySelector('#station-test-styles')?.remove(); });
 
-it('renders the Hebrew line, record button and gold challenge frame at a mock bookmark', async () => {
+it('renders the Hebrew line and record button, then a gold frame for the last challenge', async () => {
   const fetch = vi.spyOn(globalThis, 'fetch');
   render(React.createElement(App));
   const line = await screen.findByText(items[0].text);
   expect(line.getAttribute('dir')).toBe('rtl');
   expect(line.getAttribute('lang')).toBe('he');
-  expect(line.closest('.challenge-frame')).toBeTruthy();
+  expect(line.closest('.challenge-frame')).toBeNull();
   expect(screen.getByRole('button', { name: 'Record' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Record' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Stop recording' }));
+  const challenge = await screen.findByText(items[1].text, { selector: '.current-line' });
+  expect(challenge.closest('.challenge-frame')).toBeTruthy();
   expect(fetch).not.toHaveBeenCalled();
 });
+
+it.each([[0, '0 stars!'], [1, '1 star!'], [4, '4 stars!'], [10, '10 stars!'], [14, '14 stars!']])
+  ('celebrates %i stars with the child avatar, earned stars and the correct stars line', (stars, heading) => {
+    const onNext = vi.fn();
+    render(React.createElement(DoneScreen, { turn: turn({ stars }), onNext }));
+    const celebration = document.querySelector('.done-content');
+    expect(celebration.firstElementChild.classList.contains('avatar')).toBe(true);
+    const row = screen.getByRole('img', { name: `${stars} ${stars === 1 ? 'star' : 'stars'} earned this turn` });
+    expect(row.querySelectorAll('.star.filled')).toHaveLength(Math.min(stars, 10));
+    expect(row.querySelector('.done-star-count')?.textContent).toBe(stars > 10 ? String(stars) : undefined);
+    expect(screen.getByRole('heading', { name: heading })).toBeTruthy();
+    expect([...celebration.children].map(element => element.tagName.toLowerCase()))
+      .toEqual(['svg', 'div', 'h1', 'p', 'p', 'button']);
+    expect(celebration.querySelector('.turn-message').textContent).toBe('You read so well today!');
+    expect(screen.getByText('Go get the next friend!')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Next friend' }));
+    expect(onNext).toHaveBeenCalledOnce();
+    expect(window.location.hash).toBe('#/');
+  });
 
 it('finishes when the server says done, saves line and bonus stars, and replaces read with done', async () => {
   vi.spyOn(Math, 'random').mockReturnValue(0);
@@ -88,7 +111,7 @@ it('advances immediately, scores resolved grades in reading order, and sends no 
   await waitFor(() => expect(choose).toHaveBeenCalledOnce());
   expect(result.current.turn.streak).toBe(1);
   expect(result.current.turn.bestStreak).toBe(1);
-  expect(result.current.turn.stars).toBe(1);
+  expect(result.current.turn.stars).toBe(2);
   expect(result.current.turn.set[0].id).toBe(items[2].id);
   expect(Object.keys(choose.mock.calls[0][0]).sort()).toEqual(['elapsedMs', 'turnId']);
 });
