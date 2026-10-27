@@ -1,118 +1,165 @@
 import React from 'react';
+import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
-import App, { GradedLine, ReadScreen } from './App.jsx';
+import App, { DoneScreen, GradedLine, LevelUp, ReadScreen } from './App.jsx';
 import * as api from './api.js';
 import { items } from './api.mock.js';
 import { TURN_KEY } from './storage.js';
-import { useTurn } from './useTurn.js';
+import { lineStars, useTurn } from './useTurn.js';
+
+const child = { id: 'bim', name: 'Bim', avatar: 'lion', preset: 'sephardi', level: 1, stars: 0, best: 0 };
+const turn = overrides => ({ turnId: 'test-turn', child, level: 1, set: items.slice(0, 2), lineIndex: 0,
+  completedSets: 0, stars: 0, streak: 0, bestStreak: 0, bonusBurst: 0, attempts: [], setStart: 0,
+  resolvedThrough: 0, setStartedAt: Date.now(), phase: 'reading', ...overrides });
+const grade = (item, verdict = 'ok') => ({ itemId: item.id, words: [{ text: item.text, verdict: null,
+  pairs: [{ text: item.text, verdict }] }], summary: { pairs: 1, ok: verdict === 'ok' ? 1 : 0 } });
 
 beforeEach(() => {
-  localStorage.clear();
   sessionStorage.clear();
   window.history.replaceState(null, '', '/?mock#/read');
 });
-afterEach(() => {
-  cleanup();
-  vi.useRealTimers();
-  vi.unstubAllGlobals();
-});
+afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals(); document.querySelector('#station-test-styles')?.remove(); });
 
-function turn(overrides = {}) {
-  return { id: 'test-turn', preset: 'sephardi', profile: { level: 1, round: 0 }, level: 1,
-    set: items.slice(0, 2), lineIndex: 0, completedSets: 0, stars: 0,
-    setStarAwarded: false, attempts: [], setStart: 0, resolvedThrough: 0, phase: 'reading', ...overrides };
-}
-
-function grade(item, verdict = 'ok') {
-  return { itemId: item.id, words: [{ text: item.text, verdict: null,
-    pairs: [{ text: item.text, verdict, heard: 'a', expected: ['a'], skills: ['vowel:kamatz'] }] }],
-  verdicts: [{ verdict }], summary: { pairs: 1, ok: verdict === 'ok' ? 1 : 0,
-    wrong_letter: verdict === 'wrong_letter' ? 1 : 0, wrong_vowel: 0, skipped: 0, extra: 0,
-    uncertain: 0, not_decoded: 0, missedSkills: verdict === 'ok' ? [] : ['vowel:kamatz'] } };
-}
-
-it('renders the current Hebrew line and record button at the mock read bookmark', async () => {
+it('renders the Hebrew line, record button and gold challenge frame at a mock bookmark', async () => {
   const fetch = vi.spyOn(globalThis, 'fetch');
   render(React.createElement(App));
   const line = await screen.findByText(items[0].text);
   expect(line.getAttribute('dir')).toBe('rtl');
   expect(line.getAttribute('lang')).toBe('he');
+  expect(line.closest('.challenge-frame')).toBeTruthy();
   expect(screen.getByRole('button', { name: 'Record' })).toBeTruthy();
   expect(fetch).not.toHaveBeenCalled();
 });
 
-it('finishes exactly three sets, earns stars, and replaces read with done', async () => {
+it('finishes when the server says done, saves line and bonus stars, and replaces read with done', async () => {
   vi.spyOn(Math, 'random').mockReturnValue(0);
   const choose = vi.spyOn(api, 'next');
+  const finish = vi.spyOn(api, 'finish');
   const replace = vi.spyOn(window.history, 'replaceState');
   render(React.createElement(App));
   for (const item of items) {
-    await screen.findByText(item.text, { selector: '.current-line' });
+    await screen.findByText(item.text, { selector: '.current-line' }, { timeout: 3500 });
     fireEvent.click(screen.getByRole('button', { name: 'Record' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Stop recording' }));
   }
-  expect(await screen.findByRole('heading', { name: '3 stars!' })).toBeTruthy();
-  expect(screen.getByText('You read every sound just right!')).toBeTruthy();
-  expect(screen.getByRole('img', { name: '3 stars earned this turn' })).toBeTruthy();
+  expect(await screen.findByRole('heading', { name: '9 stars!' })).toBeTruthy();
+  expect(screen.getByText('Go get the next friend!')).toBeTruthy();
+  expect(screen.getByText(/You nailed the bet with a dot/)).toBeTruthy();
   expect(replace).toHaveBeenLastCalledWith(null, '', '/?mock#/done');
-  expect(window.location.hash).toBe('#/done');
-  expect(screen.queryByRole('button', { name: 'Record' })).toBeNull();
   const saved = JSON.parse(sessionStorage.getItem(TURN_KEY));
   expect(saved.completedSets).toBe(3);
   expect(saved.attempts).toHaveLength(6);
   expect(choose).toHaveBeenCalledTimes(3);
+  expect(choose.mock.calls[0][0]).toEqual({ turnId: saved.turnId, elapsedMs: expect.any(Number) });
+  expect(finish).toHaveBeenCalledWith({ turnId: saved.turnId, stars: 9 });
+  fireEvent.click(screen.getByRole('button', { name: 'Next friend' }));
+  expect(await screen.findByRole('heading', { name: 'Who’s reading?' })).toBeTruthy();
+  expect(sessionStorage.getItem(TURN_KEY)).toBeNull();
 });
 
-it('restores a current set after reload and leaves an interrupted upload gray', async () => {
-  sessionStorage.setItem(TURN_KEY, JSON.stringify(turn({ lineIndex: 1,
-    attempts: [{ itemId: items[0].id, text: items[0].text, status: 'pending', grade: null }] })));
+it('restores a turn after reload and leaves an interrupted upload plain', async () => {
+  sessionStorage.setItem(TURN_KEY, JSON.stringify(turn({ lineIndex: 1, attempts: [
+    { itemId: items[0].id, text: items[0].text, status: 'pending', grade: null },
+  ] })));
+  const start = vi.spyOn(api, 'start');
   render(React.createElement(App));
   expect(await screen.findByText(items[1].text)).toBeTruthy();
   expect(screen.getByLabelText('Previous line').textContent).toBe(items[0].text);
   expect(screen.getByLabelText('Previous line').querySelector('.pair-ok')).toBeNull();
-  expect(screen.getByRole('button', { name: 'Record' })).toBeTruthy();
+  expect(start).not.toHaveBeenCalled();
 });
 
-it('shows the next line immediately and applies out-of-order grades in reading order', async () => {
-  let first;
-  let second;
-  const firstResult = new Promise(resolve => { first = resolve; });
-  const secondResult = new Promise(resolve => { second = resolve; });
-  vi.spyOn(api, 'grade').mockReturnValueOnce(firstResult).mockReturnValueOnce(secondResult);
+it('advances immediately, scores resolved grades in reading order, and sends no client grades to next', async () => {
+  let first, second;
+  vi.spyOn(api, 'grade').mockReturnValueOnce(new Promise(resolve => { first = resolve; }))
+    .mockReturnValueOnce(new Promise(resolve => { second = resolve; }));
   const choose = vi.spyOn(api, 'next');
   const { result } = renderHook(useTurn);
-  await act(async () => { await result.current.start(); });
+  await act(async () => { await result.current.start(child); });
   act(() => { void result.current.record(null); });
   expect(result.current.turn.lineIndex).toBe(1);
-  expect(result.current.turn.attempts[0].status).toBe('pending');
+  expect(result.current.turn.stars).toBe(0);
   act(() => { void result.current.record(null); });
-  expect(result.current.turn.stars).toBe(1);
   await act(async () => { second(grade(items[1])); });
-  expect(result.current.progress.streak).toBe(0);
+  expect(result.current.turn.streak).toBe(0);
   expect(choose).not.toHaveBeenCalled();
   await act(async () => { first(grade(items[0], 'wrong_letter')); });
   await waitFor(() => expect(choose).toHaveBeenCalledOnce());
-  expect(result.current.progress.streak).toBe(1);
-  expect(result.current.progress.best).toBe(1);
-  expect(choose.mock.calls[0][0].results.map(entry => entry.itemId)).toEqual([items[0].id, items[1].id]);
+  expect(result.current.turn.streak).toBe(1);
+  expect(result.current.turn.bestStreak).toBe(1);
+  expect(result.current.turn.stars).toBe(1);
   expect(result.current.turn.set[0].id).toBe(items[2].id);
+  expect(Object.keys(choose.mock.calls[0][0]).sort()).toEqual(['elapsedMs', 'turnId']);
 });
 
-it('a failed upload stays gray and still allows the next set', async () => {
+it('awards a star at 80 percent and a bonus only for a perfect challenge', () => {
+  const result = grade(items[0]);
+  expect(lineStars({ ...result, summary: { pairs: 10, ok: 8 } })).toBe(1);
+  expect(lineStars({ ...result, summary: { pairs: 10, ok: 7 } })).toBe(0);
+  expect(lineStars(result, true)).toBe(2);
+  expect(lineStars({ ...result, summary: { pairs: 1, ok: 1, extra: 1 } }, true)).toBe(1);
+  expect(lineStars(grade(items[0], 'uncertain'), true)).toBe(0);
+});
+
+it('continues after a failed upload without awarding a star', async () => {
   vi.spyOn(api, 'grade').mockRejectedValue(new Error('Offline'));
   const { result } = renderHook(useTurn);
-  await act(async () => { await result.current.start(); });
+  await act(async () => { await result.current.start(child); });
   await act(async () => { await result.current.record(null); });
-  expect(result.current.turn.lineIndex).toBe(1);
   expect(result.current.turn.attempts[0].status).toBe('failed');
   await act(async () => { await result.current.record(null); });
   await waitFor(() => expect(result.current.turn.completedSets).toBe(1));
-  expect(result.current.turn.attempts.every(entry => entry.grade.summary.not_decoded > 0)).toBe(true);
-  expect(result.current.progress.streak).toBe(0);
+  expect(result.current.turn.stars).toBe(0);
+  expect(result.current.turn.streak).toBe(0);
 });
 
-it('stops recording on its own after twenty seconds in mock mode', async () => {
+it('honors an early server ending and retries finish without requesting another set', async () => {
+  vi.spyOn(Math, 'random').mockReturnValue(0);
+  const choose = vi.spyOn(api, 'next').mockResolvedValue({ done: true, level: 1, levelUp: false, facts: {} });
+  const finish = vi.spyOn(api, 'finish').mockRejectedValueOnce(new Error('Offline')).mockResolvedValueOnce({ child });
+  const { result } = renderHook(useTurn);
+  await act(async () => { await result.current.start(child); });
+  await act(async () => { await result.current.record(null); });
+  await act(async () => { await result.current.record(null); });
+  expect(result.current.turn.phase).toBe('finish_error');
+  expect(result.current.turn.completedSets).toBe(1);
+  await act(async () => result.current.retryNext());
+  expect(result.current.turn.phase).toBe('finished');
+  expect(choose).toHaveBeenCalledOnce(); expect(finish).toHaveBeenCalledTimes(2);
+  const saved = sessionStorage.getItem(TURN_KEY);
+  expect(saved).not.toMatch(/audio|blob|wav|base64/);
+});
+
+it('releases a microphone that arrives after the read screen has unmounted', async () => {
+  window.history.replaceState(null, '', '/#/read');
+  let grant;
+  const trackStop = vi.fn();
+  vi.stubGlobal('navigator', { mediaDevices: { getUserMedia: () => new Promise(resolve => { grant = resolve; }) } });
+  const view = render(React.createElement(ReadScreen, { turn: turn(), onRecord: vi.fn() }));
+  fireEvent.click(screen.getByRole('button', { name: 'Record' }));
+  view.unmount();
+  await act(async () => grant({ getTracks: () => [{ stop: trackStop }] }));
+  expect(trackStop).toHaveBeenCalledOnce();
+});
+
+it('shows the new level for two seconds between sets', async () => {
+  vi.useFakeTimers();
+  vi.spyOn(Math, 'random').mockReturnValue(0);
+  const { result } = renderHook(useTurn);
+  await act(async () => { await result.current.start(child); });
+  for (let index = 0; index < 4; index++) await act(async () => { await result.current.record(null); });
+  expect(result.current.turn.phase).toBe('level_up');
+  expect(result.current.turn.level).toBe(2);
+  render(React.createElement(LevelUp, { level: result.current.turn.level }));
+  expect(screen.getByRole('status', { name: 'Level 2' })).toBeTruthy();
+  act(() => vi.advanceTimersByTime(1999));
+  expect(result.current.turn.phase).toBe('level_up');
+  act(() => vi.advanceTimersByTime(1));
+  expect(result.current.turn.phase).toBe('reading');
+});
+
+it('stops a mock recording after twenty seconds', async () => {
   vi.useFakeTimers();
   const onRecord = vi.fn();
   render(React.createElement(ReadScreen, { turn: turn(), onRecord, onRetryNext: vi.fn() }));
@@ -120,55 +167,79 @@ it('stops recording on its own after twenty seconds in mock mode', async () => {
   expect(screen.getByRole('button', { name: 'Stop recording' })).toBeTruthy();
   await act(async () => { vi.advanceTimersByTime(20000); });
   expect(onRecord).toHaveBeenCalledOnce();
-  expect(screen.getByRole('button', { name: 'Record' })).toBeTruthy();
 });
 
-it('microphone denial shows one retry screen and can request permission again', async () => {
+it('allows retry after microphone denial', async () => {
   window.history.replaceState(null, '', '/#/read');
   const getUserMedia = vi.fn().mockRejectedValue(new DOMException('Denied', 'NotAllowedError'));
   vi.stubGlobal('navigator', { mediaDevices: { getUserMedia } });
   render(React.createElement(ReadScreen, { turn: turn(), onRecord: vi.fn(), onRetryNext: vi.fn() }));
   fireEvent.click(screen.getByRole('button', { name: 'Record' }));
   expect(await screen.findByRole('heading', { name: 'Microphone is off' })).toBeTruthy();
-  expect(screen.queryByText(items[0].text)).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
   await waitFor(() => expect(getUserMedia).toHaveBeenCalledTimes(2));
 });
 
-it('collects a real recorder clip and releases the microphone when stopped', async () => {
+it('uses an AnalyserNode to stop after speech and 1.2 seconds of quiet and releases audio', async () => {
+  vi.useFakeTimers();
   window.history.replaceState(null, '', '/#/read');
-  const trackStop = vi.fn();
-  const stream = { getTracks: () => [{ stop: trackStop }] };
-  const onRecord = vi.fn();
-  vi.stubGlobal('navigator', { mediaDevices: { getUserMedia: vi.fn(async () => stream) } });
-  class Recorder {
-    static isTypeSupported(type) { return type === 'audio/webm;codecs=opus'; }
-    constructor(input, options) { expect(input).toBe(stream); this.mimeType = options.mimeType; }
-    state = 'inactive';
-    start() { this.state = 'recording'; }
-    stop() {
-      this.state = 'inactive';
-      this.ondataavailable({ data: new Blob(['clip'], { type: this.mimeType }) });
-      this.onstop();
-    }
+  let loudness = 0;
+  const trackStop = vi.fn(), close = vi.fn(async () => {}), onRecord = vi.fn();
+  vi.stubGlobal('navigator', { mediaDevices: { getUserMedia: vi.fn(async () => ({ getTracks: () => [{ stop: trackStop }] })) } });
+  class Context {
+    resume = async () => {};
+    close = close;
+    createMediaStreamSource() { return { connect: vi.fn(), disconnect: vi.fn() }; }
+    createAnalyser() { return { fftSize: 2048, disconnect: vi.fn(), getFloatTimeDomainData: samples => samples.fill(loudness) }; }
   }
-  vi.stubGlobal('MediaRecorder', Recorder);
+  class Recorder {
+    static isTypeSupported() { return true; }
+    state = 'inactive'; mimeType = 'audio/webm';
+    start() { this.state = 'recording'; }
+    stop() { this.state = 'inactive'; this.ondataavailable({ data: new Blob(['clip']) }); this.onstop(); }
+  }
+  vi.stubGlobal('AudioContext', Context); vi.stubGlobal('MediaRecorder', Recorder);
   render(React.createElement(ReadScreen, { turn: turn(), onRecord, onRetryNext: vi.fn() }));
-  fireEvent.click(screen.getByRole('button', { name: 'Record' }));
-  fireEvent.click(await screen.findByRole('button', { name: 'Stop recording' }));
+  await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Record' })));
+  act(() => vi.advanceTimersByTime(3000));
+  expect(onRecord).not.toHaveBeenCalled();
+  loudness = .1;
+  act(() => vi.advanceTimersByTime(100));
+  loudness = 0;
+  act(() => vi.advanceTimersByTime(1200));
+  expect(onRecord).not.toHaveBeenCalled();
+  act(() => vi.advanceTimersByTime(50));
   expect(onRecord).toHaveBeenCalledOnce();
-  expect(onRecord.mock.calls[0][0].type).toBe('audio/webm;codecs=opus');
-  expect(onRecord.mock.calls[0][0].size).toBe(4);
-  expect(trackStop).toHaveBeenCalledOnce();
+  expect(trackStop).toHaveBeenCalledOnce(); expect(close).toHaveBeenCalledOnce();
 });
 
-it('grades each pair without losing its Hebrew text and marks extra words with a dot', () => {
-  const attempt = { status: 'graded', grade: { words: [
+it('preserves Hebrew pairs and uses a dot for an extra word', () => {
+  render(React.createElement(GradedLine, { attempt: { status: 'graded', grade: { words: [
     { text: 'בָּרָ', verdict: null, pairs: [{ text: 'בָּ', verdict: 'ok' }, { text: 'רָ', verdict: 'wrong_vowel' }] },
     { text: 'מִי', verdict: 'extra', pairs: [] },
-  ] } };
-  render(React.createElement(GradedLine, { attempt }));
+  ] } } }));
   expect(document.querySelector('.pair-ok').textContent).toBe('בָּ');
   expect(document.querySelector('.pair-wrong_vowel').textContent).toBe('רָ');
   expect(screen.getByLabelText('Extra word').className).toBe('extra-dot');
+});
+
+it('uses no error red on read, recording, marked pairs, or done', () => {
+  const style = document.createElement('style'); style.id = 'station-test-styles';
+  style.textContent = readFileSync('src/styles.css', 'utf8'); document.head.append(style);
+  const attempt = { status: 'graded', grade: { words: ['ok', 'wrong_letter', 'wrong_vowel', 'skipped', 'uncertain', 'not_decoded', 'extra'].map(verdict =>
+    ({ text: 'בָּ', verdict: verdict === 'extra' ? 'extra' : null, pairs: [{ text: 'בָּ', verdict }] })) } };
+  const view = render(React.createElement(ReadScreen, { turn: turn({ attempts: [attempt] }), onRecord: vi.fn() }));
+  fireEvent.click(screen.getByRole('button', { name: 'Record' }));
+  function check() {
+    document.querySelectorAll('main *, section *').forEach(element => {
+      const computed = getComputedStyle(element);
+      for (const property of ['color', 'backgroundColor', 'borderColor', 'textDecorationColor', 'fill', 'stroke'])
+        expect(computed[property]).not.toMatch(/#d64545|rgb\(214,\s*69,\s*69\)|\bred\b|#ff0000/i);
+    });
+  }
+  check();
+  expect(getComputedStyle(document.querySelector('.pair-wrong_vowel')).color).toBe('rgb(104, 115, 110)');
+  view.unmount();
+  render(React.createElement(DoneScreen, { turn: turn({ stars: 4 }), onNext: vi.fn() })); check();
+  expect(style.sheet.cssRules.length).toBeGreaterThan(50);
 });

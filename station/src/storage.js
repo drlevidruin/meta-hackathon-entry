@@ -1,48 +1,43 @@
-export const TURN_KEY = 'kriah.turn.v1';
-const PROGRESS_KEY = 'kriah.progress.v1';
-const PRESET_KEY = 'kriah.preset.v1';
+export const TURN_KEY = 'kriah.turn.v2';
+export const PIN_KEY = 'kriah.teacher.pin.v2';
 export const PRESETS = ['sephardi', 'ashkenazi', 'chassidish'];
 
-function read(storage, key) {
-  try { return JSON.parse(storage.getItem(key)); } catch { return null; }
+export function readSession(key) {
+  try { return JSON.parse(sessionStorage.getItem(key)); } catch { return null; }
 }
 
-function write(storage, key, value) {
-  try { storage.setItem(key, JSON.stringify(value)); } catch { /* Private browsing can disable storage. */ }
+export function writeSession(key, value) {
+  try {
+    if (value === null) sessionStorage.removeItem(key);
+    else sessionStorage.setItem(key, JSON.stringify(value));
+  } catch { /* The current screen still works if browser storage is unavailable. */ }
 }
 
-export function loadPreset() {
-  const preset = read(localStorage, PRESET_KEY);
-  return PRESETS.includes(preset) ? preset : 'sephardi';
-}
-export const savePreset = preset => write(localStorage, PRESET_KEY, preset);
-
-export function loadProgress() {
-  const saved = read(localStorage, PROGRESS_KEY) || {};
-  const count = value => Number.isSafeInteger(value) && value >= 0 ? value : 0;
-  return { level: saved.level >= 1 && saved.level <= 6 ? saved.level : 1,
-    stars: count(saved.stars), streak: count(saved.streak), best: count(saved.best) };
-}
-export const saveProgress = progress => write(localStorage, PROGRESS_KEY, progress);
-export const saveTurn = turn => write(sessionStorage, TURN_KEY, turn);
+export const loadPin = () => readSession(PIN_KEY) || '';
+export const savePin = pin => writeSession(PIN_KEY, pin || null);
+export const saveTurn = turn => writeSession(TURN_KEY, turn);
 
 export function grayGrade(item) {
   const words = item.text.trim().split(/\s+/).map(text => ({
-    text, verdict: 'not_decoded', pairs: [{ text, verdict: 'not_decoded', heard: null, expected: null, skills: [] }],
+    text, verdict: 'not_decoded', pairs: [{ text, verdict: 'not_decoded' }],
   }));
-  return { itemId: item.id, words, verdicts: [], summary: {
-    pairs: words.length, ok: 0, wrong_letter: 0, wrong_vowel: 0, skipped: 0, extra: 0, uncertain: 0,
-    not_decoded: words.length, missedSkills: [],
-  } };
+  return { itemId: item.id, words, summary: { pairs: words.length, ok: 0, not_decoded: words.length } };
+}
+
+export function validSet(set) {
+  return Array.isArray(set) && set.length > 0 && set.every(item =>
+    typeof item.id === 'string' && typeof item.text === 'string');
 }
 
 export function loadTurn() {
-  const turn = read(sessionStorage, TURN_KEY);
-  if (!turn || !Array.isArray(turn.set) || turn.set.length < 2 || turn.set.length > 3 ||
-      !turn.set.every(item => typeof item.id === 'string' && typeof item.text === 'string') ||
-      !Array.isArray(turn.attempts) || !Number.isInteger(turn.lineIndex) || !PRESETS.includes(turn.preset)) return null;
-  // Audio is never stored. Interrupted uploads become gray and the turn can continue.
-  return { ...turn, phase: turn.phase === 'choosing' ? 'checkpoint' : turn.phase,
+  const turn = readSession(TURN_KEY);
+  if (!turn || typeof turn.turnId !== 'string' || !turn.child?.id || !validSet(turn.set) ||
+    !Array.isArray(turn.attempts) || !Number.isInteger(turn.lineIndex) ||
+    turn.lineIndex < 0 || turn.lineIndex > turn.set.length) return null;
+  // Store grades and progress only. Interrupted audio is never persisted or replayed.
+  return { ...turn,
+    phase: turn.phase === 'choosing' ? 'checkpoint' : turn.phase === 'finishing' ? 'finish_pending' : turn.phase,
     attempts: turn.attempts.map(attempt => attempt.status === 'pending'
-      ? { ...attempt, status: 'failed', grade: grayGrade({ id: attempt.itemId, text: attempt.text }) } : attempt) };
+      ? { ...attempt, status: 'failed', grade: grayGrade({ id: attempt.itemId, text: attempt.text }) } : attempt),
+  };
 }

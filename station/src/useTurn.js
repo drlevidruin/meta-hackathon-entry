@@ -1,54 +1,44 @@
 import { useEffect, useRef, useState } from 'react';
 import * as api from './api.js';
 import { recordingToWav } from './wav.js';
-import { loadProgress, loadTurn, loadPreset, saveProgress, saveTurn, grayGrade } from './storage.js';
+import { loadTurn, saveTurn, grayGrade, validSet } from './storage.js';
 import { navigate } from './router.js';
 
-function validSet(value) {
-  return Array.isArray(value) && value.length >= 2 && value.length <= 3 &&
-    value.every(item => typeof item.id === 'string' && typeof item.text === 'string');
+export function perfectLine(grade) {
+  const pairs = grade?.words?.flatMap(word => word.pairs || []) || [];
+  return pairs.length > 0 && grade.words.every(word => !word.verdict || word.verdict === 'ok') &&
+    pairs.every(pair => pair.verdict === 'ok') && !(grade.summary?.extra > 0);
 }
 
-export function perfectLine(grade) {
-  const pairs = grade.words.flatMap(word => word.pairs);
-  return pairs.length > 0 && grade.words.every(word => !word.verdict) && pairs.every(pair => pair.verdict === 'ok');
+export function lineStars(grade, challenge = false) {
+  const { pairs = 0, ok = 0 } = grade?.summary || {};
+  return (pairs > 0 && ok / pairs >= 0.8 ? 1 : 0) + (challenge && perfectLine(grade) ? 1 : 0);
 }
 
 export function useTurn() {
   const [turn, setTurn] = useState(loadTurn);
-  const [progress, setProgress] = useState(loadProgress);
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState(false);
   const current = useRef(turn);
-  const personal = useRef(progress);
   const startingRef = useRef(false);
 
-  function storeTurn(value) {
+  function store(value) {
     current.current = value;
     saveTurn(value);
     setTurn(value);
   }
-  function storeProgress(value) {
-    personal.current = value;
-    saveProgress(value);
-    setProgress(value);
-  }
 
-  async function start({ replace = false } = {}) {
-    if (startingRef.current) return;
+  async function start(child, { replace = false } = {}) {
+    if (startingRef.current || !child?.id) return;
     startingRef.current = true;
     setStarting(true);
     setStartError(false);
     try {
-      const preset = loadPreset();
-      const response = await api.start({ preset, level: personal.current.level });
-      if (!validSet(response.set)) throw new Error('Invalid set');
-      storeTurn({
-        id: crypto.randomUUID(), preset, profile: response.profile,
-        level: response.profile.level || personal.current.level, set: response.set, lineIndex: 0,
-        completedSets: 0, stars: 0, setStarAwarded: false,
-        attempts: [], setStart: 0, resolvedThrough: 0, phase: 'reading',
-      });
+      const response = await api.start({ childId: child.id });
+      if (!response.turnId || !validSet(response.set)) throw new Error('Invalid turn');
+      store({ turnId: response.turnId, child, level: response.level, set: response.set,
+        lineIndex: 0, completedSets: 0, stars: 0, streak: 0, bestStreak: 0, bonusBurst: 0,
+        attempts: [], setStart: 0, resolvedThrough: 0, setStartedAt: Date.now(), phase: 'reading' });
       navigate('/read', { replace });
     } catch {
       setStartError(true);
@@ -62,73 +52,90 @@ export function useTurn() {
     const snapshot = current.current;
     if (!snapshot || snapshot.phase !== 'reading') return;
     const item = snapshot.set[snapshot.lineIndex];
-    const attemptIndex = snapshot.attempts.length;
+    if (!item) return;
+    const index = snapshot.attempts.length;
     const last = snapshot.lineIndex === snapshot.set.length - 1;
-    const attempt = { itemId: item.id, text: item.text, status: 'pending', grade: null };
-    storeTurn({ ...snapshot,
-      attempts: [...snapshot.attempts, attempt], lineIndex: snapshot.lineIndex + 1,
-      phase: last ? 'checkpoint' : 'reading',
-      stars: snapshot.stars + (last ? 1 : 0), setStarAwarded: last,
-    });
-    if (last) storeProgress({ ...personal.current, stars: personal.current.stars + 1 });
-
-    let result;
-    let status = 'graded';
+    store({ ...snapshot, attempts: [...snapshot.attempts, {
+      itemId: item.id, text: item.text, challenge: !!item.source?.challenge, status: 'pending', grade: null,
+    }], lineIndex: snapshot.lineIndex + 1, phase: last ? 'checkpoint' : 'reading' });
+    let result, status = 'graded';
     try {
-      // Mock mode also works without microphone or Web Audio support.
       const audio = api.isMockMode() ? null : await recordingToWav(blob);
-      result = await api.grade({ itemId: item.id, preset: snapshot.preset, audio });
+      result = await api.grade({ turnId: snapshot.turnId, itemId: item.id, audio });
+      if (result.itemId !== item.id || !Array.isArray(result.words) || !result.summary) throw new Error('Invalid grade');
     } catch {
       result = grayGrade(item);
       status = 'failed';
     }
     const latest = current.current;
-    if (!latest || latest.id !== snapshot.id) return;
-    storeTurn({ ...latest, attempts: latest.attempts.map((entry, index) => index === attemptIndex
+    if (latest?.turnId !== snapshot.turnId) return;
+    store({ ...latest, attempts: latest.attempts.map((entry, entryIndex) => entryIndex === index
       ? { ...entry, status, grade: result } : entry) });
   }
 
   useEffect(() => {
     let latest = current.current;
     if (!latest) return;
-    // Grade requests can finish out of order. Streaks follow reading order.
     let through = latest.resolvedThrough;
-    let nextProgress = personal.current;
+    let { stars, streak, bestStreak, bonusBurst } = latest;
+    // Scores and streaks follow reading order even if uploads finish out of order.
     while (through < latest.attempts.length && latest.attempts[through].status !== 'pending') {
-      const streak = perfectLine(latest.attempts[through].grade) ? nextProgress.streak + 1 : 0;
-      nextProgress = { ...nextProgress, streak, best: Math.max(nextProgress.best, streak) };
+      const attempt = latest.attempts[through];
+      const perfect = attempt.status === 'graded' && perfectLine(attempt.grade);
+      stars += attempt.status === 'graded' ? lineStars(attempt.grade, attempt.challenge) : 0;
+      streak = perfect ? streak + 1 : 0;
+      bestStreak = Math.max(bestStreak, streak);
+      if (perfect && attempt.challenge) bonusBurst++;
       through++;
     }
     if (through !== latest.resolvedThrough) {
-      storeProgress(nextProgress);
-      latest = { ...latest, resolvedThrough: through };
-      storeTurn(latest);
+      latest = { ...latest, stars, streak, bestStreak, bonusBurst, resolvedThrough: through };
+      store(latest);
     }
-    if (latest.phase !== 'checkpoint' || latest.attempts.slice(latest.setStart).some(entry => entry.status === 'pending')) return;
-    const checkpoint = latest;
-    storeTurn({ ...latest, phase: 'choosing' });
-    const results = latest.attempts.slice(latest.setStart).map(entry => ({
-      itemId: entry.itemId, summary: entry.grade.summary, verdicts: entry.grade.verdicts,
-    }));
-    api.next({ profile: latest.profile, results }).then(response => {
-      if (current.current?.id !== checkpoint.id) return;
-      if (!validSet(response.set)) throw new Error('Invalid set');
-      const finished = checkpoint.completedSets === 2;
-      storeProgress({ ...personal.current, level: response.level });
-      storeTurn({ ...current.current, profile: response.profile, level: response.level,
-        set: finished ? checkpoint.set : response.set,
-        lineIndex: finished ? checkpoint.set.length : 0, completedSets: checkpoint.completedSets + 1,
-        setStart: finished ? checkpoint.setStart : checkpoint.attempts.length,
-        setStarAwarded: finished, phase: finished ? 'finished' : 'reading' });
-      if (finished) navigate('/done', { replace: true });
-    }).catch(() => {
-      if (current.current?.id === checkpoint.id) storeTurn({ ...current.current, phase: 'next_error' });
-    });
+    if (latest.phase === 'checkpoint' && latest.attempts.slice(latest.setStart).every(entry => entry.status !== 'pending')) {
+      const checkpoint = latest;
+      store({ ...latest, phase: 'choosing' });
+      api.next({ turnId: latest.turnId, elapsedMs: Math.max(0, Date.now() - latest.setStartedAt) }).then(response => {
+        if (current.current?.turnId !== checkpoint.turnId) return;
+        if (!response.done && !validSet(response.set)) throw new Error('Invalid set');
+        const phase = response.done ? 'finish_pending' : 'reading';
+        store({ ...current.current, level: response.level, facts: response.facts || {},
+          completedSets: checkpoint.completedSets + 1,
+          set: response.done ? checkpoint.set : response.set,
+          lineIndex: response.done ? checkpoint.set.length : 0,
+          setStart: response.done ? checkpoint.setStart : checkpoint.attempts.length,
+          setStartedAt: Date.now() + (response.levelUp ? 2000 : 0),
+          phase: response.levelUp ? 'level_up' : phase, afterLevelUp: phase,
+          levelUpUntil: response.levelUp ? Date.now() + 2000 : null,
+        });
+      }).catch(() => {
+        if (current.current?.turnId === checkpoint.turnId) store({ ...current.current, phase: 'next_error' });
+      });
+    } else if (latest.phase === 'finish_pending') {
+      const snapshot = latest;
+      store({ ...latest, phase: 'finishing' });
+      api.finish({ turnId: latest.turnId, stars: latest.stars }).then(({ child }) => {
+        if (current.current?.turnId === snapshot.turnId) store({ ...current.current, child, phase: 'finished' });
+      }).catch(() => {
+        if (current.current?.turnId === snapshot.turnId) store({ ...current.current, phase: 'finish_error' });
+      });
+    }
+  }, [turn]);
+
+  useEffect(() => {
+    if (turn?.phase !== 'level_up') return;
+    const timer = setTimeout(() => {
+      const latest = current.current;
+      if (latest?.turnId === turn.turnId && latest.phase === 'level_up') store({ ...latest, phase: latest.afterLevelUp });
+    }, Math.max(0, turn.levelUpUntil - Date.now()));
+    return () => clearTimeout(timer);
   }, [turn]);
 
   function retryNext() {
-    if (current.current?.phase === 'next_error') storeTurn({ ...current.current, phase: 'checkpoint' });
+    const latest = current.current;
+    if (latest?.phase === 'next_error') store({ ...latest, phase: 'checkpoint' });
+    if (latest?.phase === 'finish_error') store({ ...latest, phase: 'finish_pending' });
   }
 
-  return { turn, progress, starting, startError, start, record, retryNext };
+  return { turn, starting, startError, start, record, retryNext, clear: () => store(null) };
 }
