@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { cardLabels } from '../rulebook/voice-card.js';
-import { applyReferee, backScore, cardCalibration, nucleus, refereeSettings, vowelClass } from './referee.js';
+import { alignVowels, applyReferee, backScore, cardCalibration, nucleus, refereeSettings, vowelClass } from './referee.js';
 
 const calibration = { version: 1, a: 0.43, o: 0.91, n: { a: 3, o: 3 } };
 const vowel = (score, token = score >= 0.5 ? 'ɑ' : 'a') => ({
@@ -11,7 +11,7 @@ const vowel = (score, token = score >= 0.5 ? 'ɑ' : 'a') => ({
 for (const [expected, examples] of [
   ['front', 'a aː a5 a. ã æ æː ɐ ɐ̃ a: aɜ aɹ aɚ'],
   ['back', 'ɑ ɑː ɑ5 ɑ̃ ɔ ɔː ɔ̃ o oː o5 o̞ õ ɒ ʌ ɑɜ'],
-  ['other', 'e ɛ ə i iː ɪ u uː œ ø aɪ oɪ ɔɪ aʊ eɪ ja ər ɚ ɝ'],
+  ['other', 'e ɛ ə i iː ɪ u uː ʉ ʉː ɵ ɵː y ʏ œ ø aɪ oɪ ɔɪ aʊ eɪ ja ər ɚ ɝ'],
   [null, 'b ʃ x ɹ ts <pad> <s> </s> <unk>'],
 ]) {
   for (const token of examples.split(' ')) {
@@ -119,6 +119,129 @@ const profile = { version: 2, vowels: {
 }, spread: 0.2 };
 const ambiguous = { f1: 5.5, f2: 9 };
 
+for (const token of ['œ', 'ʉ']) {
+  test(`rounded corrects ko-sov to ko-suv from a normalized ${token} token`, () => {
+    assert.deepEqual(applyReferee([['ko', 'sov']], [vowel(0.9, 'ɑː'), vowel(0.1, token)], calibration), {
+      words: [['ko', 'suv']],
+      changes: [{ word: 0, syllable: 1, from: 'sov', to: 'suv', rule: 'rounded' }], status: 'checked',
+    });
+  });
+}
+
+for (const token of 'u ʊ ʉ y ʏ ø œ uː ʊ5 ʉː ỹ ʏː ø̞ œɹ'.split(' ')) {
+  test(`rounded normalizes ${token} and takes precedence over coda-l when the meter hears o`, () => {
+    assert.deepEqual(applyReferee([['kol']], [vowel(0.1, token)], calibration,
+      { points: [profile.vowels.o], profile }), {
+      words: [['kul']],
+      changes: [{ word: 0, syllable: 0, from: 'kol', to: 'kul', rule: 'rounded' }], status: 'checked',
+    });
+  });
+}
+
+test('rounded yields to coda-l when the meter hears a', () => {
+  assert.deepEqual(applyReferee([['kol']], [vowel(0.1, 'ʊ')], calibration,
+    { points: [profile.vowels.a], profile }), {
+    words: [['kal']],
+    changes: [{ word: 0, syllable: 0, from: 'kol', to: 'kal', rule: 'coda-l' }], status: 'checked',
+  });
+});
+
+test('rounded still applies when the meter cannot choose a vowel', () => {
+  for (const point of [undefined, null, {}, ambiguous]) {
+    assert.deepEqual(applyReferee([['kol']], [vowel(0.1, 'ʊ')], calibration,
+      { points: [point], profile }), {
+      words: [['kul']],
+      changes: [{ word: 0, syllable: 0, from: 'kol', to: 'kul', rule: 'rounded' }], status: 'checked',
+    });
+  }
+  assert.deepEqual(applyReferee([['kol']], [vowel(0.1, 'ʊ')], calibration,
+    { points: [profile.vowels.a], profile: { ...profile, spread: 2 } }), {
+    words: [['kul']],
+    changes: [{ word: 0, syllable: 0, from: 'kol', to: 'kul', rule: 'rounded' }], status: 'checked',
+  });
+});
+
+for (const [from, token] of [['ka', 'œ'], ['toy', 'œ'], ['ke', 'œ'], ['ku', 'œ'], ['ko', 'ɑ'],
+  ['ko', 'ɵ'], ['ko', 'ɵː']]) {
+  test(`rounded leaves ${from} paired with ${token} unchanged`, () => {
+    const words = [[from]];
+    assert.deepEqual(applyReferee(words, [vowel(0.9, token)], calibration),
+      { words, changes: [], status: 'checked' });
+  });
+}
+
+for (const [from, score, point, voice, to, rule] of [
+  ['toy-ra', 0.07, ambiguous, profile, 'toy-?', 'open-end'],
+  ['toy-ra', 0.07, profile.vowels.a, profile, 'toy-ra'],
+  ['toy-ra', 0.07, profile.vowels.o, profile, 'toy-ro', 'open-end'],
+  ['toy-ra', 0.37, profile.vowels.o, profile, 'toy-ro', 'open-end'],
+  ['toy-ra', 0.07, null, profile, 'toy-ra'],
+  ['toy-ra', 0.07, undefined, profile, 'toy-ra'],
+  ['toy-ra', 0.07, {}, profile, 'toy-ra'],
+  ['toy-ra', 0.07, { f1: null, f2: null }, profile, 'toy-ra'],
+  ['toy-ra', 0.07, profile.vowels.o, undefined, 'toy-ra'],
+  ['she-ma', 0.07, profile.vowels.a, profile, 'she-ma'],
+  ['so-ro', 0.07, profile.vowels.o, profile, 'so-ro'],
+  ['so-ro', 0.07, profile.vowels.a, profile, 'so-ra', 'open-end'],
+  ['so-ro', 0.07, ambiguous, profile, 'so-?', 'open-end'],
+  ['so-ro', 0.07, null, profile, 'so-ro'],
+  ['so-ro', 0.07, undefined, profile, 'so-ro'],
+  ['so-ro', 0.07, {}, profile, 'so-ro'],
+  ['so-ro', 0.07, { f1: null, f2: null }, profile, 'so-ro'],
+  ['so-ro', 0.07, profile.vowels.a, undefined, 'so-ro'],
+  ['so-ro', 0.07, profile.vowels.a, { ...profile, spread: 2 }, 'so-ro'],
+  ['so-ro', 0.15, profile.vowels.a, profile, 'so-ro'],
+  ['so-ro', 0.37, profile.vowels.a, profile, 'so-ro'],
+]) {
+  test(`open end: ${from} with score ${score}, point ${JSON.stringify(point)} and profile ${!!voice} gives ${to}`, () => {
+    const [head] = from.split('-');
+    const token = { toy: 'oɪ', she: 'e', so: 'ɑ' }[head];
+    assert.deepEqual(applyReferee([from.split('-')],
+      [{ token, top: [[token, 1]] }, vowel(score)], calibration, { points: [null, point], profile: voice }), {
+      words: [to.split('-')], changes: rule
+        ? [{ word: 0, syllable: 1, from: from.split('-')[1], to: to.split('-')[1], rule }] : [], status: 'checked',
+    });
+  });
+}
+
+test('an open-end o in the band does not ask the meter for a point', () => {
+  const words = [['so', 'ro']];
+  assert.deepEqual(applyReferee(words, [vowel(0.9), vowel(0.37)], calibration, {
+    profile, get points() { assert.fail('an open-end o in the band must keep its vowel'); },
+  }), { words, changes: [], status: 'checked' });
+});
+
+test('an open end still raises to o at the calibrated line', () => {
+  assert.deepEqual(applyReferee([['tze', 'da', 'ka']],
+    [vowel(0.1, 'e'), vowel(0.07), vowel(0.5)], calibration, { points: [null, null, profile.vowels.a], profile }), {
+    words: [['tze', 'da', 'ko']],
+    changes: [{ word: 0, syllable: 2, from: 'ka', to: 'ko', rule: 'phoneme' }], status: 'checked',
+  });
+});
+
+test('an open end with no front or back score keeps the ear vowel', () => {
+  for (const [last, token, top] of [
+    ['ra', 'ɛ', [['ɑ', 0.9], ['a', 0.1]]],
+    ['ro', 'ɛ', [['ɑ', 0.1], ['a', 0.9]]],
+    ['ra', 'a', []], ['ro', 'ɑ', []],
+  ]) {
+    const words = [['toy', last]];
+    assert.deepEqual(applyReferee(words, [{ token: 'oɪ', top: [['oɪ', 1]] }, { token, top }], calibration,
+      { points: [null, ambiguous], profile }), { words, changes: [], status: 'checked' });
+  }
+});
+
+test('open ends are determined from each word and use flat point indices', () => {
+  const words = Object.freeze([Object.freeze(['?', 'toy', 'ra']), Object.freeze(['she', 'ma'])]);
+  const points = Object.freeze([null, null, profile.vowels.o, null, profile.vowels.a]);
+  const tokens = [{ token: 'oɪ', top: [['oɪ', 1]] }, vowel(0.07), vowel(0.1, 'e'), vowel(0.07)];
+  assert.deepEqual(applyReferee(words, tokens, calibration, { points, profile }), {
+    words: [['?', 'toy', 'ro'], ['she', 'ma']],
+    changes: [{ word: 0, syllable: 2, from: 'ra', to: 'ro', rule: 'open-end' }], status: 'checked',
+  });
+  assert.deepEqual(words, [['?', 'toy', 'ra'], ['she', 'ma']]);
+});
+
 for (const [from, score, point, voice, to, rule] of [
   ['chal', 0.84, profile.vowels.a, profile, 'chal'],
   ['dol', 0.84, profile.vowels.o, profile, 'dol'],
@@ -126,6 +249,8 @@ for (const [from, score, point, voice, to, rule] of [
   ['kol', 0.84, ambiguous, profile, '?', 'coda-l'],
   ['kol', 0.84, null, profile, 'kol'],
   ['kol', 0.84, undefined, profile, 'kol'],
+  ['kol', 0.84, {}, profile, 'kol'],
+  ['kol', 0.84, { f1: null, f2: null }, profile, 'kol'],
   ['kol', 0.84, profile.vowels.a, undefined, 'kol'],
   ['chal', 0.84, profile.vowels.o, profile, 'chol', 'coda-l'],
   ['chal', 0.84, ambiguous, profile, 'chal'],
@@ -136,6 +261,7 @@ for (const [from, score, point, voice, to, rule] of [
   ['kol', 0.07, null, undefined, 'kal', 'phoneme'],
   ['la', 0.84, profile.vowels.a, profile, 'lo', 'phoneme'],
   ['lo', 0.84, profile.vowels.a, profile, 'lo'],
+  ['lo', 0.07, profile.vowels.o, profile, 'la', 'phoneme'],
 ]) {
   test(`final l: ${from} with score ${score}, point ${JSON.stringify(point)} and profile ${!!voice} gives ${to}`, () => {
     const result = applyReferee([[from]], [vowel(score)], calibration, { points: [point], profile: voice });
@@ -149,6 +275,8 @@ for (const [score, point, voice, to, rule] of [
   [0.37, profile.vowels.o, profile, 'kom'],
   [0.37, ambiguous, profile, '?', 'band'],
   [0.37, null, profile, 'kom'],
+  [0.37, {}, profile, 'kom'],
+  [0.37, { f1: null, f2: null }, profile, 'kom'],
   [0.37, undefined, undefined, 'kom'],
   [0.37, profile.vowels.a, undefined, 'kom'],
   [0.15, profile.vowels.a, profile, 'kam', 'band'],
@@ -247,7 +375,69 @@ test('alignment ties leave repeated vowel pairs unchanged when best paths disagr
   const words = [['ka', 'tan', 'ma']];
   const expected = { words, changes: [], status: 'aligned' };
   assert.deepEqual(applyReferee(words, [vowel(0.9), vowel(0.07)], calibration), expected);
-  assert.deepEqual(applyReferee(words, [vowel(0.9), vowel(0.07)], calibration), expected);
+  assert.deepEqual(applyReferee(words, [vowel(0.07), vowel(0.9)], calibration), expected);
+});
+
+test('alignment ties with more gaps can veto a vowel correction', () => {
+  const words = [['ka', 'te']];
+  assert.deepEqual(applyReferee(words, [phoneme('e'), phoneme('i'), vowel(0.9)], calibration),
+    { words, changes: [], status: 'aligned' });
+});
+
+test('alignment corrections use only pairs shared by every maximum-score path in 400 seeded cases', () => {
+  // Class numbers are independent fixture labels: open, mid, high front,
+  // high back, oy, ay, and an unrecognized phoneme class.
+  const earTypes = [['a', 0], ['o', 0], ['e', 1], ['ey', 1], ['i', 2], ['u', 3], ['oy', 4], ['ay', 5]];
+  const phoneTypes = [['a', 0], ['ɑ', 0], ['e', 1], ['i', 2], ['u', 3], ['oɪ', 4], ['aɪ', 5], ['y', 6]];
+  let seed = 0xc0ffee;
+  const random = limit => {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    return Math.floor(seed / 2 ** 32 * limit);
+  };
+  let changes = 0;
+  let gapTies = 0;
+  for (let trial = 0; trial < 400; trial++) {
+    let m, n;
+    do {
+      m = 1 + random(5);
+      n = 1 + random(5);
+    } while (m === n || Math.abs(m - n) * 3 > Math.max(m, n));
+    const ears = Array.from({ length: m }, () => earTypes[random(earTypes.length)]);
+    const phones = Array.from({ length: n }, () => phoneTypes[random(phoneTypes.length)]);
+    const paths = [];
+    function enumerate(i, j, score, pairs) {
+      if (i === m && j === n) {
+        paths.push({ score, pairs });
+        return;
+      }
+      if (i < m && j < n) {
+        const left = ears[i][1], right = phones[j][1];
+        const step = left === right ? 2 : left + right === 1 ? 0 : -1;
+        enumerate(i + 1, j + 1, score + step, [...pairs, [i, j]]);
+      }
+      if (i < m) enumerate(i + 1, j, score - 1, pairs);
+      if (j < n) enumerate(i, j + 1, score - 1, pairs);
+    }
+    enumerate(0, 0, 0, []);
+    const score = Math.max(...paths.map(path => path.score));
+    const best = paths.filter(path => path.score === score);
+    if (new Set(best.map(path => m + n - 2 * path.pairs.length)).size > 1) gapTies++;
+    const common = best[0].pairs.filter(([i, j]) => best.every(path =>
+      path.pairs.some(([ear, phone]) => ear === i && phone === j)));
+    const tokens = phones.map(([token]) => vowel(token === 'a' ? 0.07 : 0.9, token));
+    const matches = alignVowels(ears.map(([sound]) => ({ sound })), tokens);
+    const context = JSON.stringify({ trial, ears, phones });
+    if (matches !== null) assert.deepEqual(matches, common, context);
+    const result = applyReferee([ears.map(([sound]) => `k${sound}`)], tokens, calibration);
+    assert.equal(result.status, matches === null ? 'count' : 'aligned', context);
+    for (const change of result.changes) {
+      const pair = matches?.find(([ear]) => ear === change.syllable);
+      assert.ok(pair && common.some(([ear, phone]) => ear === pair[0] && phone === pair[1]), context);
+      changes++;
+    }
+  }
+  assert.ok(changes > 0, 'the generated cases must exercise corrections');
+  assert.ok(gapTies > 0, 'the generated cases must include equal scores with different gap counts');
 });
 
 test('alignment refuses excessive gaps or a count difference above one third in either direction', () => {
@@ -269,10 +459,11 @@ for (const [syllable, examples] of [
   test(`alignment recognizes the normalized phoneme class for ${syllable}`, () => {
     for (const token of examples.split(' ')) {
       const gap = syllable === 'ma' ? 'li' : 'ka';
-      const result = applyReferee([[gap, syllable, 'bo']], [phoneme(token), vowel(0.07)], calibration);
+      // A closed final syllable makes its correction prove the last pair aligned.
+      const result = applyReferee([[gap, syllable, 'bom']], [phoneme(token), vowel(0.07)], calibration);
       const middle = ['ma', 'me'].includes(syllable) && vowelClass(token) === 'back'
         ? syllable.replace(nucleus(syllable), 'o') : syllable;
-      assert.deepEqual(result.words, [[gap, middle, 'ba']], token);
+      assert.deepEqual(result.words, [[gap, middle, 'bam']], token);
       assert.equal(result.status, 'aligned', token);
     }
   });

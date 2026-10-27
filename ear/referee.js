@@ -1,6 +1,6 @@
 import { meterChoice } from './meter.js';
 
-const vowelSymbols = 'aɑɔoɒʌæɐeɛəiɪuʊyøœɜɯɨɚɝ';
+const vowelSymbols = 'aɑɔoɒʌæɐeɛəiɪuʊʉɵyʏøœɜɯɨɚɝ';
 const vowel = new RegExp(`[${vowelSymbols}]`);
 const openDiphthong = new RegExp(`^[ao][${vowelSymbols}]+$`);
 const tone = new RegExp(`([${vowelSymbols}])ɜ`, 'g');
@@ -90,15 +90,15 @@ function phonemeClass(token) {
 
 function bestPaths(choices) {
   return choices.reduce((best, choice) => {
-    if (choice.score > best.score || (choice.score === best.score && choice.gaps < best.gaps)) return choice;
-    if (choice.score === best.score && choice.gaps === best.gaps) {
-      return { ...best, count: best.count + choice.count };
+    if (choice.score > best.score) return choice;
+    if (choice.score === best.score) {
+      return { ...(choice.gaps < best.gaps ? choice : best), count: best.count + choice.count };
     }
     return best;
   });
 }
 
-function alignVowels(syllables, vowels) {
+export function alignVowels(syllables, vowels) {
   const difference = Math.abs(syllables.length - vowels.length);
   if (difference * 3 > Math.max(syllables.length, vowels.length)) return null;
   const ears = syllables.map(({ sound }) => earClasses[sound]);
@@ -119,7 +119,8 @@ function alignVowels(syllables, vowels) {
       const diagonal = forward[i - 1][j - 1];
       const ear = forward[i - 1][j];
       const phone = forward[i][j - 1];
-      // At equal scores prefer fewer gaps, then a match, an ear gap, a phone gap.
+      // Count all score ties; for traceback prefer fewer gaps, then a match,
+      // an ear gap, a phone gap.
       forward[i][j] = bestPaths([
         { score: diagonal.score + matchScore(i - 1, j - 1), gaps: diagonal.gaps, count: diagonal.count, move: 'match' },
         { score: ear.score - 1, gaps: ear.gaps + 1, count: ear.count, move: 'ear' },
@@ -162,8 +163,12 @@ function alignVowels(syllables, vowels) {
     const after = backward[i + 1][j + 1];
     // Keep an edge only when its best prefixes and suffixes cover every best path.
     return before.score + matchScore(i, j) + after.score === best.score
-      && before.gaps + after.gaps === best.gaps && before.count * after.count === best.count;
+      && before.count * after.count === best.count;
   });
+}
+
+function hasFiniteFormants(point) {
+  return Number.isFinite(point?.f1) && Number.isFinite(point?.f2);
 }
 
 export function applyReferee(words, tokens, calibration, options = {}) {
@@ -189,9 +194,24 @@ export function applyReferee(words, tokens, calibration, options = {}) {
     const kind = vowelClass(vowels[tokenIndex].token);
     const score = kind === 'front' || kind === 'back' ? backScore(vowels[tokenIndex].top) : null;
     const finalL = from.slice(from.indexOf(sound) + sound.length).endsWith('l');
+    const openEnd = words[word].length >= 2 && syllable === words[word].length - 1
+      && ['a', 'o'].includes(sound) && from.endsWith(sound);
     let replacement = sound;
     let rule = 'phoneme';
-    if (sound === 'o' && score !== null && score < low) replacement = 'a';
+    if (sound === 'o' && /^[uʊʉyʏøœ]$/.test(normalizeVowel(vowels[tokenIndex].token))
+      && !(meterReady && meterChoice(options.points?.[index], options.profile, ['a', 'o']) === 'a')) {
+      replacement = 'u';
+      rule = 'rounded';
+    } else if (openEnd && score !== null && score < line) {
+      // Reduced final vowels can sound front to the phoneme model.
+      rule = 'open-end';
+      if (sound === 'a' || score < low) {
+        const point = options.points?.[index];
+        const choice = meterReady ? meterChoice(point, options.profile, ['a', 'o']) : null;
+        if (choice) replacement = choice;
+        else if (hasFiniteFormants(point) && meterReady) replacement = '?';
+      }
+    } else if (sound === 'o' && score !== null && score < low) replacement = 'a';
     else if (finalL || (sound === 'o' && score !== null && score >= low && score < line)) {
       rule = finalL ? 'coda-l' : 'band';
       const point = options.points?.[index];
@@ -199,7 +219,7 @@ export function applyReferee(words, tokens, calibration, options = {}) {
       if (sound === 'a' && choice === 'o') replacement = 'o';
       else if (sound === 'o') {
         if (choice === 'a') replacement = 'a';
-        else if (choice === null && point && meterReady) replacement = '?';
+        else if (choice === null && hasFiniteFormants(point) && meterReady) replacement = '?';
       }
     } else if (score !== null && score >= line) replacement = 'o';
     const to = replacement === '?' ? '?' : from.replace(sound, replacement);
