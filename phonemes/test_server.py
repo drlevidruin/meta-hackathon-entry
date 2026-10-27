@@ -45,6 +45,95 @@ def request(path, data=b'', content_type='audio/wav', length=None, infer=None, a
     return handler
 
 
+def tensor(pointer, size):
+    storage = SimpleNamespace(data_ptr=lambda: pointer, nbytes=lambda: size)
+    return SimpleNamespace(untyped_storage=lambda: storage)
+
+
+class PinTests(unittest.TestCase):
+    def test_each_distinct_storage_is_locked_once_and_returns_the_total(self):
+        calls = []
+
+        def mlock(pointer, size):
+            calls.append((pointer, size))
+            return 0
+
+        munlock = Mock(return_value=0)
+        self.assertEqual(service.pin([tensor(100, 16), tensor(200, 32), tensor(100, 16)], mlock, munlock), 48)
+        self.assertEqual(calls, [(100, 16), (200, 32)])
+        munlock.assert_not_called()
+
+    def test_empty_storages_are_skipped(self):
+        mlock = Mock(return_value=0)
+        self.assertEqual(service.pin([tensor(0, 0), tensor(100, 0), tensor(100, 16)], mlock, Mock()), 16)
+        mlock.assert_called_once_with(100, 16)
+
+    def test_a_failed_lock_unlocks_what_was_locked_and_returns_zero(self):
+        for failure in [-1, OSError('cannot lock')]:
+            with self.subTest(failure=failure):
+                mlock = Mock(side_effect=[0, failure, 0])
+                munlock = Mock(return_value=0)
+                self.assertEqual(service.pin([tensor(100, 16), tensor(200, 32), tensor(300, 64)], mlock, munlock), 0)
+                self.assertEqual(mlock.call_args_list, [((100, 16),), ((200, 32),)])
+                munlock.assert_called_once_with(100, 16)
+
+    def test_a_tensor_that_fails_mid_list_unlocks_the_earlier_ones(self):
+        broken = SimpleNamespace(untyped_storage=Mock(side_effect=RuntimeError('no storage')))
+        munlock = Mock(side_effect=[OSError('cannot unlock'), 0])
+        self.assertEqual(service.pin([tensor(100, 16), tensor(200, 32), broken], Mock(return_value=0), munlock), 0)
+        self.assertEqual(munlock.call_args_list, [((100, 16),), ((200, 32),)])
+
+    def test_ctypes_failures_return_zero(self):
+        for error in [OSError('cannot load libc'), service.ctypes.ArgumentError('invalid argument')]:
+            with self.subTest(error=type(error).__name__):
+                with patch.object(service.ctypes.util, 'find_library', return_value='libc'), \
+                        patch.object(service.ctypes, 'CDLL', side_effect=error):
+                    self.assertEqual(service.pin([tensor(100, 16)]), 0)
+
+    def test_libc_mlock_and_munlock_use_pointer_and_size_types(self):
+        mlock, munlock = Mock(return_value=0), Mock(return_value=0)
+        with patch.object(service.ctypes.util, 'find_library', return_value='libc') as find, \
+                patch.object(service.ctypes, 'CDLL', return_value=SimpleNamespace(mlock=mlock, munlock=munlock)) as load:
+            self.assertEqual(service.pin([tensor(2 ** 40, 16)]), 16)
+        find.assert_called_once_with('c')
+        load.assert_called_once_with('libc', use_errno=True)
+        for function in (mlock, munlock):
+            self.assertEqual(function.argtypes, [service.ctypes.c_void_p, service.ctypes.c_size_t])
+            self.assertIs(function.restype, service.ctypes.c_int)
+        mlock.assert_called_once_with(2 ** 40, 16)
+        munlock.assert_not_called()
+
+    def test_startup_pins_parameters_and_buffers_after_eval_and_prints_one_line(self):
+        parameters = [tensor(100, 16)]
+        buffers = [tensor(200, 32)]
+        model = SimpleNamespace(eval=Mock(), parameters=lambda: iter(parameters), buffers=lambda: iter(buffers))
+        modules = {
+            'torch': SimpleNamespace(set_num_threads=Mock()),
+            'huggingface_hub': SimpleNamespace(hf_hub_download=Mock(return_value='vocab.json')),
+            'transformers': SimpleNamespace(Wav2Vec2FeatureExtractor=Mock(),
+                                            Wav2Vec2ForCTC=SimpleNamespace(from_pretrained=Mock(return_value=model))),
+        }
+        for locked, expected in [
+            (1288490189, 'Model pinned in memory (1.2 GB).\n'),
+            (0, 'Could not pin the model in memory; readings may be slow when this Mac is short of memory.\n'),
+        ]:
+            with self.subTest(locked=locked):
+                model.eval.reset_mock()
+                output = io.StringIO()
+
+                def pin(tensors):
+                    model.eval.assert_called_once_with()
+                    self.assertEqual(tensors, parameters + buffers)
+                    return locked
+
+                with patch.dict(sys.modules, modules), patch.dict(os.environ), \
+                        patch.object(service, 'pin', side_effect=pin) as lock, \
+                        patch('builtins.open', return_value=io.StringIO('{"a": 1}')), redirect_stderr(output):
+                    service.load_inference()
+                lock.assert_called_once()
+                self.assertEqual(output.getvalue(), expected)
+
+
 class ServerTests(unittest.TestCase):
     def test_a_full_queue_answers_busy_before_reading_the_upload(self):
         admission = threading.BoundedSemaphore(service.ADMISSION_LIMIT)

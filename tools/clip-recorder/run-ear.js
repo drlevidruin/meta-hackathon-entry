@@ -20,12 +20,25 @@ export function matchesSay(heard, say) {
     && heard.every((word, index) => normalize(word.join('-')) === expected[index]);
 }
 
+async function phonemesWithRetry(audio, phonemes) {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const tokens = await phonemes(audio);
+      if (Array.isArray(tokens)) return tokens;
+    } catch {
+      // A missed answer gets one more try with the same audio.
+    }
+  }
+  return null;
+}
+
 export async function runEar({ set = 'adult', model = defaultEarModel(), votes = defaultVotes(), keep = false, directory,
   preset = 'ashkenazi', meter = true, card = true, referee = true,
   phonemes = audio => hearPhonemes(audio), ear = hear, log = console.log } = {}) {
   const store = recordingStore(await loadClips(set), directory);
   let failed = false;
   const rows = [];
+  const outcomes = [];
   try {
     const recorded = (await store.list()).filter((clip) => clip.done);
     const readings = recorded.filter((clip) => clip.kind === 'reading');
@@ -64,7 +77,7 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), votes =
     let refereeStatus = !referee ? 'off (--no-referee)' : 'off (no voice check recorded)';
     if (referee && voice) {
       try {
-        const tokens = await phonemes(voiceAudio);
+        const tokens = await phonemesWithRetry(voiceAudio, phonemes);
         if (tokens == null) refereeStatus = 'off (no answer from the phoneme service)';
         else {
           calibration = cardCalibration(tokens, cardLabels(preset));
@@ -97,11 +110,19 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), votes =
         let words = meter && profile ? applyMeter(earWords, audio, profile).words : earWords;
         metered = words.map((word) => word.join('-')).join(' ');
         if (refereeOn) {
+          let status = 'failed';
           try {
-            const tokens = await phonemes(audio);
-            if (tokens != null) words = applyReferee(words, tokens, calibration).words;
+            const tokens = await phonemesWithRetry(audio, phonemes);
+            if (tokens == null) status = null;
+            else {
+              const answer = applyReferee(words, tokens, calibration);
+              words = answer.words;
+              status = answer.status;
+            }
           } catch {
             // A phoneme failure leaves the metered words available for comparison.
+          } finally {
+            outcomes.push({ clip: clip.name, status });
           }
         }
         heard = words.map((word) => word.join('-')).join(' ');
@@ -118,6 +139,17 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), votes =
         // Print the verdict, then immediately discard this child's audio.
         if (set === 'child' && !keep) await store.remove(clip.name);
       }
+    }
+    if (refereeOn) {
+      const checked = outcomes.filter(outcome => outcome.status === 'checked').length;
+      const noAnswer = outcomes.filter(outcome => outcome.status === null).map(outcome => outcome.clip);
+      const count = outcomes.filter(outcome => outcome.status === 'count').map(outcome => outcome.clip);
+      const other = outcomes.filter(outcome => ![null, 'checked', 'count'].includes(outcome.status))
+        .map(outcome => outcome.clip);
+      log(`Phoneme referee: checked ${checked} of ${outcomes.length} readings`);
+      if (noAnswer.length) log(`Phoneme referee: no answer for ${noAnswer.join(', ')}`);
+      if (count.length) log(`Phoneme referee: vowels did not line up for ${count.join(', ')}`);
+      if (other.length) log(`Phoneme referee: failed on ${other.join(', ')}`);
     }
     return { rows, code: failed || !readings.length ? 1 : 0 };
   } finally {
