@@ -5888,12 +5888,12 @@
     }
   },
   {
-    "id": "L4-db6a01e9",
+    "id": "L4-2441dfac",
     "level": 4,
-    "text": "מָשָׂוַ וָטֵבֹ",
+    "text": "מָשָׂוַ וָטֵבוֹ",
     "words": [
       "מָשָׂוַ",
-      "וָטֵבֹ"
+      "וָטֵבוֹ"
     ],
     "skills": [
       "letter:mem",
@@ -5901,6 +5901,7 @@
       "letter:tet",
       "letter:vav",
       "letter:vet",
+      "pattern:cholam_male",
       "pattern:vav_consonant",
       "vowel:cholam",
       "vowel:kamatz",
@@ -5914,12 +5915,12 @@
     }
   },
   {
-    "id": "L4-2de8132b",
+    "id": "L4-9e23677a",
     "level": 4,
-    "text": "וַמֶד גַצִקֻ טַנַס",
+    "text": "וַמֶד גַצִקוּ טַנַס",
     "words": [
       "וַמֶד",
-      "גַצִקֻ",
+      "גַצִקוּ",
       "טַנַס"
     ],
     "skills": [
@@ -5935,9 +5936,9 @@
       "pattern:closed_syllable",
       "pattern:vav_consonant",
       "vowel:chirik",
-      "vowel:kubutz",
       "vowel:patach",
-      "vowel:segol"
+      "vowel:segol",
+      "vowel:shuruk"
     ],
     "focus": "vowel:patach",
     "flags": [],
@@ -5946,17 +5947,18 @@
     }
   },
   {
-    "id": "L4-cb0b1d58",
+    "id": "L4-9ffc7844",
     "level": 4,
-    "text": "סוּלַ סַתֹ",
+    "text": "סוּלַ סַתוֹ",
     "words": [
       "סוּלַ",
-      "סַתֹ"
+      "סַתוֹ"
     ],
     "skills": [
       "letter:lamed",
       "letter:samech",
       "letter:sav",
+      "pattern:cholam_male",
       "vowel:cholam",
       "vowel:patach",
       "vowel:shuruk"
@@ -6025,11 +6027,11 @@
     }
   },
   {
-    "id": "L4-99f21120",
+    "id": "L4-51aea900",
     "level": 4,
-    "text": "רִסֶרֻ וֶתֵ שַׂכֶעָ",
+    "text": "רִסֶרוּ וֶתֵ שַׂכֶעָ",
     "words": [
-      "רִסֶרֻ",
+      "רִסֶרוּ",
       "וֶתֵ",
       "שַׂכֶעָ"
     ],
@@ -6044,9 +6046,9 @@
       "pattern:vav_consonant",
       "vowel:chirik",
       "vowel:kamatz",
-      "vowel:kubutz",
       "vowel:patach",
       "vowel:segol",
+      "vowel:shuruk",
       "vowel:tzere"
     ],
     "focus": "vowel:segol",
@@ -6084,13 +6086,13 @@
     }
   },
   {
-    "id": "L4-91c76c84",
+    "id": "L4-72b33b2d",
     "level": 4,
-    "text": "דִטוּף גוּזוּעִ הִתֹ",
+    "text": "דִטוּף גוּזוּעִ הִתוֹ",
     "words": [
       "דִטוּף",
       "גוּזוּעִ",
-      "הִתֹ"
+      "הִתוֹ"
     ],
     "skills": [
       "letter:ayin",
@@ -6101,6 +6103,7 @@
       "letter:sav",
       "letter:tet",
       "letter:zayin",
+      "pattern:cholam_male",
       "pattern:closed_syllable",
       "vowel:chirik",
       "vowel:cholam",
@@ -6139,11 +6142,11 @@
     }
   },
   {
-    "id": "L4-2dc3857d",
+    "id": "L4-2bcf73e8",
     "level": 4,
-    "text": "קַרָחֹ חֹצֻח רָשֹׂצֹם",
+    "text": "קַרָחוֹ חֹצֻח רָשֹׂצֹם",
     "words": [
-      "קַרָחֹ",
+      "קַרָחוֹ",
       "חֹצֻח",
       "רָשֹׂצֹם"
     ],
@@ -6154,6 +6157,7 @@
       "letter:resh",
       "letter:sin",
       "letter:tzadi",
+      "pattern:cholam_male",
       "pattern:closed_syllable",
       "vowel:cholam",
       "vowel:kamatz",
@@ -6167,12 +6171,12 @@
     }
   },
   {
-    "id": "L4-4e82c8de",
+    "id": "L4-d3ce80fb",
     "level": 4,
-    "text": "שֹׁכוּ זָוַדֹ",
+    "text": "שֹׁכוּ זָוַדוֹ",
     "words": [
       "שֹׁכוּ",
-      "זָוַדֹ"
+      "זָוַדוֹ"
     ],
     "skills": [
       "letter:chaf",
@@ -6180,6 +6184,7 @@
       "letter:shin",
       "letter:vav",
       "letter:zayin",
+      "pattern:cholam_male",
       "pattern:vav_consonant",
       "vowel:cholam",
       "vowel:kamatz",
@@ -6193,31 +6198,28 @@
     }
   },
   {
-    "id": "L4-b74e4a6c",
+    "id": "L4-e8a82905",
     "level": 4,
-    "text": "צֻרָיָת וִחֻ עַנֻסַל",
+    "text": "צֻרָיָת שִׂיֻת הוּפֻם",
     "words": [
       "צֻרָיָת",
-      "וִחֻ",
-      "עַנֻסַל"
+      "שִׂיֻת",
+      "הוּפֻם"
     ],
     "skills": [
-      "letter:ayin",
-      "letter:chet",
-      "letter:lamed",
-      "letter:nun",
+      "letter:fei",
+      "letter:final_mem",
+      "letter:hei",
       "letter:resh",
-      "letter:samech",
       "letter:sav",
+      "letter:sin",
       "letter:tzadi",
-      "letter:vav",
       "letter:yud",
       "pattern:closed_syllable",
-      "pattern:vav_consonant",
       "vowel:chirik",
       "vowel:kamatz",
       "vowel:kubutz",
-      "vowel:patach"
+      "vowel:shuruk"
     ],
     "focus": "vowel:kubutz",
     "flags": [],
@@ -6226,24 +6228,20 @@
     }
   },
   {
-    "id": "L4-deeaece4",
+    "id": "L4-2c454b3d",
     "level": 4,
-    "text": "עָקֻפֵי זֻטוּטֹ",
+    "text": "יֻוֵ אֻשֵׁ",
     "words": [
-      "עָקֻפֵי",
-      "זֻטוּטֹ"
+      "יֻוֵ",
+      "אֻשֵׁ"
     ],
     "skills": [
-      "letter:ayin",
-      "letter:fei",
-      "letter:kuf",
-      "letter:tet",
-      "letter:zayin",
-      "pattern:tzere_male",
-      "vowel:cholam",
-      "vowel:kamatz",
+      "letter:alef",
+      "letter:shin",
+      "letter:vav",
+      "letter:yud",
+      "pattern:vav_consonant",
       "vowel:kubutz",
-      "vowel:shuruk",
       "vowel:tzere"
     ],
     "focus": "vowel:kubutz",
@@ -6253,53 +6251,25 @@
     }
   },
   {
-    "id": "L4-6401a55d",
+    "id": "L4-7ae47947",
     "level": 4,
-    "text": "הֵדָיוּץ כּוּצֹוֶ כֶּרוּ",
+    "text": "רֹסוּר כּוּיִ יָהַסוּ",
     "words": [
-      "הֵדָיוּץ",
-      "כּוּצֹוֶ",
-      "כֶּרוּ"
+      "רֹסוּר",
+      "כּוּיִ",
+      "יָהַסוּ"
     ],
     "skills": [
-      "letter:dalet",
-      "letter:final_tzadi",
       "letter:hei",
       "letter:kaf",
       "letter:resh",
-      "letter:tzadi",
-      "letter:vav",
+      "letter:samech",
       "letter:yud",
       "pattern:closed_syllable",
-      "pattern:vav_consonant",
+      "vowel:chirik",
       "vowel:cholam",
       "vowel:kamatz",
-      "vowel:segol",
-      "vowel:shuruk",
-      "vowel:tzere"
-    ],
-    "focus": "vowel:shuruk",
-    "flags": [],
-    "source": {
-      "generated": true
-    }
-  },
-  {
-    "id": "L4-b690642d",
-    "level": 4,
-    "text": "לוּרֹ נוּקוּהֹר",
-    "words": [
-      "לוּרֹ",
-      "נוּקוּהֹר"
-    ],
-    "skills": [
-      "letter:hei",
-      "letter:kuf",
-      "letter:lamed",
-      "letter:nun",
-      "letter:resh",
-      "pattern:closed_syllable",
-      "vowel:cholam",
+      "vowel:patach",
       "vowel:shuruk"
     ],
     "focus": "vowel:shuruk",
@@ -6309,28 +6279,76 @@
     }
   },
   {
-    "id": "L4-ae87a7bb",
+    "id": "L4-f91220b3",
     "level": 4,
-    "text": "אֶשְׂנֹך טַדְעֶשֻׁ דִזְצֻט",
+    "text": "טוּקִלֵ גִתוּ",
     "words": [
-      "אֶשְׂנֹך",
-      "טַדְעֶשֻׁ",
-      "דִזְצֻט"
+      "טוּקִלֵ",
+      "גִתוּ"
     ],
     "skills": [
-      "letter:alef",
-      "letter:ayin",
-      "letter:dalet",
-      "letter:final_chaf",
-      "letter:nun",
-      "letter:shin",
-      "letter:sin",
+      "letter:gimel",
+      "letter:kuf",
+      "letter:lamed",
+      "letter:sav",
       "letter:tet",
-      "letter:tzadi",
-      "letter:zayin",
+      "vowel:chirik",
+      "vowel:shuruk",
+      "vowel:tzere"
+    ],
+    "focus": "vowel:shuruk",
+    "flags": [],
+    "source": {
+      "generated": true
+    }
+  },
+  {
+    "id": "L4-88591395",
+    "level": 4,
+    "text": "הִתְטוּ הֶקְכֵּץ לֶיְמִיִ",
+    "words": [
+      "הִתְטוּ",
+      "הֶקְכֵּץ",
+      "לֶיְמִיִ"
+    ],
+    "skills": [
+      "letter:final_tzadi",
+      "letter:hei",
+      "letter:kaf",
+      "letter:kuf",
+      "letter:lamed",
+      "letter:mem",
+      "letter:sav",
+      "letter:tet",
+      "letter:yud",
       "pattern:closed_syllable",
       "vowel:chirik",
-      "vowel:cholam",
+      "vowel:segol",
+      "vowel:shuruk",
+      "vowel:tzere"
+    ],
+    "focus": "pattern:closed_syllable",
+    "flags": [],
+    "source": {
+      "generated": true
+    }
+  },
+  {
+    "id": "L4-f94c3219",
+    "level": 4,
+    "text": "רֻקְעֶ צַיְשַׂעֻק",
+    "words": [
+      "רֻקְעֶ",
+      "צַיְשַׂעֻק"
+    ],
+    "skills": [
+      "letter:ayin",
+      "letter:kuf",
+      "letter:resh",
+      "letter:sin",
+      "letter:tzadi",
+      "letter:yud",
+      "pattern:closed_syllable",
       "vowel:kubutz",
       "vowel:patach",
       "vowel:segol"
@@ -6342,59 +6360,25 @@
     }
   },
   {
-    "id": "L4-405f674a",
+    "id": "L4-34920398",
     "level": 4,
-    "text": "וַקְמֶשָׁ פַּנְתּוּרָס",
+    "text": "אַשָׁ אִחִחֻח אֵחֵהִט",
     "words": [
-      "וַקְמֶשָׁ",
-      "פַּנְתּוּרָס"
-    ],
-    "skills": [
-      "letter:kuf",
-      "letter:mem",
-      "letter:nun",
-      "letter:pei",
-      "letter:resh",
-      "letter:samech",
-      "letter:shin",
-      "letter:tav",
-      "letter:vav",
-      "pattern:closed_syllable",
-      "pattern:vav_consonant",
-      "vowel:kamatz",
-      "vowel:patach",
-      "vowel:segol",
-      "vowel:shuruk"
-    ],
-    "focus": "pattern:closed_syllable",
-    "flags": [],
-    "source": {
-      "generated": true
-    }
-  },
-  {
-    "id": "L4-888771fe",
-    "level": 4,
-    "text": "אֶבֶרוּ אֻבֵד אֹגֻוֵת",
-    "words": [
-      "אֶבֶרוּ",
-      "אֻבֵד",
-      "אֹגֻוֵת"
+      "אַשָׁ",
+      "אִחִחֻח",
+      "אֵחֵהִט"
     ],
     "skills": [
       "letter:alef",
-      "letter:dalet",
-      "letter:gimel",
-      "letter:resh",
-      "letter:sav",
-      "letter:vav",
-      "letter:vet",
+      "letter:chet",
+      "letter:hei",
+      "letter:shin",
+      "letter:tet",
       "pattern:closed_syllable",
-      "pattern:vav_consonant",
-      "vowel:cholam",
+      "vowel:chirik",
+      "vowel:kamatz",
       "vowel:kubutz",
-      "vowel:segol",
-      "vowel:shuruk",
+      "vowel:patach",
       "vowel:tzere"
     ],
     "focus": "letter:alef",
@@ -6404,25 +6388,24 @@
     }
   },
   {
-    "id": "L4-510c5243",
+    "id": "L4-9dd00cce",
     "level": 4,
-    "text": "לֻבָ סַמֵרֶב",
+    "text": "לָבֻגֶק בַּבֶל",
     "words": [
-      "לֻבָ",
-      "סַמֵרֶב"
+      "לָבֻגֶק",
+      "בַּבֶל"
     ],
     "skills": [
+      "letter:bet",
+      "letter:gimel",
+      "letter:kuf",
       "letter:lamed",
-      "letter:mem",
-      "letter:resh",
-      "letter:samech",
       "letter:vet",
       "pattern:closed_syllable",
       "vowel:kamatz",
       "vowel:kubutz",
       "vowel:patach",
-      "vowel:segol",
-      "vowel:tzere"
+      "vowel:segol"
     ],
     "focus": "letter:vet",
     "flags": [],
@@ -6431,27 +6414,28 @@
     }
   },
   {
-    "id": "L4-75121aec",
+    "id": "L4-42eaa8fe",
     "level": 4,
-    "text": "בֹּלִכַב בֵּשָׂ בֵּנֵסִ",
+    "text": "בֵּפֹסִר בַּיֹשַׂ בּוּהֹלַ",
     "words": [
-      "בֹּלִכַב",
-      "בֵּשָׂ",
-      "בֵּנֵסִ"
+      "בֵּפֹסִר",
+      "בַּיֹשַׂ",
+      "בּוּהֹלַ"
     ],
     "skills": [
       "letter:bet",
-      "letter:chaf",
+      "letter:fei",
+      "letter:hei",
       "letter:lamed",
-      "letter:nun",
+      "letter:resh",
       "letter:samech",
       "letter:sin",
-      "letter:vet",
+      "letter:yud",
       "pattern:closed_syllable",
       "vowel:chirik",
       "vowel:cholam",
-      "vowel:kamatz",
       "vowel:patach",
+      "vowel:shuruk",
       "vowel:tzere"
     ],
     "focus": "letter:bet",
@@ -6461,24 +6445,24 @@
     }
   },
   {
-    "id": "L4-0e14c452",
+    "id": "L4-737d646c",
     "level": 4,
-    "text": "בּוּטָגֻ כּוּסוּבֹג",
+    "text": "גִשֶׂף זִסוּגוֹ",
     "words": [
-      "בּוּטָגֻ",
-      "כּוּסוּבֹג"
+      "גִשֶׂף",
+      "זִסוּגוֹ"
     ],
     "skills": [
-      "letter:bet",
+      "letter:final_fei",
       "letter:gimel",
-      "letter:kaf",
       "letter:samech",
-      "letter:tet",
-      "letter:vet",
+      "letter:sin",
+      "letter:zayin",
+      "pattern:cholam_male",
       "pattern:closed_syllable",
+      "vowel:chirik",
       "vowel:cholam",
-      "vowel:kamatz",
-      "vowel:kubutz",
+      "vowel:segol",
       "vowel:shuruk"
     ],
     "focus": "letter:gimel",
@@ -6488,27 +6472,26 @@
     }
   },
   {
-    "id": "L4-67df5360",
+    "id": "L4-8088cc6f",
     "level": 4,
-    "text": "וָדֹוָ דִנֶם דוּעִחֻ",
+    "text": "טֶדֹחַב וֶדַ פּוּדִ",
     "words": [
-      "וָדֹוָ",
-      "דִנֶם",
-      "דוּעִחֻ"
+      "טֶדֹחַב",
+      "וֶדַ",
+      "פּוּדִ"
     ],
     "skills": [
-      "letter:ayin",
       "letter:chet",
       "letter:dalet",
-      "letter:final_mem",
-      "letter:nun",
+      "letter:pei",
+      "letter:tet",
       "letter:vav",
+      "letter:vet",
       "pattern:closed_syllable",
       "pattern:vav_consonant",
       "vowel:chirik",
       "vowel:cholam",
-      "vowel:kamatz",
-      "vowel:kubutz",
+      "vowel:patach",
       "vowel:segol",
       "vowel:shuruk"
     ],
@@ -6519,23 +6502,24 @@
     }
   },
   {
-    "id": "L4-04d01c58",
+    "id": "L4-a3cf69d6",
     "level": 4,
-    "text": "דֻדָהַף גַהֻז",
+    "text": "שֻׂהַב הוּלֻהֹס",
     "words": [
-      "דֻדָהַף",
-      "גַהֻז"
+      "שֻׂהַב",
+      "הוּלֻהֹס"
     ],
     "skills": [
-      "letter:dalet",
-      "letter:final_fei",
-      "letter:gimel",
       "letter:hei",
-      "letter:zayin",
+      "letter:lamed",
+      "letter:samech",
+      "letter:sin",
+      "letter:vet",
       "pattern:closed_syllable",
-      "vowel:kamatz",
+      "vowel:cholam",
       "vowel:kubutz",
-      "vowel:patach"
+      "vowel:patach",
+      "vowel:shuruk"
     ],
     "focus": "letter:hei",
     "flags": [],
@@ -6544,27 +6528,26 @@
     }
   },
   {
-    "id": "L4-263a2274",
+    "id": "L4-20c564ac",
     "level": 4,
-    "text": "וֵוִ דֹשַׁוֵ גֹשֹׂוֵץ",
+    "text": "עַוֶ נֹוֶם וַוָנוּ",
     "words": [
-      "וֵוִ",
-      "דֹשַׁוֵ",
-      "גֹשֹׂוֵץ"
+      "עַוֶ",
+      "נֹוֶם",
+      "וַוָנוּ"
     ],
     "skills": [
-      "letter:dalet",
-      "letter:final_tzadi",
-      "letter:gimel",
-      "letter:shin",
-      "letter:sin",
+      "letter:ayin",
+      "letter:final_mem",
+      "letter:nun",
       "letter:vav",
       "pattern:closed_syllable",
       "pattern:vav_consonant",
-      "vowel:chirik",
       "vowel:cholam",
+      "vowel:kamatz",
       "vowel:patach",
-      "vowel:tzere"
+      "vowel:segol",
+      "vowel:shuruk"
     ],
     "focus": "letter:vav",
     "flags": [],
@@ -6573,23 +6556,22 @@
     }
   },
   {
-    "id": "L4-b7009d06",
+    "id": "L4-f3a0ef44",
     "level": 4,
-    "text": "זִחוּץ זַכֹס",
+    "text": "קֻהוּהֹז לֻצֹז",
     "words": [
-      "זִחוּץ",
-      "זַכֹס"
+      "קֻהוּהֹז",
+      "לֻצֹז"
     ],
     "skills": [
-      "letter:chaf",
-      "letter:chet",
-      "letter:final_tzadi",
-      "letter:samech",
+      "letter:hei",
+      "letter:kuf",
+      "letter:lamed",
+      "letter:tzadi",
       "letter:zayin",
       "pattern:closed_syllable",
-      "vowel:chirik",
       "vowel:cholam",
-      "vowel:patach",
+      "vowel:kubutz",
       "vowel:shuruk"
     ],
     "focus": "letter:zayin",
@@ -6599,26 +6581,24 @@
     }
   },
   {
-    "id": "L4-0f3cfd12",
+    "id": "L4-a932e26f",
     "level": 4,
-    "text": "חֹוֵ טָחֵ סֶחֻס",
+    "text": "חֹחֹץ פִּחָ יִחוּ",
     "words": [
-      "חֹוֵ",
-      "טָחֵ",
-      "סֶחֻס"
+      "חֹחֹץ",
+      "פִּחָ",
+      "יִחוּ"
     ],
     "skills": [
       "letter:chet",
-      "letter:samech",
-      "letter:tet",
-      "letter:vav",
+      "letter:final_tzadi",
+      "letter:pei",
+      "letter:yud",
       "pattern:closed_syllable",
-      "pattern:vav_consonant",
+      "vowel:chirik",
       "vowel:cholam",
       "vowel:kamatz",
-      "vowel:kubutz",
-      "vowel:segol",
-      "vowel:tzere"
+      "vowel:shuruk"
     ],
     "focus": "letter:chet",
     "flags": [],
@@ -6627,23 +6607,23 @@
     }
   },
   {
-    "id": "L4-45d18fc2",
+    "id": "L4-c2fd3b46",
     "level": 4,
-    "text": "טֵגַל יַרֶטֻ",
+    "text": "חֵטֻיִ טֹפִס",
     "words": [
-      "טֵגַל",
-      "יַרֶטֻ"
+      "חֵטֻיִ",
+      "טֹפִס"
     ],
     "skills": [
-      "letter:gimel",
-      "letter:lamed",
-      "letter:resh",
+      "letter:chet",
+      "letter:fei",
+      "letter:samech",
       "letter:tet",
       "letter:yud",
       "pattern:closed_syllable",
+      "vowel:chirik",
+      "vowel:cholam",
       "vowel:kubutz",
-      "vowel:patach",
-      "vowel:segol",
       "vowel:tzere"
     ],
     "focus": "letter:tet",
@@ -6653,27 +6633,26 @@
     }
   },
   {
-    "id": "L4-fc199a9a",
+    "id": "L4-0bf2c518",
     "level": 4,
-    "text": "יַקוּ אֻנֻחָי יֶיוּ",
+    "text": "יֵוֶ וָיִרֶ יֹקוּ",
     "words": [
-      "יַקוּ",
-      "אֻנֻחָי",
-      "יֶיוּ"
+      "יֵוֶ",
+      "וָיִרֶ",
+      "יֹקוּ"
     ],
     "skills": [
-      "letter:alef",
-      "letter:chet",
       "letter:kuf",
-      "letter:nun",
+      "letter:resh",
+      "letter:vav",
       "letter:yud",
-      "pattern:ai",
-      "pattern:closed_syllable",
+      "pattern:vav_consonant",
+      "vowel:chirik",
+      "vowel:cholam",
       "vowel:kamatz",
-      "vowel:kubutz",
-      "vowel:patach",
       "vowel:segol",
-      "vowel:shuruk"
+      "vowel:shuruk",
+      "vowel:tzere"
     ],
     "focus": "letter:yud",
     "flags": [],
@@ -6682,22 +6661,22 @@
     }
   },
   {
-    "id": "L4-3ea4b635",
+    "id": "L4-6452f9c2",
     "level": 4,
-    "text": "זֵכוּי פַּכָן",
+    "text": "עוּכֹת סֶכֵי",
     "words": [
-      "זֵכוּי",
-      "פַּכָן"
+      "עוּכֹת",
+      "סֶכֵי"
     ],
     "skills": [
+      "letter:ayin",
       "letter:chaf",
-      "letter:final_nun",
-      "letter:pei",
-      "letter:yud",
-      "letter:zayin",
+      "letter:samech",
+      "letter:sav",
       "pattern:closed_syllable",
-      "vowel:kamatz",
-      "vowel:patach",
+      "pattern:tzere_male",
+      "vowel:cholam",
+      "vowel:segol",
       "vowel:shuruk",
       "vowel:tzere"
     ],
@@ -6708,25 +6687,28 @@
     }
   },
   {
-    "id": "L4-ac0ee894",
+    "id": "L4-71e32ecc",
     "level": 4,
-    "text": "כָּקֹת כֹּרֶנָג כּוּשֶׂ",
+    "text": "כֻּדֹבִ כּוּחַנוּד כֹּרֶנָג",
     "words": [
-      "כָּקֹת",
-      "כֹּרֶנָג",
-      "כּוּשֶׂ"
+      "כֻּדֹבִ",
+      "כּוּחַנוּד",
+      "כֹּרֶנָג"
     ],
     "skills": [
+      "letter:chet",
+      "letter:dalet",
       "letter:gimel",
       "letter:kaf",
-      "letter:kuf",
       "letter:nun",
       "letter:resh",
-      "letter:sav",
-      "letter:sin",
+      "letter:vet",
       "pattern:closed_syllable",
+      "vowel:chirik",
       "vowel:cholam",
       "vowel:kamatz",
+      "vowel:kubutz",
+      "vowel:patach",
       "vowel:segol",
       "vowel:shuruk"
     ],
@@ -6737,23 +6719,20 @@
     }
   },
   {
-    "id": "L4-00d67ee7",
+    "id": "L4-6b188586",
     "level": 4,
-    "text": "עוּפֹלֹ סֵהֵל",
+    "text": "אַלִ לָעָ",
     "words": [
-      "עוּפֹלֹ",
-      "סֵהֵל"
+      "אַלִ",
+      "לָעָ"
     ],
     "skills": [
+      "letter:alef",
       "letter:ayin",
-      "letter:fei",
-      "letter:hei",
       "letter:lamed",
-      "letter:samech",
-      "pattern:closed_syllable",
-      "vowel:cholam",
-      "vowel:shuruk",
-      "vowel:tzere"
+      "vowel:chirik",
+      "vowel:kamatz",
+      "vowel:patach"
     ],
     "focus": "letter:lamed",
     "flags": [],
@@ -6762,28 +6741,28 @@
     }
   },
   {
-    "id": "L4-299eaddc",
+    "id": "L4-eda0b92f",
     "level": 4,
-    "text": "מִצֵרֹץ וֵמַד הוּמֹן",
+    "text": "מִעֶעִ פֻּמוּטַ מִצֵרֹץ",
     "words": [
-      "מִצֵרֹץ",
-      "וֵמַד",
-      "הוּמֹן"
+      "מִעֶעִ",
+      "פֻּמוּטַ",
+      "מִצֵרֹץ"
     ],
     "skills": [
-      "letter:dalet",
-      "letter:final_nun",
+      "letter:ayin",
       "letter:final_tzadi",
-      "letter:hei",
       "letter:mem",
+      "letter:pei",
       "letter:resh",
+      "letter:tet",
       "letter:tzadi",
-      "letter:vav",
       "pattern:closed_syllable",
-      "pattern:vav_consonant",
       "vowel:chirik",
       "vowel:cholam",
+      "vowel:kubutz",
       "vowel:patach",
+      "vowel:segol",
       "vowel:shuruk",
       "vowel:tzere"
     ],
@@ -6794,26 +6773,22 @@
     }
   },
   {
-    "id": "L4-d75482aa",
+    "id": "L4-895974f4",
     "level": 4,
-    "text": "וֶשֹׁנָב הוּנֻט",
+    "text": "נוּשָׂם הוּנֻט",
     "words": [
-      "וֶשֹׁנָב",
+      "נוּשָׂם",
       "הוּנֻט"
     ],
     "skills": [
+      "letter:final_mem",
       "letter:hei",
       "letter:nun",
-      "letter:shin",
+      "letter:sin",
       "letter:tet",
-      "letter:vav",
-      "letter:vet",
       "pattern:closed_syllable",
-      "pattern:vav_consonant",
-      "vowel:cholam",
       "vowel:kamatz",
       "vowel:kubutz",
-      "vowel:segol",
       "vowel:shuruk"
     ],
     "focus": "letter:nun",
@@ -6823,11 +6798,11 @@
     }
   },
   {
-    "id": "L4-e8a0072b",
+    "id": "L4-2ae5924a",
     "level": 4,
-    "text": "סֻטֹ לֶצֻס וִסֵצֻב",
+    "text": "סֻטוֹ לֶצֻס וִסֵצֻב",
     "words": [
-      "סֻטֹ",
+      "סֻטוֹ",
       "לֶצֻס",
       "וִסֵצֻב"
     ],
@@ -6838,6 +6813,7 @@
       "letter:tzadi",
       "letter:vav",
       "letter:vet",
+      "pattern:cholam_male",
       "pattern:closed_syllable",
       "pattern:vav_consonant",
       "vowel:chirik",
@@ -6853,18 +6829,19 @@
     }
   },
   {
-    "id": "L4-add8114b",
+    "id": "L4-80d96eb2",
     "level": 4,
-    "text": "מָעֵס וֶעֹ",
+    "text": "מָעֵס וֶעוֹ",
     "words": [
       "מָעֵס",
-      "וֶעֹ"
+      "וֶעוֹ"
     ],
     "skills": [
       "letter:ayin",
       "letter:mem",
       "letter:samech",
       "letter:vav",
+      "pattern:cholam_male",
       "pattern:closed_syllable",
       "pattern:vav_consonant",
       "vowel:cholam",
@@ -6879,12 +6856,12 @@
     }
   },
   {
-    "id": "L4-ae909b70",
+    "id": "L4-e81f2cf9",
     "level": 4,
-    "text": "דֶפֵעוּ פֹּפֵך לֻפֶת",
+    "text": "דֶפֵעוּ פֹּפֵךְ לֻפֶת",
     "words": [
       "דֶפֵעוּ",
-      "פֹּפֵך",
+      "פֹּפֵךְ",
       "לֻפֶת"
     ],
     "skills": [
@@ -6964,11 +6941,11 @@
     }
   },
   {
-    "id": "L4-0f3e5071",
+    "id": "L4-dad14bc9",
     "level": 4,
-    "text": "קֹטֹ תֶּעִקֶ",
+    "text": "קֹטוֹ תֶּעִקֶ",
     "words": [
-      "קֹטֹ",
+      "קֹטוֹ",
       "תֶּעִקֶ"
     ],
     "skills": [
@@ -6976,6 +6953,7 @@
       "letter:kuf",
       "letter:tav",
       "letter:tet",
+      "pattern:cholam_male",
       "vowel:chirik",
       "vowel:cholam",
       "vowel:segol"
@@ -7337,17 +7315,103 @@
     }
   },
   {
-    "id": "L4-52c7f625",
+    "id": "L4-c1cae94f",
     "level": 4,
-    "text": "לֻשְׂלֶשֹׂ",
+    "text": "תֶּיְתִּבִ",
     "words": [
-      "לֻשְׂלֶשֹׂ"
+      "תֶּיְתִּבִ"
+    ],
+    "skills": [
+      "letter:tav",
+      "letter:vet",
+      "letter:yud",
+      "pattern:closed_syllable",
+      "vowel:chirik",
+      "vowel:segol"
+    ],
+    "focus": "pattern:closed_syllable",
+    "flags": [],
+    "source": {
+      "generated": true,
+      "challenge": true
+    }
+  },
+  {
+    "id": "L4-75007a95",
+    "level": 4,
+    "text": "נַלְשַׁ",
+    "words": [
+      "נַלְשַׁ"
     ],
     "skills": [
       "letter:lamed",
-      "letter:sin",
+      "letter:nun",
+      "letter:shin",
       "pattern:closed_syllable",
-      "vowel:cholam",
+      "vowel:patach"
+    ],
+    "focus": "pattern:closed_syllable",
+    "flags": [],
+    "source": {
+      "generated": true,
+      "challenge": true
+    }
+  },
+  {
+    "id": "L4-375df8fc",
+    "level": 4,
+    "text": "כֻּמְכֻּם",
+    "words": [
+      "כֻּמְכֻּם"
+    ],
+    "skills": [
+      "letter:final_mem",
+      "letter:kaf",
+      "letter:mem",
+      "pattern:closed_syllable",
+      "vowel:kubutz"
+    ],
+    "focus": "pattern:closed_syllable",
+    "flags": [],
+    "source": {
+      "generated": true,
+      "challenge": true
+    }
+  },
+  {
+    "id": "L4-74c33982",
+    "level": 4,
+    "text": "כֻּשְׁרָ",
+    "words": [
+      "כֻּשְׁרָ"
+    ],
+    "skills": [
+      "letter:kaf",
+      "letter:resh",
+      "letter:shin",
+      "pattern:closed_syllable",
+      "vowel:kamatz",
+      "vowel:kubutz"
+    ],
+    "focus": "pattern:closed_syllable",
+    "flags": [],
+    "source": {
+      "generated": true,
+      "challenge": true
+    }
+  },
+  {
+    "id": "L4-cd23891d",
+    "level": 4,
+    "text": "לֶמְתֻּמֶל",
+    "words": [
+      "לֶמְתֻּמֶל"
+    ],
+    "skills": [
+      "letter:lamed",
+      "letter:mem",
+      "letter:tav",
+      "pattern:closed_syllable",
       "vowel:kubutz",
       "vowel:segol"
     ],
@@ -7359,38 +7423,17 @@
     }
   },
   {
-    "id": "L4-6908e59a",
+    "id": "L4-3d95302d",
     "level": 4,
-    "text": "הַנְהֻב",
+    "text": "מִכְנִךְ",
     "words": [
-      "הַנְהֻב"
+      "מִכְנִךְ"
     ],
     "skills": [
-      "letter:hei",
+      "letter:chaf",
+      "letter:final_chaf",
+      "letter:mem",
       "letter:nun",
-      "letter:vet",
-      "pattern:closed_syllable",
-      "vowel:kubutz",
-      "vowel:patach"
-    ],
-    "focus": "pattern:closed_syllable",
-    "flags": [],
-    "source": {
-      "generated": true,
-      "challenge": true
-    }
-  },
-  {
-    "id": "L4-ac394103",
-    "level": 4,
-    "text": "רִלְשִׁ",
-    "words": [
-      "רִלְשִׁ"
-    ],
-    "skills": [
-      "letter:lamed",
-      "letter:resh",
-      "letter:shin",
       "pattern:closed_syllable",
       "vowel:chirik"
     ],
@@ -7402,84 +7445,19 @@
     }
   },
   {
-    "id": "L4-a88664f4",
+    "id": "L4-719383cf",
     "level": 4,
-    "text": "שֶׁלְשֻׁ",
+    "text": "בַּבְלוּ",
     "words": [
-      "שֶׁלְשֻׁ"
+      "בַּבְלוּ"
     ],
     "skills": [
+      "letter:bet",
       "letter:lamed",
-      "letter:shin",
-      "pattern:closed_syllable",
-      "vowel:kubutz",
-      "vowel:segol"
-    ],
-    "focus": "pattern:closed_syllable",
-    "flags": [],
-    "source": {
-      "generated": true,
-      "challenge": true
-    }
-  },
-  {
-    "id": "L4-6f47ff3b",
-    "level": 4,
-    "text": "הֶתְשֶׁלֶ",
-    "words": [
-      "הֶתְשֶׁלֶ"
-    ],
-    "skills": [
-      "letter:hei",
-      "letter:lamed",
-      "letter:sav",
-      "letter:shin",
-      "pattern:closed_syllable",
-      "vowel:segol"
-    ],
-    "focus": "pattern:closed_syllable",
-    "flags": [],
-    "source": {
-      "generated": true,
-      "challenge": true
-    }
-  },
-  {
-    "id": "L4-6d5595de",
-    "level": 4,
-    "text": "שִׁלְיֹ",
-    "words": [
-      "שִׁלְיֹ"
-    ],
-    "skills": [
-      "letter:lamed",
-      "letter:shin",
-      "letter:yud",
-      "pattern:closed_syllable",
-      "vowel:chirik",
-      "vowel:cholam"
-    ],
-    "focus": "pattern:closed_syllable",
-    "flags": [],
-    "source": {
-      "generated": true,
-      "challenge": true
-    }
-  },
-  {
-    "id": "L4-58515920",
-    "level": 4,
-    "text": "שֶׁבְשִׂ",
-    "words": [
-      "שֶׁבְשִׂ"
-    ],
-    "skills": [
-      "letter:shin",
-      "letter:sin",
       "letter:vet",
       "pattern:closed_syllable",
-      "vowel:chirik",
-      "vowel:segol"
+      "vowel:patach",
+      "vowel:shuruk"
     ],
     "focus": "pattern:closed_syllable",
     "flags": [],
@@ -7489,19 +7467,19 @@
     }
   },
   {
-    "id": "L4-166896f6",
+    "id": "L4-5b1519df",
     "level": 4,
-    "text": "וֶמְוִ",
+    "text": "אִלְרֵ",
     "words": [
-      "וֶמְוִ"
+      "אִלְרֵ"
     ],
     "skills": [
-      "letter:mem",
-      "letter:vav",
+      "letter:alef",
+      "letter:lamed",
+      "letter:resh",
       "pattern:closed_syllable",
-      "pattern:vav_consonant",
       "vowel:chirik",
-      "vowel:segol"
+      "vowel:tzere"
     ],
     "focus": "pattern:closed_syllable",
     "flags": [],
@@ -7511,19 +7489,41 @@
     }
   },
   {
-    "id": "L4-c4d976ee",
+    "id": "L4-6ad1a774",
     "level": 4,
-    "text": "כִּלְכֶּלֹ",
+    "text": "רִבְכִּתִ",
     "words": [
-      "כִּלְכֶּלֹ"
+      "רִבְכִּתִ"
     ],
     "skills": [
+      "letter:kaf",
+      "letter:resh",
+      "letter:sav",
+      "letter:vet",
+      "pattern:closed_syllable",
+      "vowel:chirik"
+    ],
+    "focus": "pattern:closed_syllable",
+    "flags": [],
+    "source": {
+      "generated": true,
+      "challenge": true
+    }
+  },
+  {
+    "id": "L4-9798eb33",
+    "level": 4,
+    "text": "לִבְכִּם",
+    "words": [
+      "לִבְכִּם"
+    ],
+    "skills": [
+      "letter:final_mem",
       "letter:kaf",
       "letter:lamed",
+      "letter:vet",
       "pattern:closed_syllable",
-      "vowel:chirik",
-      "vowel:cholam",
-      "vowel:segol"
+      "vowel:chirik"
     ],
     "focus": "pattern:closed_syllable",
     "flags": [],
@@ -7533,38 +7533,16 @@
     }
   },
   {
-    "id": "L4-8c1f5058",
+    "id": "L4-33e0e10f",
     "level": 4,
-    "text": "כַּיְשַׁר",
+    "text": "בִּכְלָ",
     "words": [
-      "כַּיְשַׁר"
+      "בִּכְלָ"
     ],
     "skills": [
-      "letter:kaf",
-      "letter:resh",
-      "letter:shin",
-      "letter:yud",
-      "pattern:closed_syllable",
-      "vowel:patach"
-    ],
-    "focus": "pattern:closed_syllable",
-    "flags": [],
-    "source": {
-      "generated": true,
-      "challenge": true
-    }
-  },
-  {
-    "id": "L4-80b70711",
-    "level": 4,
-    "text": "שִׁמְרָ",
-    "words": [
-      "שִׁמְרָ"
-    ],
-    "skills": [
-      "letter:mem",
-      "letter:resh",
-      "letter:shin",
+      "letter:bet",
+      "letter:chaf",
+      "letter:lamed",
       "pattern:closed_syllable",
       "vowel:chirik",
       "vowel:kamatz"
@@ -7577,62 +7555,19 @@
     }
   },
   {
-    "id": "L4-a173265f",
+    "id": "L4-1772b665",
     "level": 4,
-    "text": "נִמְלַ",
+    "text": "לֻיְרוּ",
     "words": [
-      "נִמְלַ"
-    ],
-    "skills": [
-      "letter:lamed",
-      "letter:mem",
-      "letter:nun",
-      "pattern:closed_syllable",
-      "vowel:chirik",
-      "vowel:patach"
-    ],
-    "focus": "pattern:closed_syllable",
-    "flags": [],
-    "source": {
-      "generated": true,
-      "challenge": true
-    }
-  },
-  {
-    "id": "L4-b33cdc79",
-    "level": 4,
-    "text": "לֶשְׁכֵּשֵׁ",
-    "words": [
-      "לֶשְׁכֵּשֵׁ"
-    ],
-    "skills": [
-      "letter:kaf",
-      "letter:lamed",
-      "letter:shin",
-      "pattern:closed_syllable",
-      "vowel:segol",
-      "vowel:tzere"
-    ],
-    "focus": "pattern:closed_syllable",
-    "flags": [],
-    "source": {
-      "generated": true,
-      "challenge": true
-    }
-  },
-  {
-    "id": "L4-19ed0ea0",
-    "level": 4,
-    "text": "לֻיְרֻ",
-    "words": [
-      "לֻיְרֻ"
+      "לֻיְרוּ"
     ],
     "skills": [
       "letter:lamed",
       "letter:resh",
       "letter:yud",
       "pattern:closed_syllable",
-      "vowel:kubutz"
+      "vowel:kubutz",
+      "vowel:shuruk"
     ],
     "focus": "pattern:closed_syllable",
     "flags": [],
@@ -7642,15 +7577,60 @@
     }
   },
   {
-    "id": "L4-0e16cbd6",
+    "id": "L4-a9d41893",
     "level": 4,
-    "text": "שֶׂרָ",
+    "text": "שֻׁשְׁבֻּשֶׂ",
     "words": [
-      "שֶׂרָ"
+      "שֻׁשְׁבֻּשֶׂ"
     ],
     "skills": [
-      "letter:resh",
+      "letter:bet",
+      "letter:shin",
       "letter:sin",
+      "pattern:closed_syllable",
+      "vowel:kubutz",
+      "vowel:segol"
+    ],
+    "focus": "pattern:closed_syllable",
+    "flags": [],
+    "source": {
+      "generated": true,
+      "challenge": true
+    }
+  },
+  {
+    "id": "L4-54c0c387",
+    "level": 4,
+    "text": "כַּבְרוּ",
+    "words": [
+      "כַּבְרוּ"
+    ],
+    "skills": [
+      "letter:kaf",
+      "letter:resh",
+      "letter:vet",
+      "pattern:closed_syllable",
+      "vowel:patach",
+      "vowel:shuruk"
+    ],
+    "focus": "pattern:closed_syllable",
+    "flags": [],
+    "source": {
+      "generated": true,
+      "challenge": true
+    }
+  },
+  {
+    "id": "L4-108f7a1a",
+    "level": 4,
+    "text": "כֶּוָ",
+    "words": [
+      "כֶּוָ"
+    ],
+    "skills": [
+      "letter:kaf",
+      "letter:vav",
+      "pattern:vav_consonant",
       "vowel:kamatz",
       "vowel:segol"
     ],
@@ -7662,16 +7642,16 @@
     }
   },
   {
-    "id": "L4-07d2b4b4",
+    "id": "L4-45f2c8e5",
     "level": 4,
-    "text": "רֻשַׁ",
+    "text": "שַׂלִ",
     "words": [
-      "רֻשַׁ"
+      "שַׂלִ"
     ],
     "skills": [
-      "letter:resh",
-      "letter:shin",
-      "vowel:kubutz",
+      "letter:lamed",
+      "letter:sin",
+      "vowel:chirik",
       "vowel:patach"
     ],
     "focus": "vowel:patach",
@@ -7682,16 +7662,17 @@
     }
   },
   {
-    "id": "L4-c3542883",
+    "id": "L4-11df8374",
     "level": 4,
-    "text": "לֻרֵרֵ",
+    "text": "נֵכֵלֶ",
     "words": [
-      "לֻרֵרֵ"
+      "נֵכֵלֶ"
     ],
     "skills": [
+      "letter:chaf",
       "letter:lamed",
-      "letter:resh",
-      "vowel:kubutz",
+      "letter:nun",
+      "vowel:segol",
       "vowel:tzere"
     ],
     "focus": "vowel:tzere",
@@ -7702,18 +7683,18 @@
     }
   },
   {
-    "id": "L4-a1eb7bba",
+    "id": "L4-6aa3a8a1",
     "level": 4,
-    "text": "יֶכֶך",
+    "text": "הֵוֶ",
     "words": [
-      "יֶכֶך"
+      "הֵוֶ"
     ],
     "skills": [
-      "letter:chaf",
-      "letter:final_chaf",
-      "letter:yud",
-      "pattern:closed_syllable",
-      "vowel:segol"
+      "letter:hei",
+      "letter:vav",
+      "pattern:vav_consonant",
+      "vowel:segol",
+      "vowel:tzere"
     ],
     "focus": "vowel:segol",
     "flags": [],
@@ -7723,19 +7704,19 @@
     }
   },
   {
-    "id": "L4-6fb05bd8",
+    "id": "L4-5bcff3d3",
     "level": 4,
-    "text": "יַרִך",
+    "text": "שֻׂמִר",
     "words": [
-      "יַרִך"
+      "שֻׂמִר"
     ],
     "skills": [
-      "letter:final_chaf",
+      "letter:mem",
       "letter:resh",
-      "letter:yud",
+      "letter:sin",
       "pattern:closed_syllable",
       "vowel:chirik",
-      "vowel:patach"
+      "vowel:kubutz"
     ],
     "focus": "vowel:chirik",
     "flags": [],
@@ -7745,19 +7726,19 @@
     }
   },
   {
-    "id": "L4-e30fb4c9",
+    "id": "L4-892469a2",
     "level": 4,
-    "text": "בֹּהָר",
+    "text": "כֵּהֹב",
     "words": [
-      "בֹּהָר"
+      "כֵּהֹב"
     ],
     "skills": [
-      "letter:bet",
       "letter:hei",
-      "letter:resh",
+      "letter:kaf",
+      "letter:vet",
       "pattern:closed_syllable",
       "vowel:cholam",
-      "vowel:kamatz"
+      "vowel:tzere"
     ],
     "focus": "vowel:cholam",
     "flags": [],
@@ -7767,18 +7748,18 @@
     }
   },
   {
-    "id": "L4-098a95fa",
+    "id": "L4-4043d546",
     "level": 4,
-    "text": "כֻּשִׂשֹׁ",
+    "text": "הָלֻשִׂ",
     "words": [
-      "כֻּשִׂשֹׁ"
+      "הָלֻשִׂ"
     ],
     "skills": [
-      "letter:kaf",
-      "letter:shin",
+      "letter:hei",
+      "letter:lamed",
       "letter:sin",
       "vowel:chirik",
-      "vowel:cholam",
+      "vowel:kamatz",
       "vowel:kubutz"
     ],
     "focus": "vowel:kubutz",
@@ -7789,16 +7770,16 @@
     }
   },
   {
-    "id": "L4-b39e30d3",
+    "id": "L4-c09428d6",
     "level": 4,
-    "text": "כּוּשָׂ",
+    "text": "רִכוּ",
     "words": [
-      "כּוּשָׂ"
+      "רִכוּ"
     ],
     "skills": [
-      "letter:kaf",
-      "letter:sin",
-      "vowel:kamatz",
+      "letter:chaf",
+      "letter:resh",
+      "vowel:chirik",
       "vowel:shuruk"
     ],
     "focus": "vowel:shuruk",
@@ -7809,16 +7790,19 @@
     }
   },
   {
-    "id": "L4-b2ab0993",
+    "id": "L4-efb95092",
     "level": 4,
-    "text": "בֶּבֶ",
+    "text": "בֻּמִךְ",
     "words": [
-      "בֶּבֶ"
+      "בֻּמִךְ"
     ],
     "skills": [
       "letter:bet",
-      "letter:vet",
-      "vowel:segol"
+      "letter:final_chaf",
+      "letter:mem",
+      "pattern:closed_syllable",
+      "vowel:chirik",
+      "vowel:kubutz"
     ],
     "focus": "letter:bet",
     "flags": [],
@@ -7828,19 +7812,18 @@
     }
   },
   {
-    "id": "L4-39f7c889",
+    "id": "L4-34e1d88d",
     "level": 4,
-    "text": "תּוּכֶב",
+    "text": "נֹלֹב",
     "words": [
-      "תּוּכֶב"
+      "נֹלֹב"
     ],
     "skills": [
-      "letter:chaf",
-      "letter:tav",
+      "letter:lamed",
+      "letter:nun",
       "letter:vet",
       "pattern:closed_syllable",
-      "vowel:segol",
-      "vowel:shuruk"
+      "vowel:cholam"
     ],
     "focus": "letter:vet",
     "flags": [],
@@ -7850,16 +7833,17 @@
     }
   },
   {
-    "id": "L4-00d390ee",
+    "id": "L4-00a55dd6",
     "level": 4,
-    "text": "כֹּכִבֹ",
+    "text": "כֹּכִבוֹ",
     "words": [
-      "כֹּכִבֹ"
+      "כֹּכִבוֹ"
     ],
     "skills": [
       "letter:chaf",
       "letter:kaf",
       "letter:vet",
+      "pattern:cholam_male",
       "vowel:chirik",
       "vowel:cholam"
     ],
@@ -7893,19 +7877,18 @@
     }
   },
   {
-    "id": "L4-d132525a",
+    "id": "L4-dafa13d4",
     "level": 4,
-    "text": "פַּנָך",
+    "text": "פֹּוָ",
     "words": [
-      "פַּנָך"
+      "פֹּוָ"
     ],
     "skills": [
-      "letter:final_chaf",
-      "letter:nun",
       "letter:pei",
-      "pattern:closed_syllable",
-      "vowel:kamatz",
-      "vowel:patach"
+      "letter:vav",
+      "pattern:vav_consonant",
+      "vowel:cholam",
+      "vowel:kamatz"
     ],
     "focus": "letter:pei",
     "flags": [],
@@ -7937,18 +7920,17 @@
     }
   },
   {
-    "id": "L4-d3a62c78",
+    "id": "L4-909f2aff",
     "level": 4,
-    "text": "תֵּשׁוּלֹ",
+    "text": "שֵׁלֶלָ",
     "words": [
-      "תֵּשׁוּלֹ"
+      "שֵׁלֶלָ"
     ],
     "skills": [
       "letter:lamed",
       "letter:shin",
-      "letter:tav",
-      "vowel:cholam",
-      "vowel:shuruk",
+      "vowel:kamatz",
+      "vowel:segol",
       "vowel:tzere"
     ],
     "focus": "letter:shin",
@@ -7978,18 +7960,17 @@
     }
   },
   {
-    "id": "L4-7dd46f1e",
+    "id": "L4-2e093a64",
     "level": 4,
-    "text": "יֹוָ",
+    "text": "הָיוּ",
     "words": [
-      "יֹוָ"
+      "הָיוּ"
     ],
     "skills": [
-      "letter:vav",
+      "letter:hei",
       "letter:yud",
-      "pattern:vav_consonant",
-      "vowel:cholam",
-      "vowel:kamatz"
+      "vowel:kamatz",
+      "vowel:shuruk"
     ],
     "focus": "vowel:kamatz",
     "flags": [],
@@ -7999,16 +7980,16 @@
     }
   },
   {
-    "id": "L4-1589afd8",
+    "id": "L4-24ab8264",
     "level": 4,
-    "text": "הַהִי",
+    "text": "רֹלַ",
     "words": [
-      "הַהִי"
+      "רֹלַ"
     ],
     "skills": [
-      "letter:hei",
-      "pattern:chirik_male",
-      "vowel:chirik",
+      "letter:lamed",
+      "letter:resh",
+      "vowel:cholam",
       "vowel:patach"
     ],
     "focus": "vowel:patach",
@@ -8019,18 +8000,17 @@
     }
   },
   {
-    "id": "L4-d219adf5",
+    "id": "L4-109c8f02",
     "level": 4,
-    "text": "שַׁבֵשִׂ",
+    "text": "תֵּבָלָ",
     "words": [
-      "שַׁבֵשִׂ"
+      "תֵּבָלָ"
     ],
     "skills": [
-      "letter:shin",
-      "letter:sin",
+      "letter:lamed",
+      "letter:tav",
       "letter:vet",
-      "vowel:chirik",
-      "vowel:patach",
+      "vowel:kamatz",
       "vowel:tzere"
     ],
     "focus": "vowel:tzere",
@@ -8041,16 +8021,17 @@
     }
   },
   {
-    "id": "L4-d39fce6c",
+    "id": "L4-cda56cfc",
     "level": 4,
-    "text": "לֶלֹ",
+    "text": "רֶתוּ",
     "words": [
-      "לֶלֹ"
+      "רֶתוּ"
     ],
     "skills": [
-      "letter:lamed",
-      "vowel:cholam",
-      "vowel:segol"
+      "letter:resh",
+      "letter:sav",
+      "vowel:segol",
+      "vowel:shuruk"
     ],
     "focus": "vowel:segol",
     "flags": [],
@@ -8060,19 +8041,18 @@
     }
   },
   {
-    "id": "L4-4233dabf",
+    "id": "L4-929ace68",
     "level": 4,
-    "text": "הִבַת",
+    "text": "וֵלִ",
     "words": [
-      "הִבַת"
+      "וֵלִ"
     ],
     "skills": [
-      "letter:hei",
-      "letter:sav",
-      "letter:vet",
-      "pattern:closed_syllable",
+      "letter:lamed",
+      "letter:vav",
+      "pattern:vav_consonant",
       "vowel:chirik",
-      "vowel:patach"
+      "vowel:tzere"
     ],
     "focus": "vowel:chirik",
     "flags": [],
@@ -8082,17 +8062,18 @@
     }
   },
   {
-    "id": "L4-ba27aa9b",
+    "id": "L4-b992ea51",
     "level": 4,
-    "text": "אֵרֹ",
+    "text": "מֹנֹר",
     "words": [
-      "אֵרֹ"
+      "מֹנֹר"
     ],
     "skills": [
-      "letter:alef",
+      "letter:mem",
+      "letter:nun",
       "letter:resh",
-      "vowel:cholam",
-      "vowel:tzere"
+      "pattern:closed_syllable",
+      "vowel:cholam"
     ],
     "focus": "vowel:cholam",
     "flags": [],
@@ -8102,19 +8083,19 @@
     }
   },
   {
-    "id": "L4-27846bf8",
+    "id": "L4-fe5d5458",
     "level": 4,
-    "text": "רִשֻׂוִ",
+    "text": "מֶבֻשִׂ",
     "words": [
-      "רִשֻׂוִ"
+      "מֶבֻשִׂ"
     ],
     "skills": [
-      "letter:resh",
+      "letter:mem",
       "letter:sin",
-      "letter:vav",
-      "pattern:vav_consonant",
+      "letter:vet",
       "vowel:chirik",
-      "vowel:kubutz"
+      "vowel:kubutz",
+      "vowel:segol"
     ],
     "focus": "vowel:kubutz",
     "flags": [],
@@ -8124,87 +8105,19 @@
     }
   },
   {
-    "id": "L4-11252500",
+    "id": "L4-dabeb8f2",
     "level": 4,
-    "text": "יוּשֶׂך",
+    "text": "שַׂשׁוּ",
     "words": [
-      "יוּשֶׂך"
+      "שַׂשׁוּ"
     ],
     "skills": [
-      "letter:final_chaf",
+      "letter:shin",
       "letter:sin",
-      "letter:yud",
-      "pattern:closed_syllable",
-      "vowel:segol",
+      "vowel:patach",
       "vowel:shuruk"
     ],
     "focus": "vowel:shuruk",
-    "flags": [],
-    "source": {
-      "generated": true,
-      "challenge": true
-    }
-  },
-  {
-    "id": "L4-5f59be0d",
-    "level": 4,
-    "text": "בֹּהִם",
-    "words": [
-      "בֹּהִם"
-    ],
-    "skills": [
-      "letter:bet",
-      "letter:final_mem",
-      "letter:hei",
-      "pattern:closed_syllable",
-      "vowel:chirik",
-      "vowel:cholam"
-    ],
-    "focus": "letter:bet",
-    "flags": [],
-    "source": {
-      "generated": true,
-      "challenge": true
-    }
-  },
-  {
-    "id": "L4-0d576070",
-    "level": 4,
-    "text": "רִבֹל",
-    "words": [
-      "רִבֹל"
-    ],
-    "skills": [
-      "letter:lamed",
-      "letter:resh",
-      "letter:vet",
-      "pattern:closed_syllable",
-      "vowel:chirik",
-      "vowel:cholam"
-    ],
-    "focus": "letter:vet",
-    "flags": [],
-    "source": {
-      "generated": true,
-      "challenge": true
-    }
-  },
-  {
-    "id": "L4-1d2d6a70",
-    "level": 4,
-    "text": "כָּתוּוָ",
-    "words": [
-      "כָּתוּוָ"
-    ],
-    "skills": [
-      "letter:kaf",
-      "letter:sav",
-      "letter:vav",
-      "pattern:vav_consonant",
-      "vowel:kamatz",
-      "vowel:shuruk"
-    ],
-    "focus": "letter:kaf",
     "flags": [],
     "source": {
       "generated": true,
@@ -8226,6 +8139,71 @@
       "vowel:kamatz",
       "vowel:tzere"
     ],
+    "focus": "letter:bet",
+    "flags": [],
+    "source": {
+      "generated": true,
+      "challenge": true
+    }
+  },
+  {
+    "id": "L4-3319297f",
+    "level": 4,
+    "text": "יֵשַׂב",
+    "words": [
+      "יֵשַׂב"
+    ],
+    "skills": [
+      "letter:sin",
+      "letter:vet",
+      "letter:yud",
+      "pattern:closed_syllable",
+      "vowel:patach",
+      "vowel:tzere"
+    ],
+    "focus": "letter:vet",
+    "flags": [],
+    "source": {
+      "generated": true,
+      "challenge": true
+    }
+  },
+  {
+    "id": "L4-40eb3bd6",
+    "level": 4,
+    "text": "כָּשֵׁתוּ",
+    "words": [
+      "כָּשֵׁתוּ"
+    ],
+    "skills": [
+      "letter:kaf",
+      "letter:sav",
+      "letter:shin",
+      "vowel:kamatz",
+      "vowel:shuruk",
+      "vowel:tzere"
+    ],
+    "focus": "letter:kaf",
+    "flags": [],
+    "source": {
+      "generated": true,
+      "challenge": true
+    }
+  },
+  {
+    "id": "L4-bb4907a5",
+    "level": 4,
+    "text": "אוּכוּךְ",
+    "words": [
+      "אוּכוּךְ"
+    ],
+    "skills": [
+      "letter:alef",
+      "letter:chaf",
+      "letter:final_chaf",
+      "pattern:closed_syllable",
+      "vowel:shuruk"
+    ],
     "focus": "letter:chaf",
     "flags": [],
     "source": {
@@ -8234,16 +8212,18 @@
     }
   },
   {
-    "id": "L4-d7f8466f",
+    "id": "L4-e4f5f395",
     "level": 4,
-    "text": "פַּוַ",
+    "text": "פִּנַר",
     "words": [
-      "פַּוַ"
+      "פִּנַר"
     ],
     "skills": [
+      "letter:nun",
       "letter:pei",
-      "letter:vav",
-      "pattern:vav_consonant",
+      "letter:resh",
+      "pattern:closed_syllable",
+      "vowel:chirik",
       "vowel:patach"
     ],
     "focus": "letter:pei",
@@ -8254,18 +8234,17 @@
     }
   },
   {
-    "id": "L4-c0c274da",
+    "id": "L4-d37bf8e0",
     "level": 4,
-    "text": "יֵפִם",
+    "text": "וֵפֵי",
     "words": [
-      "יֵפִם"
+      "וֵפֵי"
     ],
     "skills": [
       "letter:fei",
-      "letter:final_mem",
-      "letter:yud",
-      "pattern:closed_syllable",
-      "vowel:chirik",
+      "letter:vav",
+      "pattern:tzere_male",
+      "pattern:vav_consonant",
       "vowel:tzere"
     ],
     "focus": "letter:fei",
@@ -8276,19 +8255,19 @@
     }
   },
   {
-    "id": "L4-cc452f9c",
+    "id": "L4-76a0a2da",
     "level": 4,
-    "text": "שֵׁתֻשַׂ",
+    "text": "תֹּשֻׁכוּ",
     "words": [
-      "שֵׁתֻשַׂ"
+      "תֹּשֻׁכוּ"
     ],
     "skills": [
-      "letter:sav",
+      "letter:chaf",
       "letter:shin",
-      "letter:sin",
+      "letter:tav",
+      "vowel:cholam",
       "vowel:kubutz",
-      "vowel:patach",
-      "vowel:tzere"
+      "vowel:shuruk"
     ],
     "focus": "letter:shin",
     "flags": [],
@@ -8298,16 +8277,17 @@
     }
   },
   {
-    "id": "L4-ab8ce1a6",
+    "id": "L4-986d55f4",
     "level": 4,
-    "text": "נָשָׂ",
+    "text": "שֹׂרִ",
     "words": [
-      "נָשָׂ"
+      "שֹׂרִ"
     ],
     "skills": [
-      "letter:nun",
+      "letter:resh",
       "letter:sin",
-      "vowel:kamatz"
+      "vowel:chirik",
+      "vowel:cholam"
     ],
     "focus": "letter:sin",
     "flags": [],
@@ -8317,19 +8297,18 @@
     }
   },
   {
-    "id": "L4-0d80c510",
+    "id": "L4-6af73061",
     "level": 4,
-    "text": "רָכֶם",
+    "text": "מֹוָ",
     "words": [
-      "רָכֶם"
+      "מֹוָ"
     ],
     "skills": [
-      "letter:chaf",
-      "letter:final_mem",
-      "letter:resh",
-      "pattern:closed_syllable",
-      "vowel:kamatz",
-      "vowel:segol"
+      "letter:mem",
+      "letter:vav",
+      "pattern:vav_consonant",
+      "vowel:cholam",
+      "vowel:kamatz"
     ],
     "focus": "vowel:kamatz",
     "flags": [],
@@ -8339,15 +8318,17 @@
     }
   },
   {
-    "id": "L4-7e726a6c",
+    "id": "L4-2cc63f15",
     "level": 4,
-    "text": "בַּיֵ",
+    "text": "רֵיַן",
     "words": [
-      "בַּיֵ"
+      "רֵיַן"
     ],
     "skills": [
-      "letter:bet",
+      "letter:final_nun",
+      "letter:resh",
       "letter:yud",
+      "pattern:closed_syllable",
       "vowel:patach",
       "vowel:tzere"
     ],
@@ -8359,17 +8340,18 @@
     }
   },
   {
-    "id": "L4-569864c9",
+    "id": "L4-42265a18",
     "level": 4,
-    "text": "רַרֵשׁוּ",
+    "text": "לֻרֹיֵ",
     "words": [
-      "רַרֵשׁוּ"
+      "לֻרֹיֵ"
     ],
     "skills": [
+      "letter:lamed",
       "letter:resh",
-      "letter:shin",
-      "vowel:patach",
-      "vowel:shuruk",
+      "letter:yud",
+      "vowel:cholam",
+      "vowel:kubutz",
       "vowel:tzere"
     ],
     "focus": "vowel:tzere",
@@ -8380,17 +8362,17 @@
     }
   },
   {
-    "id": "L4-4fed2e2a",
+    "id": "L4-f6fc15e9",
     "level": 4,
-    "text": "בֶּשֵׁ",
+    "text": "מֶשַׁ",
     "words": [
-      "בֶּשֵׁ"
+      "מֶשַׁ"
     ],
     "skills": [
-      "letter:bet",
+      "letter:mem",
       "letter:shin",
-      "vowel:segol",
-      "vowel:tzere"
+      "vowel:patach",
+      "vowel:segol"
     ],
     "focus": "vowel:segol",
     "flags": [],
@@ -8400,16 +8382,15 @@
     }
   },
   {
-    "id": "L4-2f14e3dc",
+    "id": "L4-83a43e5e",
     "level": 4,
-    "text": "רִמַר",
+    "text": "תִּבַ",
     "words": [
-      "רִמַר"
+      "תִּבַ"
     ],
     "skills": [
-      "letter:mem",
-      "letter:resh",
-      "pattern:closed_syllable",
+      "letter:tav",
+      "letter:vet",
       "vowel:chirik",
       "vowel:patach"
     ],
@@ -8421,18 +8402,18 @@
     }
   },
   {
-    "id": "L4-8b43f825",
+    "id": "L4-b02ad26a",
     "level": 4,
-    "text": "רֹהֵר",
+    "text": "רֹלוּר",
     "words": [
-      "רֹהֵר"
+      "רֹלוּר"
     ],
     "skills": [
-      "letter:hei",
+      "letter:lamed",
       "letter:resh",
       "pattern:closed_syllable",
       "vowel:cholam",
-      "vowel:tzere"
+      "vowel:shuruk"
     ],
     "focus": "vowel:cholam",
     "flags": [],
@@ -8442,18 +8423,18 @@
     }
   },
   {
-    "id": "L4-3381d703",
+    "id": "L4-2530a5c8",
     "level": 4,
-    "text": "אֻהֻרִ",
+    "text": "כֻּיֵתֵ",
     "words": [
-      "אֻהֻרִ"
+      "כֻּיֵתֵ"
     ],
     "skills": [
-      "letter:alef",
-      "letter:hei",
-      "letter:resh",
-      "vowel:chirik",
-      "vowel:kubutz"
+      "letter:kaf",
+      "letter:sav",
+      "letter:yud",
+      "vowel:kubutz",
+      "vowel:tzere"
     ],
     "focus": "vowel:kubutz",
     "flags": [],
@@ -8463,17 +8444,17 @@
     }
   },
   {
-    "id": "L4-32188dfe",
+    "id": "L4-b87a7a85",
     "level": 4,
-    "text": "יַמוּ",
+    "text": "יֵכוּ",
     "words": [
-      "יַמוּ"
+      "יֵכוּ"
     ],
     "skills": [
-      "letter:mem",
+      "letter:chaf",
       "letter:yud",
-      "vowel:patach",
-      "vowel:shuruk"
+      "vowel:shuruk",
+      "vowel:tzere"
     ],
     "focus": "vowel:shuruk",
     "flags": [],
@@ -8483,19 +8464,17 @@
     }
   },
   {
-    "id": "L4-70ac54a9",
+    "id": "L4-b63c66e2",
     "level": 4,
-    "text": "בֶּנוּי",
+    "text": "בֻּרֵ",
     "words": [
-      "בֶּנוּי"
+      "בֻּרֵ"
     ],
     "skills": [
       "letter:bet",
-      "letter:nun",
-      "letter:yud",
-      "pattern:closed_syllable",
-      "vowel:segol",
-      "vowel:shuruk"
+      "letter:resh",
+      "vowel:kubutz",
+      "vowel:tzere"
     ],
     "focus": "letter:bet",
     "flags": [],
@@ -8505,16 +8484,18 @@
     }
   },
   {
-    "id": "L4-2d20c82e",
+    "id": "L4-f45e35cd",
     "level": 4,
-    "text": "תִּבֶ",
+    "text": "בֶּכֹב",
     "words": [
-      "תִּבֶ"
+      "בֶּכֹב"
     ],
     "skills": [
-      "letter:tav",
+      "letter:bet",
+      "letter:chaf",
       "letter:vet",
-      "vowel:chirik",
+      "pattern:closed_syllable",
+      "vowel:cholam",
       "vowel:segol"
     ],
     "focus": "letter:vet",
@@ -8525,19 +8506,19 @@
     }
   },
   {
-    "id": "L4-55ef4939",
+    "id": "L4-090f2a3c",
     "level": 4,
-    "text": "כִּלָכוּ",
+    "text": "כֻּרֶשֵׁ",
     "words": [
-      "כִּלָכוּ"
+      "כֻּרֶשֵׁ"
     ],
     "skills": [
-      "letter:chaf",
       "letter:kaf",
-      "letter:lamed",
-      "vowel:chirik",
-      "vowel:kamatz",
-      "vowel:shuruk"
+      "letter:resh",
+      "letter:shin",
+      "vowel:kubutz",
+      "vowel:segol",
+      "vowel:tzere"
     ],
     "focus": "letter:kaf",
     "flags": [],
@@ -8547,18 +8528,18 @@
     }
   },
   {
-    "id": "L4-f11c00f9",
+    "id": "L4-3de7e0f6",
     "level": 4,
-    "text": "רוּכֻך",
+    "text": "תּוּכַךְ",
     "words": [
-      "רוּכֻך"
+      "תּוּכַךְ"
     ],
     "skills": [
       "letter:chaf",
       "letter:final_chaf",
-      "letter:resh",
+      "letter:tav",
       "pattern:closed_syllable",
-      "vowel:kubutz",
+      "vowel:patach",
       "vowel:shuruk"
     ],
     "focus": "letter:chaf",
@@ -8569,17 +8550,17 @@
     }
   },
   {
-    "id": "L4-63f38ff3",
+    "id": "L4-cf700212",
     "level": 4,
-    "text": "פֻּיַ",
+    "text": "פֵּבִ",
     "words": [
-      "פֻּיַ"
+      "פֵּבִ"
     ],
     "skills": [
       "letter:pei",
-      "letter:yud",
-      "vowel:kubutz",
-      "vowel:patach"
+      "letter:vet",
+      "vowel:chirik",
+      "vowel:tzere"
     ],
     "focus": "letter:pei",
     "flags": [],
@@ -8589,16 +8570,18 @@
     }
   },
   {
-    "id": "L4-f085ccb7",
+    "id": "L4-b4664057",
     "level": 4,
-    "text": "כֵּפוּ",
+    "text": "בַּפֵל",
     "words": [
-      "כֵּפוּ"
+      "בַּפֵל"
     ],
     "skills": [
+      "letter:bet",
       "letter:fei",
-      "letter:kaf",
-      "vowel:shuruk",
+      "letter:lamed",
+      "pattern:closed_syllable",
+      "vowel:patach",
       "vowel:tzere"
     ],
     "focus": "letter:fei",
@@ -8609,18 +8592,18 @@
     }
   },
   {
-    "id": "L4-d66e6392",
+    "id": "L4-ee98cd0d",
     "level": 4,
-    "text": "וָשָׁשֵׁ",
+    "text": "מָשָׁבֶ",
     "words": [
-      "וָשָׁשֵׁ"
+      "מָשָׁבֶ"
     ],
     "skills": [
+      "letter:mem",
       "letter:shin",
-      "letter:vav",
-      "pattern:vav_consonant",
+      "letter:vet",
       "vowel:kamatz",
-      "vowel:tzere"
+      "vowel:segol"
     ],
     "focus": "letter:shin",
     "flags": [],
@@ -8630,16 +8613,19 @@
     }
   },
   {
-    "id": "L4-cc1ac97a",
+    "id": "L4-a397d6b9",
     "level": 4,
-    "text": "שֶׂשֶׁ",
+    "text": "שֻׁשֵׂן",
     "words": [
-      "שֶׂשֶׁ"
+      "שֻׁשֵׂן"
     ],
     "skills": [
+      "letter:final_nun",
       "letter:shin",
       "letter:sin",
-      "vowel:segol"
+      "pattern:closed_syllable",
+      "vowel:kubutz",
+      "vowel:tzere"
     ],
     "focus": "letter:sin",
     "flags": [],
@@ -8649,19 +8635,18 @@
     }
   },
   {
-    "id": "L4-716cfced",
+    "id": "L4-621e7972",
     "level": 4,
-    "text": "בֻּנָך",
+    "text": "שָׁשִׁךְ",
     "words": [
-      "בֻּנָך"
+      "שָׁשִׁךְ"
     ],
     "skills": [
-      "letter:bet",
       "letter:final_chaf",
-      "letter:nun",
+      "letter:shin",
       "pattern:closed_syllable",
-      "vowel:kamatz",
-      "vowel:kubutz"
+      "vowel:chirik",
+      "vowel:kamatz"
     ],
     "focus": "vowel:kamatz",
     "flags": [],
@@ -8671,11 +8656,11 @@
     }
   },
   {
-    "id": "L4-783b9567",
+    "id": "L4-fbe0b29a",
     "level": 4,
-    "text": "כֵּנַך",
+    "text": "כֵּנַךְ",
     "words": [
-      "כֵּנַך"
+      "כֵּנַךְ"
     ],
     "skills": [
       "letter:final_chaf",
@@ -8754,15 +8739,16 @@
     }
   },
   {
-    "id": "L4-37e145ae",
+    "id": "L4-73b4435d",
     "level": 4,
-    "text": "תֻּרֹ",
+    "text": "תֻּרוֹ",
     "words": [
-      "תֻּרֹ"
+      "תֻּרוֹ"
     ],
     "skills": [
       "letter:resh",
       "letter:tav",
+      "pattern:cholam_male",
       "vowel:cholam",
       "vowel:kubutz"
     ],
@@ -9089,11 +9075,11 @@
     }
   },
   {
-    "id": "L4-25f52fe0",
+    "id": "L4-c0636a34",
     "level": 4,
-    "text": "מוּנֹך",
+    "text": "מוּנֹךְ",
     "words": [
-      "מוּנֹך"
+      "מוּנֹךְ"
     ],
     "skills": [
       "letter:final_chaf",
@@ -9153,17 +9139,18 @@
     }
   },
   {
-    "id": "L4-4974dbf5",
+    "id": "L4-eb231081",
     "level": 4,
-    "text": "בֶּשֹׂ",
+    "text": "בֵּנֵל",
     "words": [
-      "בֶּשֹׂ"
+      "בֵּנֵל"
     ],
     "skills": [
       "letter:bet",
-      "letter:sin",
-      "vowel:cholam",
-      "vowel:segol"
+      "letter:lamed",
+      "letter:nun",
+      "pattern:closed_syllable",
+      "vowel:tzere"
     ],
     "focus": "letter:bet",
     "flags": [],
@@ -9173,18 +9160,19 @@
     }
   },
   {
-    "id": "L4-63b3c7f1",
+    "id": "L4-ddcc63ad",
     "level": 4,
-    "text": "הַבַל",
+    "text": "אֹמֶב",
     "words": [
-      "הַבַל"
+      "אֹמֶב"
     ],
     "skills": [
-      "letter:hei",
-      "letter:lamed",
+      "letter:alef",
+      "letter:mem",
       "letter:vet",
       "pattern:closed_syllable",
-      "vowel:patach"
+      "vowel:cholam",
+      "vowel:segol"
     ],
     "focus": "letter:vet",
     "flags": [],
@@ -9194,17 +9182,17 @@
     }
   },
   {
-    "id": "L4-8d3914e2",
+    "id": "L4-b54d352c",
     "level": 4,
-    "text": "כֹּלֶלֻ",
+    "text": "כֶּשָׂבָ",
     "words": [
-      "כֹּלֶלֻ"
+      "כֶּשָׂבָ"
     ],
     "skills": [
       "letter:kaf",
-      "letter:lamed",
-      "vowel:cholam",
-      "vowel:kubutz",
+      "letter:sin",
+      "letter:vet",
+      "vowel:kamatz",
       "vowel:segol"
     ],
     "focus": "letter:kaf",
@@ -9215,17 +9203,19 @@
     }
   },
   {
-    "id": "L4-cf67409b",
+    "id": "L4-12af252a",
     "level": 4,
-    "text": "רֹכֹר",
+    "text": "שֶׁכֻת",
     "words": [
-      "רֹכֹר"
+      "שֶׁכֻת"
     ],
     "skills": [
       "letter:chaf",
-      "letter:resh",
+      "letter:sav",
+      "letter:shin",
       "pattern:closed_syllable",
-      "vowel:cholam"
+      "vowel:kubutz",
+      "vowel:segol"
     ],
     "focus": "letter:chaf",
     "flags": [],
@@ -9235,354 +9225,19 @@
     }
   },
   {
-    "id": "L4-0f635824",
+    "id": "L4-3a68038a",
     "level": 4,
-    "text": "פֵּנֻל",
+    "text": "פָּשֹׂם",
     "words": [
-      "פֵּנֻל"
-    ],
-    "skills": [
-      "letter:lamed",
-      "letter:nun",
-      "letter:pei",
-      "pattern:closed_syllable",
-      "vowel:kubutz",
-      "vowel:tzere"
-    ],
-    "focus": "letter:pei",
-    "flags": [],
-    "source": {
-      "generated": true,
-      "challenge": true
-    }
-  },
-  {
-    "id": "L4-016df8e8",
-    "level": 4,
-    "text": "הֻפֵת",
-    "words": [
-      "הֻפֵת"
-    ],
-    "skills": [
-      "letter:fei",
-      "letter:hei",
-      "letter:sav",
-      "pattern:closed_syllable",
-      "vowel:kubutz",
-      "vowel:tzere"
-    ],
-    "focus": "letter:fei",
-    "flags": [],
-    "source": {
-      "generated": true,
-      "challenge": true
-    }
-  },
-  {
-    "id": "L4-3e8dc3b6",
-    "level": 4,
-    "text": "שֵׁהוּהוּ",
-    "words": [
-      "שֵׁהוּהוּ"
-    ],
-    "skills": [
-      "letter:hei",
-      "letter:shin",
-      "vowel:shuruk",
-      "vowel:tzere"
-    ],
-    "focus": "letter:shin",
-    "flags": [],
-    "source": {
-      "generated": true,
-      "challenge": true
-    }
-  },
-  {
-    "id": "L4-7657441c",
-    "level": 4,
-    "text": "שִׂנֻת",
-    "words": [
-      "שִׂנֻת"
-    ],
-    "skills": [
-      "letter:nun",
-      "letter:sav",
-      "letter:sin",
-      "pattern:closed_syllable",
-      "vowel:chirik",
-      "vowel:kubutz"
-    ],
-    "focus": "letter:sin",
-    "flags": [],
-    "source": {
-      "generated": true,
-      "challenge": true
-    }
-  },
-  {
-    "id": "L4-7b34c843",
-    "level": 4,
-    "text": "הֶשָׂ",
-    "words": [
-      "הֶשָׂ"
-    ],
-    "skills": [
-      "letter:hei",
-      "letter:sin",
-      "vowel:kamatz",
-      "vowel:segol"
-    ],
-    "focus": "vowel:kamatz",
-    "flags": [],
-    "source": {
-      "generated": true,
-      "challenge": true
-    }
-  },
-  {
-    "id": "L4-2a93133f",
-    "level": 4,
-    "text": "יֻהַם",
-    "words": [
-      "יֻהַם"
+      "פָּשֹׂם"
     ],
     "skills": [
       "letter:final_mem",
-      "letter:hei",
-      "letter:yud",
-      "pattern:closed_syllable",
-      "vowel:kubutz",
-      "vowel:patach"
-    ],
-    "focus": "vowel:patach",
-    "flags": [],
-    "source": {
-      "generated": true,
-      "challenge": true
-    }
-  },
-  {
-    "id": "L4-a3ef971c",
-    "level": 4,
-    "text": "אֶרֵבַ",
-    "words": [
-      "אֶרֵבַ"
-    ],
-    "skills": [
-      "letter:alef",
-      "letter:resh",
-      "letter:vet",
-      "vowel:patach",
-      "vowel:segol",
-      "vowel:tzere"
-    ],
-    "focus": "vowel:tzere",
-    "flags": [],
-    "source": {
-      "generated": true,
-      "challenge": true
-    }
-  },
-  {
-    "id": "L4-e77a1498",
-    "level": 4,
-    "text": "שֹׂשֶׁ",
-    "words": [
-      "שֹׂשֶׁ"
-    ],
-    "skills": [
-      "letter:shin",
+      "letter:pei",
       "letter:sin",
-      "vowel:cholam",
-      "vowel:segol"
-    ],
-    "focus": "vowel:segol",
-    "flags": [],
-    "source": {
-      "generated": true,
-      "challenge": true
-    }
-  },
-  {
-    "id": "L4-eccb5fd8",
-    "level": 4,
-    "text": "אִתַ",
-    "words": [
-      "אִתַ"
-    ],
-    "skills": [
-      "letter:alef",
-      "letter:sav",
-      "vowel:chirik",
-      "vowel:patach"
-    ],
-    "focus": "vowel:chirik",
-    "flags": [],
-    "source": {
-      "generated": true,
-      "challenge": true
-    }
-  },
-  {
-    "id": "L4-9e644d34",
-    "level": 4,
-    "text": "תֹּיָ",
-    "words": [
-      "תֹּיָ"
-    ],
-    "skills": [
-      "letter:tav",
-      "letter:yud",
+      "pattern:closed_syllable",
       "vowel:cholam",
       "vowel:kamatz"
-    ],
-    "focus": "vowel:cholam",
-    "flags": [],
-    "source": {
-      "generated": true,
-      "challenge": true
-    }
-  },
-  {
-    "id": "L4-10c46f15",
-    "level": 4,
-    "text": "הֶשַׂשֻׁ",
-    "words": [
-      "הֶשַׂשֻׁ"
-    ],
-    "skills": [
-      "letter:hei",
-      "letter:shin",
-      "letter:sin",
-      "vowel:kubutz",
-      "vowel:patach",
-      "vowel:segol"
-    ],
-    "focus": "vowel:kubutz",
-    "flags": [],
-    "source": {
-      "generated": true,
-      "challenge": true
-    }
-  },
-  {
-    "id": "L4-f6deb2a9",
-    "level": 4,
-    "text": "שׁוּרוּ",
-    "words": [
-      "שׁוּרוּ"
-    ],
-    "skills": [
-      "letter:resh",
-      "letter:shin",
-      "vowel:shuruk"
-    ],
-    "focus": "vowel:shuruk",
-    "flags": [],
-    "source": {
-      "generated": true,
-      "challenge": true
-    }
-  },
-  {
-    "id": "L4-2170f045",
-    "level": 4,
-    "text": "בֻּתֵ",
-    "words": [
-      "בֻּתֵ"
-    ],
-    "skills": [
-      "letter:bet",
-      "letter:sav",
-      "vowel:kubutz",
-      "vowel:tzere"
-    ],
-    "focus": "letter:bet",
-    "flags": [],
-    "source": {
-      "generated": true,
-      "challenge": true
-    }
-  },
-  {
-    "id": "L4-2cb02b06",
-    "level": 4,
-    "text": "כּוּנֻב",
-    "words": [
-      "כּוּנֻב"
-    ],
-    "skills": [
-      "letter:kaf",
-      "letter:nun",
-      "letter:vet",
-      "pattern:closed_syllable",
-      "vowel:kubutz",
-      "vowel:shuruk"
-    ],
-    "focus": "letter:vet",
-    "flags": [],
-    "source": {
-      "generated": true,
-      "challenge": true
-    }
-  },
-  {
-    "id": "L4-cfc24f2e",
-    "level": 4,
-    "text": "כֻּיֵמוּ",
-    "words": [
-      "כֻּיֵמוּ"
-    ],
-    "skills": [
-      "letter:kaf",
-      "letter:mem",
-      "letter:yud",
-      "vowel:kubutz",
-      "vowel:shuruk",
-      "vowel:tzere"
-    ],
-    "focus": "letter:kaf",
-    "flags": [],
-    "source": {
-      "generated": true,
-      "challenge": true
-    }
-  },
-  {
-    "id": "L4-d32fec6b",
-    "level": 4,
-    "text": "שֶׁכוּ",
-    "words": [
-      "שֶׁכוּ"
-    ],
-    "skills": [
-      "letter:chaf",
-      "letter:shin",
-      "vowel:segol",
-      "vowel:shuruk"
-    ],
-    "focus": "letter:chaf",
-    "flags": [],
-    "source": {
-      "generated": true,
-      "challenge": true
-    }
-  },
-  {
-    "id": "L4-24b93afd",
-    "level": 4,
-    "text": "פַּתֹך",
-    "words": [
-      "פַּתֹך"
-    ],
-    "skills": [
-      "letter:final_chaf",
-      "letter:pei",
-      "letter:sav",
-      "pattern:closed_syllable",
-      "vowel:cholam",
-      "vowel:patach"
     ],
     "focus": "letter:pei",
     "flags": [],
@@ -9592,18 +9247,19 @@
     }
   },
   {
-    "id": "L4-28647117",
+    "id": "L4-77728f76",
     "level": 4,
-    "text": "יֵפֶי",
+    "text": "שָׁפֶן",
     "words": [
-      "יֵפֶי"
+      "שָׁפֶן"
     ],
     "skills": [
       "letter:fei",
-      "letter:yud",
-      "pattern:segol_yud",
-      "vowel:segol",
-      "vowel:tzere"
+      "letter:final_nun",
+      "letter:shin",
+      "pattern:closed_syllable",
+      "vowel:kamatz",
+      "vowel:segol"
     ],
     "focus": "letter:fei",
     "flags": [],
@@ -9613,16 +9269,17 @@
     }
   },
   {
-    "id": "L4-a62e3d78",
+    "id": "L4-3460b57c",
     "level": 4,
-    "text": "נֵשֵׁרוּ",
+    "text": "שֶׁרוּיֵ",
     "words": [
-      "נֵשֵׁרוּ"
+      "שֶׁרוּיֵ"
     ],
     "skills": [
-      "letter:nun",
       "letter:resh",
       "letter:shin",
+      "letter:yud",
+      "vowel:segol",
       "vowel:shuruk",
       "vowel:tzere"
     ],
@@ -9634,17 +9291,17 @@
     }
   },
   {
-    "id": "L4-8b5a18b9",
+    "id": "L4-212ed606",
     "level": 4,
-    "text": "תַּשֻׂ",
+    "text": "שֹׂתֶ",
     "words": [
-      "תַּשֻׂ"
+      "שֹׂתֶ"
     ],
     "skills": [
+      "letter:sav",
       "letter:sin",
-      "letter:tav",
-      "vowel:kubutz",
-      "vowel:patach"
+      "vowel:cholam",
+      "vowel:segol"
     ],
     "focus": "letter:sin",
     "flags": [],
@@ -9654,19 +9311,18 @@
     }
   },
   {
-    "id": "L4-3bd56165",
+    "id": "L4-759b9991",
     "level": 4,
-    "text": "הָמֹר",
+    "text": "תּוּוָ",
     "words": [
-      "הָמֹר"
+      "תּוּוָ"
     ],
     "skills": [
-      "letter:hei",
-      "letter:mem",
-      "letter:resh",
-      "pattern:closed_syllable",
-      "vowel:cholam",
-      "vowel:kamatz"
+      "letter:tav",
+      "letter:vav",
+      "pattern:vav_consonant",
+      "vowel:kamatz",
+      "vowel:shuruk"
     ],
     "focus": "vowel:kamatz",
     "flags": [],
@@ -9676,18 +9332,16 @@
     }
   },
   {
-    "id": "L4-b4868de4",
+    "id": "L4-d400e302",
     "level": 4,
-    "text": "שִׁנַב",
+    "text": "לָרַ",
     "words": [
-      "שִׁנַב"
+      "לָרַ"
     ],
     "skills": [
-      "letter:nun",
-      "letter:shin",
-      "letter:vet",
-      "pattern:closed_syllable",
-      "vowel:chirik",
+      "letter:lamed",
+      "letter:resh",
+      "vowel:kamatz",
       "vowel:patach"
     ],
     "focus": "vowel:patach",
@@ -9698,17 +9352,17 @@
     }
   },
   {
-    "id": "L4-619b645c",
+    "id": "L4-6ac9c10e",
     "level": 4,
-    "text": "בֵּרַלֵ",
+    "text": "כֶּלֵשֶׁ",
     "words": [
-      "בֵּרַלֵ"
+      "כֶּלֵשֶׁ"
     ],
     "skills": [
-      "letter:bet",
+      "letter:kaf",
       "letter:lamed",
-      "letter:resh",
-      "vowel:patach",
+      "letter:shin",
+      "vowel:segol",
       "vowel:tzere"
     ],
     "focus": "vowel:tzere",
@@ -9719,18 +9373,18 @@
     }
   },
   {
-    "id": "L4-696dc016",
+    "id": "L4-8df397ab",
     "level": 4,
-    "text": "תֶּרֻן",
+    "text": "לַיֶת",
     "words": [
-      "תֶּרֻן"
+      "לַיֶת"
     ],
     "skills": [
-      "letter:final_nun",
-      "letter:resh",
-      "letter:tav",
+      "letter:lamed",
+      "letter:sav",
+      "letter:yud",
       "pattern:closed_syllable",
-      "vowel:kubutz",
+      "vowel:patach",
       "vowel:segol"
     ],
     "focus": "vowel:segol",
@@ -9741,17 +9395,16 @@
     }
   },
   {
-    "id": "L4-9905068d",
+    "id": "L4-4ffcc1c8",
     "level": 4,
-    "text": "אִמֹי",
+    "text": "כִּשׁוֹ",
     "words": [
-      "אִמֹי"
+      "כִּשׁוֹ"
     ],
     "skills": [
-      "letter:alef",
-      "letter:mem",
-      "letter:yud",
-      "pattern:closed_syllable",
+      "letter:kaf",
+      "letter:shin",
+      "pattern:cholam_male",
       "vowel:chirik",
       "vowel:cholam"
     ],
@@ -9763,17 +9416,17 @@
     }
   },
   {
-    "id": "L4-69a9ff70",
+    "id": "L4-7323e663",
     "level": 4,
-    "text": "יֵשֹׂ",
+    "text": "תֹּבוּ",
     "words": [
-      "יֵשֹׂ"
+      "תֹּבוּ"
     ],
     "skills": [
-      "letter:sin",
-      "letter:yud",
+      "letter:tav",
+      "letter:vet",
       "vowel:cholam",
-      "vowel:tzere"
+      "vowel:shuruk"
     ],
     "focus": "vowel:cholam",
     "flags": [],
@@ -9783,17 +9436,17 @@
     }
   },
   {
-    "id": "L4-c6235bbb",
+    "id": "L4-0e8fdc71",
     "level": 4,
-    "text": "נֻבָלֵ",
+    "text": "הֵרֻלִ",
     "words": [
-      "נֻבָלֵ"
+      "הֵרֻלִ"
     ],
     "skills": [
+      "letter:hei",
       "letter:lamed",
-      "letter:nun",
-      "letter:vet",
-      "vowel:kamatz",
+      "letter:resh",
+      "vowel:chirik",
       "vowel:kubutz",
       "vowel:tzere"
     ],
@@ -9805,15 +9458,16 @@
     }
   },
   {
-    "id": "L4-837920db",
+    "id": "L4-67cbafca",
     "level": 4,
-    "text": "שׁוּשַׁ",
+    "text": "בֶּבוּ",
     "words": [
-      "שׁוּשַׁ"
+      "בֶּבוּ"
     ],
     "skills": [
-      "letter:shin",
-      "vowel:patach",
+      "letter:bet",
+      "letter:vet",
+      "vowel:segol",
       "vowel:shuruk"
     ],
     "focus": "vowel:shuruk",
@@ -9824,19 +9478,17 @@
     }
   },
   {
-    "id": "L4-9fdaf2c5",
+    "id": "L4-58b2ade5",
     "level": 4,
-    "text": "בּוּנֵך",
+    "text": "בָּלֶ",
     "words": [
-      "בּוּנֵך"
+      "בָּלֶ"
     ],
     "skills": [
       "letter:bet",
-      "letter:final_chaf",
-      "letter:nun",
-      "pattern:closed_syllable",
-      "vowel:shuruk",
-      "vowel:tzere"
+      "letter:lamed",
+      "vowel:kamatz",
+      "vowel:segol"
     ],
     "focus": "letter:bet",
     "flags": [],
@@ -9846,19 +9498,355 @@
     }
   },
   {
-    "id": "L4-b259623e",
+    "id": "L4-150c80f6",
     "level": 4,
-    "text": "וֵבָ",
+    "text": "כֻּבַר",
     "words": [
-      "וֵבָ"
+      "כֻּבַר"
     ],
     "skills": [
-      "letter:vav",
+      "letter:kaf",
+      "letter:resh",
       "letter:vet",
+      "pattern:closed_syllable",
+      "vowel:kubutz",
+      "vowel:patach"
+    ],
+    "focus": "letter:vet",
+    "flags": [],
+    "source": {
+      "generated": true,
+      "challenge": true
+    }
+  },
+  {
+    "id": "L4-41332e89",
+    "level": 4,
+    "text": "כָּיוּשַׁ",
+    "words": [
+      "כָּיוּשַׁ"
+    ],
+    "skills": [
+      "letter:kaf",
+      "letter:shin",
+      "letter:yud",
+      "vowel:kamatz",
+      "vowel:patach",
+      "vowel:shuruk"
+    ],
+    "focus": "letter:kaf",
+    "flags": [],
+    "source": {
+      "generated": true,
+      "challenge": true
+    }
+  },
+  {
+    "id": "L4-4ec589e9",
+    "level": 4,
+    "text": "לֹכוּ",
+    "words": [
+      "לֹכוּ"
+    ],
+    "skills": [
+      "letter:chaf",
+      "letter:lamed",
+      "vowel:cholam",
+      "vowel:shuruk"
+    ],
+    "focus": "letter:chaf",
+    "flags": [],
+    "source": {
+      "generated": true,
+      "challenge": true
+    }
+  },
+  {
+    "id": "L4-73308754",
+    "level": 4,
+    "text": "פֹּלֵ",
+    "words": [
+      "פֹּלֵ"
+    ],
+    "skills": [
+      "letter:lamed",
+      "letter:pei",
+      "vowel:cholam",
+      "vowel:tzere"
+    ],
+    "focus": "letter:pei",
+    "flags": [],
+    "source": {
+      "generated": true,
+      "challenge": true
+    }
+  },
+  {
+    "id": "L4-ff2c5aad",
+    "level": 4,
+    "text": "כּוּפַל",
+    "words": [
+      "כּוּפַל"
+    ],
+    "skills": [
+      "letter:fei",
+      "letter:kaf",
+      "letter:lamed",
+      "pattern:closed_syllable",
+      "vowel:patach",
+      "vowel:shuruk"
+    ],
+    "focus": "letter:fei",
+    "flags": [],
+    "source": {
+      "generated": true,
+      "challenge": true
+    }
+  },
+  {
+    "id": "L4-4e26288a",
+    "level": 4,
+    "text": "מוּלֹשַׁ",
+    "words": [
+      "מוּלֹשַׁ"
+    ],
+    "skills": [
+      "letter:lamed",
+      "letter:mem",
+      "letter:shin",
+      "vowel:cholam",
+      "vowel:patach",
+      "vowel:shuruk"
+    ],
+    "focus": "letter:shin",
+    "flags": [],
+    "source": {
+      "generated": true,
+      "challenge": true
+    }
+  },
+  {
+    "id": "L4-47370db1",
+    "level": 4,
+    "text": "שֶׂנֵם",
+    "words": [
+      "שֶׂנֵם"
+    ],
+    "skills": [
+      "letter:final_mem",
+      "letter:nun",
+      "letter:sin",
+      "pattern:closed_syllable",
+      "vowel:segol",
+      "vowel:tzere"
+    ],
+    "focus": "letter:sin",
+    "flags": [],
+    "source": {
+      "generated": true,
+      "challenge": true
+    }
+  },
+  {
+    "id": "L4-fa3b80b7",
+    "level": 4,
+    "text": "אֶלָל",
+    "words": [
+      "אֶלָל"
+    ],
+    "skills": [
+      "letter:alef",
+      "letter:lamed",
+      "pattern:closed_syllable",
+      "vowel:kamatz",
+      "vowel:segol"
+    ],
+    "focus": "vowel:kamatz",
+    "flags": [],
+    "source": {
+      "generated": true,
+      "challenge": true
+    }
+  },
+  {
+    "id": "L4-df0a103d",
+    "level": 4,
+    "text": "שַׂשָׂל",
+    "words": [
+      "שַׂשָׂל"
+    ],
+    "skills": [
+      "letter:lamed",
+      "letter:sin",
+      "pattern:closed_syllable",
+      "vowel:kamatz",
+      "vowel:patach"
+    ],
+    "focus": "vowel:patach",
+    "flags": [],
+    "source": {
+      "generated": true,
+      "challenge": true
+    }
+  },
+  {
+    "id": "L4-af8f4db6",
+    "level": 4,
+    "text": "שָׂרָוֵ",
+    "words": [
+      "שָׂרָוֵ"
+    ],
+    "skills": [
+      "letter:resh",
+      "letter:sin",
+      "letter:vav",
       "pattern:vav_consonant",
       "vowel:kamatz",
       "vowel:tzere"
     ],
+    "focus": "vowel:tzere",
+    "flags": [],
+    "source": {
+      "generated": true,
+      "challenge": true
+    }
+  },
+  {
+    "id": "L4-538c5983",
+    "level": 4,
+    "text": "רֶיוּר",
+    "words": [
+      "רֶיוּר"
+    ],
+    "skills": [
+      "letter:resh",
+      "letter:yud",
+      "pattern:closed_syllable",
+      "vowel:segol",
+      "vowel:shuruk"
+    ],
+    "focus": "vowel:segol",
+    "flags": [],
+    "source": {
+      "generated": true,
+      "challenge": true
+    }
+  },
+  {
+    "id": "L4-bfecf6a2",
+    "level": 4,
+    "text": "הִיוּ",
+    "words": [
+      "הִיוּ"
+    ],
+    "skills": [
+      "letter:hei",
+      "letter:yud",
+      "vowel:chirik",
+      "vowel:shuruk"
+    ],
+    "focus": "vowel:chirik",
+    "flags": [],
+    "source": {
+      "generated": true,
+      "challenge": true
+    }
+  },
+  {
+    "id": "L4-488a743f",
+    "level": 4,
+    "text": "נֹלַ",
+    "words": [
+      "נֹלַ"
+    ],
+    "skills": [
+      "letter:lamed",
+      "letter:nun",
+      "vowel:cholam",
+      "vowel:patach"
+    ],
+    "focus": "vowel:cholam",
+    "flags": [],
+    "source": {
+      "generated": true,
+      "challenge": true
+    }
+  },
+  {
+    "id": "L4-8eedf7bc",
+    "level": 4,
+    "text": "נֻכָכֻם",
+    "words": [
+      "נֻכָכֻם"
+    ],
+    "skills": [
+      "letter:chaf",
+      "letter:final_mem",
+      "letter:nun",
+      "pattern:closed_syllable",
+      "vowel:kamatz",
+      "vowel:kubutz"
+    ],
+    "focus": "vowel:kubutz",
+    "flags": [],
+    "source": {
+      "generated": true,
+      "challenge": true
+    }
+  },
+  {
+    "id": "L4-fa371ce8",
+    "level": 4,
+    "text": "תֶּלוּ",
+    "words": [
+      "תֶּלוּ"
+    ],
+    "skills": [
+      "letter:lamed",
+      "letter:tav",
+      "vowel:segol",
+      "vowel:shuruk"
+    ],
+    "focus": "vowel:shuruk",
+    "flags": [],
+    "source": {
+      "generated": true,
+      "challenge": true
+    }
+  },
+  {
+    "id": "L4-ff0b45b9",
+    "level": 4,
+    "text": "בּוּרִ",
+    "words": [
+      "בּוּרִ"
+    ],
+    "skills": [
+      "letter:bet",
+      "letter:resh",
+      "vowel:chirik",
+      "vowel:shuruk"
+    ],
+    "focus": "letter:bet",
+    "flags": [],
+    "source": {
+      "generated": true,
+      "challenge": true
+    }
+  },
+  {
+    "id": "L4-19161424",
+    "level": 4,
+    "text": "רַבוּ",
+    "words": [
+      "רַבוּ"
+    ],
+    "skills": [
+      "letter:resh",
+      "letter:vet",
+      "vowel:patach",
+      "vowel:shuruk"
+    ],
     "focus": "letter:vet",
     "flags": [],
     "source": {
@@ -9867,18 +9855,19 @@
     }
   },
   {
-    "id": "L4-c4d36966",
+    "id": "L4-fc2b63d2",
     "level": 4,
-    "text": "כֻּשֵׁרֵ",
+    "text": "כָּמֶבוּ",
     "words": [
-      "כֻּשֵׁרֵ"
+      "כָּמֶבוּ"
     ],
     "skills": [
       "letter:kaf",
-      "letter:resh",
-      "letter:shin",
-      "vowel:kubutz",
-      "vowel:tzere"
+      "letter:mem",
+      "letter:vet",
+      "vowel:kamatz",
+      "vowel:segol",
+      "vowel:shuruk"
     ],
     "focus": "letter:kaf",
     "flags": [],
@@ -9888,19 +9877,18 @@
     }
   },
   {
-    "id": "L4-b4fe3642",
+    "id": "L4-370fddaa",
     "level": 4,
-    "text": "נֻכֶב",
+    "text": "מֹכֹךְ",
     "words": [
-      "נֻכֶב"
+      "מֹכֹךְ"
     ],
     "skills": [
       "letter:chaf",
-      "letter:nun",
-      "letter:vet",
+      "letter:final_chaf",
+      "letter:mem",
       "pattern:closed_syllable",
-      "vowel:kubutz",
-      "vowel:segol"
+      "vowel:cholam"
     ],
     "focus": "letter:chaf",
     "flags": [],
@@ -9910,19 +9898,19 @@
     }
   },
   {
-    "id": "L4-da8ae75e",
+    "id": "L4-7730dab1",
     "level": 4,
-    "text": "פִּיַת",
+    "text": "פֵּבֹי",
     "words": [
-      "פִּיַת"
+      "פֵּבֹי"
     ],
     "skills": [
       "letter:pei",
-      "letter:sav",
+      "letter:vet",
       "letter:yud",
       "pattern:closed_syllable",
-      "vowel:chirik",
-      "vowel:patach"
+      "vowel:cholam",
+      "vowel:tzere"
     ],
     "focus": "letter:pei",
     "flags": [],
@@ -9932,19 +9920,19 @@
     }
   },
   {
-    "id": "L4-3f7d1549",
+    "id": "L4-d7376496",
     "level": 4,
-    "text": "תִּפֵר",
+    "text": "לוּפֻן",
     "words": [
-      "תִּפֵר"
+      "לוּפֻן"
     ],
     "skills": [
       "letter:fei",
-      "letter:resh",
-      "letter:tav",
+      "letter:final_nun",
+      "letter:lamed",
       "pattern:closed_syllable",
-      "vowel:chirik",
-      "vowel:tzere"
+      "vowel:kubutz",
+      "vowel:shuruk"
     ],
     "focus": "letter:fei",
     "flags": [],
@@ -9954,19 +9942,18 @@
     }
   },
   {
-    "id": "L4-aa84ea66",
+    "id": "L4-11acffaa",
     "level": 4,
-    "text": "יֻכֶשָׁ",
+    "text": "שֻׁמָשַׁ",
     "words": [
-      "יֻכֶשָׁ"
+      "שֻׁמָשַׁ"
     ],
     "skills": [
-      "letter:chaf",
+      "letter:mem",
       "letter:shin",
-      "letter:yud",
       "vowel:kamatz",
       "vowel:kubutz",
-      "vowel:segol"
+      "vowel:patach"
     ],
     "focus": "letter:shin",
     "flags": [],
@@ -10143,15 +10130,15 @@
     }
   },
   {
-    "id": "L4-70ed2ab4",
+    "id": "L4-7b3f0be8",
     "level": 4,
-    "text": "אַרוּ",
+    "text": "כַּתוּ",
     "words": [
-      "אַרוּ"
+      "כַּתוּ"
     ],
     "skills": [
-      "letter:alef",
-      "letter:resh",
+      "letter:kaf",
+      "letter:sav",
       "vowel:patach",
       "vowel:shuruk"
     ],

@@ -12,8 +12,12 @@ export function legalGeneratedWord(word, level, focus = null) {
     const last = index === groups.length - 1;
     const dot = marks.includes('ּ');
     const carrier = isShuruk(group) || (letter === 'ו' && vowel === 'cholam' && !dot);
+    const closingKaf = last && letter === 'ך' && vowel === 'sheva';
     if (finals.includes(letter) && (!last || (vowel !== 'none'
       && !(letter === 'ך' && ['sheva', 'kamatz'].includes(vowel))))) return false;
+    if (letter === 'ך' && !['sheva', 'kamatz'].includes(vowel)) return false;
+    if (last && groups.length > 1
+      && (vowel === 'kubutz' || (vowel === 'cholam' && letter !== 'ו'))) return false;
     if (last && ('כמנפצה'.includes(letter) || (vowel === 'none' && 'אע'.includes(letter)))) return false;
     if (letter === 'א' && index !== 0) return false;
     if ('אהחער'.includes(letter) && (dot || vowel === 'sheva')) return false;
@@ -32,7 +36,7 @@ export function legalGeneratedWord(word, level, focus = null) {
         if (dot !== kal) return false;
       }
     }
-    if (level === 4 && vowel === 'sheva'
+    if (level === 4 && vowel === 'sheva' && !closingKaf
       && (focus !== 'pattern:closed_syllable' || index === 0 || last)) return false;
     return true;
   });

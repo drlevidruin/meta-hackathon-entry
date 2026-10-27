@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { expectedSounds, formatReading } from '../rulebook/index.js';
 import { segmentWords, siddur } from './corpus.js';
+import { legalGeneratedWord } from './orthography.js';
 
 const items = JSON.parse(readFileSync(new URL('./items.json', import.meta.url), 'utf8'));
 const generated = items.filter(item => item.source.generated);
@@ -12,6 +13,32 @@ const vowel = /[\u05b0-\u05bb\u05c7]/u;
 const finals = 'ךםןףץ';
 const regularFinals = 'כמנפצ';
 const shuruk = group => group.letter === 'ו' && group.marks.includes('ּ') && !vowel.test(group.marks);
+
+test('final kaf requires sheva or kamatz, with closing kaf permitted in every lesson', () => {
+  for (const level of [1, 2, 4]) {
+    assert.equal(legalGeneratedWord('בַּרֶך', level), false);
+    assert.equal(legalGeneratedWord('בַּרֶךְ', level), true);
+    assert.equal(legalGeneratedWord('בַּרֶךָ', level), true);
+    assert.equal(legalGeneratedWord('בַּרֶךֶ', level), false);
+  }
+  assert.equal(legalGeneratedWord('בַּרֶתְ', 4), false);
+  assert.equal(legalGeneratedWord('בִּנְבֶּר', 4), false);
+  assert.equal(legalGeneratedWord('בִּנְבֶּר', 4, 'pattern:closed_syllable'), true);
+});
+
+test('multi-letter words use vav for final u/o while single-letter drills and closed syllables retain short vowels', () => {
+  for (const level of [1, 2, 4]) {
+    for (const word of ['בַּרֻ', 'בַּרֹ', 'בַּשֻׁ', 'בַּשֹׂ']) {
+      assert.equal(legalGeneratedWord(word, level), false, word);
+    }
+    for (const word of ['בַּרוּ', 'בַּרוֹ', 'בַּשׁוּ', 'בַּשׂוֹ', 'בֻּר', 'בֹּר']) {
+      assert.equal(legalGeneratedWord(word, level), true, word);
+    }
+  }
+  for (const word of ['בֻּ', 'בֹּ', 'שֻׁ', 'שֹׂ']) {
+    assert.equal(legalGeneratedWord(word, 1), true, word);
+  }
+});
 
 test('every generated item on disk uses only the permitted dagesh and shin/sin marks', () => {
   for (const item of generated) for (const word of item.words) {
@@ -40,11 +67,16 @@ test('every generated item on disk has correctly placed and pointed final forms 
       else {
         assert.ok(!regularFinals.includes(group.letter), word);
         if (finals.includes(group.letter)) {
-          assert.ok(!vowel.test(group.marks) || (group.letter === 'ך' && /^[ְָ]$/u.test(group.marks)), word);
+          if (group.letter === 'ך') assert.match(group.marks, /^[ְָ]$/u, word);
+          else assert.ok(!vowel.test(group.marks), word);
         }
       }
     });
     const last = letters.at(-1);
+    if (letters.length > 1) {
+      assert.ok(!last.marks.includes('ֻ'), word);
+      if (/[ֹֺ]/u.test(last.marks)) assert.equal(last.letter, 'ו', word);
+    }
     const lastPair = expectedSounds(word, 'sephardi').pairs.at(-1);
     const endsOnVowel = !regularFinals.includes(last.letter) && lastPair.vowels.some(Boolean);
     const endsOnConsonant = !vowel.test(last.marks) && lastPair.consonants.some(Boolean);
@@ -83,14 +115,15 @@ test('every generated item on disk avoids advanced pointing and misplaced guttur
   }
 });
 
-test('every level 4 sheva on disk closes an internal syllable in a lesson focused on that skill', () => {
+test('every level 4 sheva on disk is nach, with internal sheva only in lessons focused on that skill', () => {
   for (const item of generated.filter(item => item.level === 4)) for (const word of item.words) {
     const letters = groups(word);
     const result = expectedSounds(word, 'sephardi');
     letters.forEach((group, index) => {
       if (!group.marks.includes('ְ')) return;
-      assert.ok(index > 0 && index < letters.length - 1, word);
-      assert.equal(item.focus, 'pattern:closed_syllable', item.id);
+      assert.ok(index > 0, word);
+      if (index === letters.length - 1) assert.equal(group.letter, 'ך', word);
+      else assert.equal(item.focus, 'pattern:closed_syllable', item.id);
       assert.equal(result.pairs.find(pair => pair.text.startsWith(group.letter + group.marks))?.vowel,
         'sheva_nach', word);
     });
@@ -129,7 +162,7 @@ test('challenge items on disk balance vowels and contrasts, limit skills and inc
     assert.ok(item.skills.length <= 6, item.id);
     assert.ok(item.skills.includes(item.focus), item.id);
     if (formatReading(expectedSounds(item.words[0], 'sephardi')).split('-').length === 3) three++;
-    if (item.words[0].includes('ְ')) {
+    if (groups(item.words[0]).slice(0, -1).some(group => group.marks.includes('ְ'))) {
       closed++;
       assert.equal(item.focus, 'pattern:closed_syllable');
     }

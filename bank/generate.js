@@ -91,7 +91,7 @@ function wordBuilder(corpusWords, random) {
   const choose = values => values[Math.floor(random() * values.length)];
   const consonants = [...new Set(LETTERS.map(letter => letter.replaceAll('ּ', '')))];
   const vowels = Object.keys(VOWELS).filter(vowel => vowel !== 'sheva_na');
-  const finalForms = { כ: 'ך', מ: 'ם', נ: 'ן', פ: 'ף', צ: 'ץ' };
+  const finalForms = { כ: 'ךְ', מ: 'ם', נ: 'ן', פ: 'ף', צ: 'ץ' };
   return (focus, syllables, alphabet = null, maxSkills = Infinity) => {
     // Include pei only in its contrast lessons when it falls outside the
     // corpus's twelve most common letters.
@@ -123,6 +123,12 @@ function wordBuilder(corpusWords, random) {
         const ending = choose(letters.filter(letter => !'אהעו'.includes(letter[0])))[0];
         word += finalForms[ending] ?? ending;
       }
+      // Open final u/o syllables use vav carriers. Keep the consonant's
+      // dagesh or shin/sin dot on the consonant when moving its vowel.
+      word = word.replace(/([א-ת])([^א-ת]*)$/u, (group, letter, marks) => {
+        const carrier = marks.includes('ֻ') ? 'וּ' : marks.includes('ֹ') && letter !== 'ו' ? 'וֹ' : null;
+        return carrier ? letter + marks.replace(/[ֹֻ]/gu, '') + carrier : group;
+      });
       word = cleanWord(word);
       if (!legalGeneratedWord(word, 4, focus) || corpusWords.has(word) || used.has(word)) continue;
       const result = expectedSounds(word, 'sephardi');
