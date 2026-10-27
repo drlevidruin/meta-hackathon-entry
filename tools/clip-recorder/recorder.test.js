@@ -10,9 +10,12 @@ import { cardLabels, VOICE_CARD } from '../../rulebook/voice-card.js';
 import { isClipName, loadClips, parseClips } from './clips.js';
 import { defaultEarModel, parseOptions } from './options.js';
 import { MAX_BYTES, recordingStore } from './recordings.js';
-import { main as earMain, matchesSay, runEar } from './run-ear.js';
+import { main as earMain, matchesSay, runEar as runEarWithService } from './run-ear.js';
 import { createRecorderServer } from './server.js';
 import { encodeWav } from './wav.js';
+
+// Keep every runner test offline unless it supplies its own phoneme fake.
+const runEar = options => runEarWithService({ phonemes: async () => null, ...options });
 
 const expectedClips = [
   ['shabbos_va-for-ba', 'sha-vos'],
@@ -421,8 +424,10 @@ test('ear runner sends only audio, respects the model, and prints PASS and MISS 
   assert.equal(result.code, 1);
   assert.match(output[0], /^Ear model: fallback \(.+\)$/);
   assert.deepEqual(output.slice(1), ['Ear votes: 1 (fallback ear)', 'Vowel meter: off (no voice check recorded)',
-    'Voice card to the ear: off (no voice check recorded)', 'clip\tsaid\theard\tresult\tear',
-    'omein_clean\to-meyn\tO-MEYN\tPASS\tO-MEYN', 'brocho_clean\tbe-ro-cho\tba-ra-cha\tMISS\tba-ra-cha']);
+    'Voice card to the ear: off (no voice check recorded)', 'Phoneme referee: off (no voice check recorded)',
+    'clip\tsaid\theard\tresult\tear\tmetered',
+    'omein_clean\to-meyn\tO-MEYN\tPASS\tO-MEYN\tO-MEYN',
+    'brocho_clean\tbe-ro-cho\tba-ra-cha\tMISS\tba-ra-cha\tba-ra-cha']);
   assert.ok((await store.list()).slice(0, 2).every((clip) => clip.done));
 });
 
@@ -449,10 +454,12 @@ test('voice check calibrates metered heard sounds while preserving ear sounds an
   assert.equal(output[1], `Ear votes: ${defaultVotes()}`);
   assert.equal(output[2], 'Vowel meter: on (ashkenazi voice check)');
   assert.equal(output[3], 'Voice card to the ear: on');
-  assert.equal(output[4], 'clip\tsaid\theard\tresult\tear');
-  assert.equal(output[5], 'baruch_clean\tbo-ruch\tbo-ruch\tPASS\tba-ruch');
-  assert.equal(output.length, 6);
-  assert.deepEqual(result.rows, [{ clip: 'baruch_clean', said: 'bo-ruch', heard: 'bo-ruch', result: 'PASS', ear: 'ba-ruch' }]);
+  assert.equal(output[4], 'Phoneme referee: off (phoneme service not running)');
+  assert.equal(output[5], 'clip\tsaid\theard\tresult\tear\tmetered');
+  assert.equal(output[6], 'baruch_clean\tbo-ruch\tbo-ruch\tPASS\tba-ruch\tbo-ruch');
+  assert.equal(output.length, 7);
+  assert.deepEqual(result.rows, [{ clip: 'baruch_clean', said: 'bo-ruch', heard: 'bo-ruch', result: 'PASS',
+    ear: 'ba-ruch', metered: 'bo-ruch' }]);
   assert.deepEqual(earWords, [['ba', 'ruch']]);
 });
 
@@ -475,7 +482,7 @@ test('--no-meter leaves heard and ear columns equal and omits an unusable voice 
   assert.equal(result.code, 1);
   assert.equal(output[2], 'Vowel meter: off (--no-meter)');
   assert.equal(output[3], 'Voice card to the ear: off (voice check unusable)');
-  assert.equal(output[5], 'baruch_clean\tbo-ruch\tba-ruch\tMISS\tba-ruch');
+  assert.equal(output[6], 'baruch_clean\tbo-ruch\tba-ruch\tMISS\tba-ruch\tba-ruch');
   assert.equal(result.rows[0].heard, result.rows[0].ear);
 });
 
@@ -511,7 +518,7 @@ test('missing and unusable voice checks log meter status and fall back to the ea
     assert.equal(calls, 1);
     assert.equal(output[2], `Vowel meter: ${status}`);
     assert.equal(output[3], `Voice card to the ear: ${voice ? 'off (voice check unusable)' : 'off (no voice check recorded)'}`);
-    assert.equal(output[5], 'baruch_clean\tbo-ruch\tba-ruch\tMISS\tba-ruch');
+    assert.equal(output[6], 'baruch_clean\tbo-ruch\tba-ruch\tMISS\tba-ruch\tba-ruch');
     assert.equal(result.rows[0].heard, result.rows[0].ear);
   }
 });
@@ -646,7 +653,7 @@ test('ear runner uses the selected preset for voice card labels', async (t) => {
     log: line => output.push(line), ear: async () => [['a', 'ne']] });
   assert.equal(result.code, 0);
   assert.equal(output[2], 'Vowel meter: on (sephardi voice check)');
-  assert.equal(output[5], 'ani_clean\ta-ni\ta-ni\tPASS\ta-ne');
+  assert.equal(output[6], 'ani_clean\ta-ni\ta-ni\tPASS\ta-ne\ta-ni');
 });
 
 test('child runner deletes voice checks after success, ear failure and voice-only runs, unless kept', async (t) => {
@@ -691,13 +698,13 @@ test('child runner prints then deletes each clip before the next call, including
     calls += 1;
     if (calls === 1) return [['o', 'meyn']];
     await assert.rejects(access(join(directory, `${clips[0].name}.wav`)));
-    assert.equal(output.length, 6);
+    assert.equal(output.length, 7);
     throw new Error('Provider error that must not be printed');
   } });
   assert.equal(result.code, 1);
   assert.equal(calls, 2);
   assert.deepEqual(await readdir(directory), ['baruch_clean.wav']);
-  assert.equal(output[6], 'child_brocho_clean\tbe-ro-cho\tERROR\tMISS\tERROR');
+  assert.equal(output[7], 'child_brocho_clean\tbe-ro-cho\tERROR\tMISS\tERROR\tERROR');
   assert.ok(output.every((line) => !line.includes('Provider error')));
 });
 
@@ -739,14 +746,14 @@ test('CLI flags have safe defaults and reject invalid sets, models, presets, por
   assert.deepEqual(parseOptions(['--set', 'child', '--port', '9123'], 'server'), { set: 'child', port: 9123 });
   assert.deepEqual(parseOptions([], 'ear'), {
     set: 'adult', model: defaultEarModel(), votes: defaultEarModel() === 'fallback' ? 1 : defaultVotes(),
-    keep: false, preset: 'ashkenazi', meter: true, card: true,
+    keep: false, preset: 'ashkenazi', meter: true, card: true, referee: true,
   });
   assert.deepEqual(parseOptions(['--set', 'child', '--model', 'fallback', '--keep'], 'ear'), {
-    set: 'child', model: 'fallback', votes: 1, keep: true, preset: 'ashkenazi', meter: true, card: true,
+    set: 'child', model: 'fallback', votes: 1, keep: true, preset: 'ashkenazi', meter: true, card: true, referee: true,
   });
   assert.deepEqual(parseOptions(['--preset', 'sephardi', '--no-meter'], 'ear'), {
     set: 'adult', model: defaultEarModel(), votes: defaultEarModel() === 'fallback' ? 1 : defaultVotes(),
-    keep: false, preset: 'sephardi', meter: false, card: true,
+    keep: false, preset: 'sephardi', meter: false, card: true, referee: true,
   });
   assert.equal(parseOptions(['--preset', 'chassidish'], 'ear').preset, 'chassidish');
   for (const args of [['--set'], ['--set', 'x'], ['--port'], ['--port', '0'], ['--port', '65536'],
@@ -764,14 +771,124 @@ test('CLI flags have safe defaults and reject invalid sets, models, presets, por
 test('--no-card parses independently of --no-meter and is only an ear option', () => {
   assert.deepEqual(parseOptions(['--no-card'], 'ear'), {
     set: 'adult', model: defaultEarModel(), votes: defaultEarModel() === 'fallback' ? 1 : defaultVotes(),
-    keep: false, preset: 'ashkenazi', meter: true, card: false,
+    keep: false, preset: 'ashkenazi', meter: true, card: false, referee: true,
   });
   assert.deepEqual(parseOptions(['--no-card', '--no-meter'], 'ear'), {
     set: 'adult', model: defaultEarModel(), votes: defaultEarModel() === 'fallback' ? 1 : defaultVotes(),
-    keep: false, preset: 'ashkenazi', meter: false, card: false,
+    keep: false, preset: 'ashkenazi', meter: false, card: false, referee: true,
   });
   assert.throws(() => parseOptions(['--no-card'], 'server'), /Unknown option: --no-card/);
 });
+
+test('--no-referee is independent of the other ear flags and is rejected by the recorder', () => {
+  assert.equal(parseOptions([], 'ear').referee, true);
+  assert.equal(parseOptions(['--no-referee'], 'ear').referee, false);
+  const options = parseOptions(['--no-referee', '--no-meter', '--no-card'], 'ear');
+  assert.equal(options.referee, false);
+  assert.equal(options.meter, false);
+  assert.equal(options.card, false);
+  assert.throws(() => parseOptions(['--no-referee'], 'server'), /Unknown option: --no-referee/);
+});
+
+function phonemeVowel(score, token = score >= 0.5 ? 'ɑ' : 'a') {
+  return { token, start: 0, end: 0.02, top: [['ɑ', score], ['a', 1 - score]] };
+}
+
+function phonemeCard(a = 0.43, o = 0.91) {
+  return cardLabels('ashkenazi').map(label => label === 'a' || label === 'o'
+    ? phonemeVowel(label === 'a' ? a : o)
+    : { token: label || 'oɪ', start: 0, end: 0.02, top: [[label || 'oɪ', 1]] });
+}
+
+for (const [mode, expected] of [
+  ['disabled', 'off (--no-referee)'],
+  ['missing', 'off (no voice check recorded)'],
+  ['unavailable', 'off (phoneme service not running)'],
+  ['throws', 'off (phoneme service not running)'],
+  ['count', 'off (card vowels did not line up)'],
+  ['merged', 'off (card does not keep o and a apart)'],
+  ['on', 'on (o 0.91, a 0.43, line 0.50)'],
+]) {
+  test(`ear runner reports the ${mode} phoneme referee status after the voice card`, async t => {
+    const directory = await fixtureDirectory(t);
+    const store = recordingStore(await loadClips(), directory);
+    const card = syntheticWav(cardLabels('ashkenazi'));
+    if (mode !== 'missing') await store.save('voice-check', card);
+    const calls = [];
+    const output = [];
+    await runEar({ directory, meter: false, card: false, referee: mode !== 'disabled',
+      phonemes: async (...args) => {
+        calls.push(args);
+        if (mode === 'throws') throw new Error('private failure');
+        return mode === 'unavailable' ? null : mode === 'count' ? []
+          : mode === 'merged' ? phonemeCard(0.55, 0.6) : phonemeCard();
+      }, ear: async () => assert.fail('no readings'), log: line => output.push(line) });
+    assert.equal(output[3], 'Voice card to the ear: off (--no-card)');
+    assert.equal(output[4], `Phoneme referee: ${expected}`);
+    assert.equal(output[5], 'clip\tsaid\theard\tresult\tear\tmetered');
+    assert.deepEqual(calls, ['disabled', 'missing'].includes(mode) ? [] : [[card]]);
+    assert.ok(output.every(line => !line.includes('private failure')));
+  });
+}
+
+test('referee calibrates once and grades final sounds while keeping ear and metered columns', async t => {
+  const directory = await fixtureDirectory(t);
+  const store = recordingStore(await loadClips(), directory);
+  const card = syntheticWav(cardLabels('ashkenazi'));
+  const reading = syntheticWav(['a', 'a']);
+  await store.save('voice-check', card);
+  for (const name of ['koton_clean', 'gomol_clean']) await store.save(name, reading);
+  const calls = [];
+  const output = [];
+  let reads = 0;
+  const result = await runEar({ directory, model: 'primary',
+    phonemes: async (...args) => {
+      calls.push(args);
+      return calls.length === 1 ? phonemeCard() : [phonemeVowel(0.9), phonemeVowel(0.8)];
+    }, ear: async () => ++reads === 1 ? [['ga', 'mal']] : [['ka', 'tan']], log: line => output.push(line) });
+  assert.equal(result.code, 0);
+  assert.deepEqual(calls, [[card], [reading], [reading]]);
+  assert.deepEqual(result.rows, [
+    { clip: 'gomol_clean', said: 'go-mol', heard: 'go-mol', result: 'PASS', ear: 'ga-mal', metered: 'ga-mal' },
+    { clip: 'koton_clean', said: 'ko-ton', heard: 'ko-ton', result: 'PASS', ear: 'ka-tan', metered: 'ka-tan' },
+  ]);
+  assert.equal(output[7], 'koton_clean\tko-ton\tko-ton\tPASS\tka-tan\tka-tan');
+});
+
+test('referee runs after the meter and can undo its o while preserving the metered column', async t => {
+  const directory = await fixtureDirectory(t);
+  const store = recordingStore(await loadClips(), directory);
+  await store.save('voice-check', syntheticWav(cardLabels('ashkenazi')));
+  await store.save('baruch_clean', syntheticWav(['o', 'u']));
+  let calls = 0;
+  const output = [];
+  const result = await runEar({ directory, ear: async () => [['ba', 'ruch']],
+    phonemes: async () => ++calls === 1 ? phonemeCard()
+      : [phonemeVowel(0.07), { token: 'u', top: [['u', 1]] }], log: line => output.push(line) });
+  assert.equal(result.code, 1);
+  assert.deepEqual(result.rows, [{ clip: 'baruch_clean', said: 'bo-ruch', heard: 'ba-ruch', result: 'MISS',
+    ear: 'ba-ruch', metered: 'bo-ruch' }]);
+  assert.equal(output[6], 'baruch_clean\tbo-ruch\tba-ruch\tMISS\tba-ruch\tbo-ruch');
+});
+
+for (const failure of ['null', 'throws', 'count']) {
+  test(`a ${failure} phoneme reading keeps the metered runner answer`, async t => {
+    const directory = await fixtureDirectory(t);
+    const store = recordingStore(await loadClips(), directory);
+    await store.save('voice-check', syntheticWav(cardLabels('ashkenazi')));
+    await store.save('baruch_clean', syntheticWav(['o', 'u']));
+    let calls = 0;
+    const result = await runEar({ directory, ear: async () => [['ba', 'ruch']], log: () => {},
+      phonemes: async () => {
+        if (++calls === 1) return phonemeCard();
+        if (failure === 'throws') throw new Error('private failure');
+        return failure === 'count' ? [] : null;
+      } });
+    assert.equal(result.code, 0);
+    assert.equal(result.rows[0].heard, 'bo-ruch');
+    assert.equal(result.rows[0].metered, 'bo-ruch');
+  });
+}
 
 test('ear model default prefers Meta, then Baseten, and otherwise primary', () => {
   assert.equal(defaultEarModel({}), 'primary');

@@ -62,7 +62,17 @@ npm run ear-test -- --model fallback
 npm run ear-test -- --model primary
 ```
 
-Each row shows the clip, scripted sounds, heard sounds, and `PASS` or `MISS`. Comparison ignores case and spaces within each word. It preserves syllable boundaries, word boundaries, order and count. Only audio reaches the ear. The runner does not call the grader. It exits with status 1 if any clip misses, a call fails, or no clips are recorded.
+After `Voice card to the ear:`, the runner prints `Phoneme referee:` and its status. The referee calibrates once from the recorded voice check using the local [phoneme service](../../phonemes/README.md). It is on only when the card's o and a stay apart in that model. An on line looks like `Phoneme referee: on (o 0.91, a 0.43, line 0.50)`. An off line explains whether the service is unavailable, the card is missing, its vowels did not line up, or its o and a did not stay apart. A phoneme failure leaves the metered answer.
+
+To turn the referee off for a run:
+
+```bash
+npm run ear-test -- --no-referee
+```
+
+This prints `Phoneme referee: off (--no-referee)`. The flag is independent of `--no-meter` and `--no-card`. The referee can use the recorded voice check even when both are off.
+
+Each row has six columns: `clip`, `said`, `heard`, `result`, `ear`, and `metered`. `ear` is the ear's original answer. `metered` is the answer after the vowel meter, before the referee. `heard` is the final answer after the referee, and `result` is its `PASS` or `MISS`. When the referee is off or changes nothing, `metered` and `heard` are equal. Comparison ignores case and spaces within each word. It preserves syllable boundaries, word boundaries, order and count. Only audio reaches the ear. The phoneme service runs on this computer and never sees the printed text. The runner does not call the grader. It exits with status 1 if any clip misses, a call fails, or no clips are recorded.
 
 ## Offline checks
 
@@ -70,4 +80,4 @@ Each row shows the clip, scripted sounds, heard sounds, and `PASS` or `MISS`. Co
 node --test tools/clip-recorder/recorder.test.js
 ```
 
-The tests use generated WAV bytes and fake ear calls. They cover saves, playback, deletion, filename validation, model selection, printed model ids and sound comparison.
+The tests use generated WAV bytes and fake ear and phoneme calls. They cover saves, playback, deletion, filename validation, model selection, printed status lines, sound comparison and the order of the meter and referee.

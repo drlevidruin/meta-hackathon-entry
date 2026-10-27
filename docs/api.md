@@ -122,6 +122,13 @@ Grading also uses the saved profile for the vowel meter when present and the ear
 alone when there is none, including after a skip. A failed voice check leaves
 any earlier profile and recording unchanged.
 
+When the local phoneme service answers the voice check, the profile also stores
+`voice.phonemes`: `{ version: 1, a, o, n: { a, o } }`. The two medians are the
+model's back-vowel scores for the card's labeled a and o, with their counts.
+Each class needs at least two scores and the card's vowel count must line up.
+This stores no audio or phoneme tokens. A phoneme failure still saves a usable
+meter profile without a phoneme calibration. Refused voice checks save nothing.
+
 Grade accepts an item only from the turn's current set. An unknown or expired
 turn, a finished turn, or an item outside the current set returns 404. The ear
 receives audio alone, never the item text, name or preset. With a card recording
@@ -133,7 +140,21 @@ reading. The primary ear is asked `EAR_VOTES` times (default 3) in parallel with
 the same audio and card when present. The most common word count is kept, then
 the answer most calls agree on is kept word by word. The earliest answer breaks
 ties. The fallback is asked once and receives only the reading.
-The grader receives `{ heard: ear.words, text: item.text, preset: turn.preset }`.
+When the phoneme calibration keeps o and a apart, the reading's audio also goes
+to the local phoneme service alongside the ear call. It never leaves this
+computer for that service. The referee sees only the ear's answer after the
+meter, the reading's phonemes and the child's calibration, never the printed
+text. Its line is `max(0.5, a + 0.05)`, rounded to three places, and the card's o
+must be at least `line + 0.1` to enable it. A token's back score is its top
+back-vowel probability divided by its combined front- and back-vowel
+probabilities. With matching vowel counts, a front or back token scoring at
+least the line changes a syllable's a, o or e to o. A score below 0.15 changes
+only o to a. An e never becomes a, and nothing becomes e. Other vowels and
+diphthongs stay unchanged. A changed or cleared calibration, a count mismatch,
+or any phoneme failure leaves the metered answer.
+
+The grader receives `{ heard: words, text: item.text, preset: turn.preset }`,
+where `words` is the final answer after the meter and referee when enabled.
 The response omits the top-level `verdicts` and ear model. `words` is the grader's
 word output. Summary is:
 
@@ -400,6 +421,11 @@ After listening, startup warns only when both `BASETEN_API_KEY` and
 `META_API_KEY` are blank: the ear cannot hear and lines show gray. A missing
 `station/dist` prints `station/dist is missing; run npm run build.` Startup
 also prints the actual address and port it listens on, with https when TLS is on.
+The next line reports `Phoneme referee: on (<url>)` when its local health check
+answers, otherwise `Phoneme referee: off (no phoneme service at <url>; run npm
+run phonemes)`. A disabled or invalid URL reports `Phoneme referee: off
+(PHONEME_URL off)`. The app works without the service. See
+[the phoneme service](../phonemes/README.md) for setup.
 No key or part of a key is printed. Configuration:
 
 | Variable | Meaning |
@@ -411,6 +437,8 @@ No key or part of a key is printed. Configuration:
 | `DATA_DIR` | Store directory, default `<repo>/data` |
 | `HOST` | Listen address, default `127.0.0.1`; use `0.0.0.0` and TLS for network tablets |
 | `PORT` | Server port, default 8787 |
+| `PHONEME_URL` | Local phoneme service, default `http://127.0.0.1:8791`; `off`, empty or invalid disables it. Only http on `127.0.0.1`, `localhost` or `[::1]` is accepted. |
+| `PHONEME_PORT` | Phoneme service listen port, default 8791; set `PHONEME_URL` to match when changing it |
 | `TLS_CERT` | Optional PEM certificate path; set with `TLS_KEY` for https, leave both empty for http. An unreadable file stops startup. |
 | `TLS_KEY` | Optional PEM private key path; required with `TLS_CERT`. An unreadable file stops startup. |
 

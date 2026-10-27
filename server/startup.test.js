@@ -104,6 +104,15 @@ test('startup address uses HTTPS when TLS is enabled, including IPv6', async () 
   }
 });
 
+test('phoneme startup line describes a ready, missing or disabled local service', async () => {
+  const { phonemeMessage } = await startup();
+  const url = 'http://127.0.0.1:8791';
+  assert.equal(phonemeMessage({ url, ready: true }), `Phoneme referee: on (${url})`);
+  assert.equal(phonemeMessage({ url, ready: false }),
+    `Phoneme referee: off (no phoneme service at ${url}; run npm run phonemes)`);
+  assert.equal(phonemeMessage({ url: null, ready: false }), 'Phoneme referee: off (PHONEME_URL off)');
+});
+
 test('the server exits with one safe line for incomplete or unreadable TLS files', t => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'kriah-tls-errors-test-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
@@ -131,7 +140,7 @@ test('the server entry passes the Baseten key to startup messages', async t => {
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   for (const [name, value] of Object.entries({
     TEACHER_PIN: '2468', BASETEN_API_KEY: 'offline-primary', META_API_KEY: '', DATA_DIR: directory,
-    TLS_CERT: '', TLS_KEY: '',
+    TLS_CERT: '', TLS_KEY: '', PHONEME_URL: 'http://127.0.0.1:8791',
   })) {
     const previous = process.env[name];
     t.after(() => {
@@ -141,6 +150,11 @@ test('the server entry passes the Baseten key to startup messages', async t => {
     process.env[name] = value;
   }
   const lines = [];
+  const healthCalls = [];
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    healthCalls.push({ url, method: options.method });
+    return { status: 200, json: async () => ({ ok: true }) };
+  });
   t.mock.method(console, 'log', line => lines.push(line));
   t.mock.method(http, 'createServer', () => ({
     listen(_port, _host, ready) { ready(); },
@@ -150,4 +164,6 @@ test('the server entry passes the Baseten key to startup messages', async t => {
   assert.ok(lines.some(line => line === 'Kriah Listener: http://127.0.0.1:8787'));
   assert.ok(lines.every(line => !line.includes('ear cannot hear')));
   assert.ok(lines.every(line => !line.includes('offline-primary')));
+  assert.deepEqual(healthCalls, [{ url: 'http://127.0.0.1:8791/health', method: 'GET' }]);
+  assert.equal(lines.at(-1), 'Phoneme referee: on (http://127.0.0.1:8791)');
 });

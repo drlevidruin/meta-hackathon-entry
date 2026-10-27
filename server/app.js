@@ -6,6 +6,7 @@ import { cardLabels, voiceCardFor } from '../rulebook/voice-card.js';
 import { itemsForVowels, normalizeVowels, VOWEL_IDS } from '../rulebook/vowels.js';
 import { applyMeter, buildVoiceProfile, VoiceCheckError } from '../ear/meter.js';
 import { voiceCardToEar } from '../ear/card-gate.js';
+import { applyReferee, cardCalibration, refereeSettings } from '../ear/referee.js';
 import { createStore, durable } from './store.js';
 import { buildMap, recordPairs, summaryOnly, totalSummary } from './progress.js';
 import { parentLine } from './hints.js';
@@ -160,7 +161,7 @@ function childFields(value, partial = false) {
 }
 
 export function createApp({
-  items, listen, gradeLine, chooseNextSet, startProfile, startTurn = resetTurn, explain, turnFacts, staticDir,
+  items, listen, gradeLine, chooseNextSet, startProfile, startTurn = resetTurn, explain, turnFacts, staticDir, phonemes,
   dataDir = process.env.DATA_DIR, teacherPin = process.env.TEACHER_PIN,
   trace = process.env.TRACE === '1', coachModel = process.env.COACH_MODEL, now = Date.now,
 }) {
@@ -374,6 +375,14 @@ export function createApp({
         if (!data.length) throw new RequestError(400, 'Empty audio');
         try {
           await voiceOperation(id, async () => {
+            let calibration = null;
+            if (phonemes) {
+              try {
+                calibration = cardCalibration(await phonemes(data), labels);
+              } catch {
+                // A phoneme failure does not prevent saving a usable meter profile.
+              }
+            }
             const child = await store.update(state => {
               const child = childIn(state, id);
               const currentCard = voiceCardFor(child.vowels, child.preset);
@@ -385,6 +394,7 @@ export function createApp({
                 throw new RequestError(409, 'Voice card changed');
               }
               child.voice = buildVoiceProfile(data, labels);
+              if (calibration !== null) child.voice.phonemes = calibration;
               delete child.voiceSkipped;
               return child;
             });
@@ -436,8 +446,14 @@ export function createApp({
           try {
             const child = getChild(turn.childId);
             const card = voiceCardToEar(child.voice, child.vowels, child.preset) ? voiceCards.get(turn.childId) : undefined;
+            const calibration = child.voice?.phonemes;
+            const phonemeResult = phonemes && refereeSettings(calibration).on
+              ? (async () => {
+                try { return await phonemes(data); } catch { return null; }
+              })() : Promise.resolve(null);
             // The ear hears this reading and, when kept, the child's own voice card,
-            // both held in memory, with no text, child or preset.
+            // both held in memory, with no text, child or preset. The phoneme model
+            // hears only this reading, on this computer.
             const heard = card
               ? await listen({ data, format: 'wav' }, { reference: { data: card, format: 'wav' } })
               : await listen({ data, format: 'wav' });
@@ -446,6 +462,17 @@ export function createApp({
               words = applyMeter(words, data, getChild(turn.childId).voice).words;
             } catch {
               // A meter failure leaves the ear's words available for grading.
+            }
+            try {
+              const tokens = await phonemeResult;
+              const current = getChild(turn.childId).voice?.phonemes;
+              if (tokens != null && calibration && current
+                && ['version', 'a', 'o'].every(key => current[key] === calibration[key])
+                && ['a', 'o'].every(key => current.n?.[key] === calibration.n?.[key])) {
+                words = applyReferee(words, tokens, calibration).words;
+              }
+            } catch {
+              // A changed calibration or referee failure leaves the metered words.
             }
           } finally {
             data = null;
