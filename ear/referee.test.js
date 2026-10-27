@@ -80,8 +80,8 @@ test('applyReferee corrects ka-tan and reports whole syllables without mutating 
   const words = Object.freeze([Object.freeze(['ka', 'tan'])]);
   const result = applyReferee(words, [vowel(0.9), vowel(0.8)], calibration);
   assert.deepEqual(result, { words: [['ko', 'ton']], changes: [
-    { word: 0, syllable: 0, from: 'ka', to: 'ko' },
-    { word: 0, syllable: 1, from: 'tan', to: 'ton' },
+    { word: 0, syllable: 0, from: 'ka', to: 'ko', rule: 'phoneme' },
+    { word: 0, syllable: 1, from: 'tan', to: 'ton', rule: 'phoneme' },
   ], status: 'checked' });
   assert.deepEqual(words, [['ka', 'tan']]);
 });
@@ -113,3 +113,135 @@ test('applyReferee leaves count mismatches and disabled readings unchanged', () 
     assert.deepEqual(applyReferee(words, tokens, card), { words, changes: [], status: 'off' });
   }
 });
+
+const profile = { version: 2, vowels: {
+  a: { f1: 7, f2: 10, n: 3 }, o: { f1: 4, f2: 8, n: 3 },
+}, spread: 0.2 };
+const ambiguous = { f1: 5.5, f2: 9 };
+
+for (const [from, score, point, voice, to, rule] of [
+  ['chal', 0.84, profile.vowels.a, profile, 'chal'],
+  ['dol', 0.84, profile.vowels.o, profile, 'dol'],
+  ['kol', 0.84, profile.vowels.a, profile, 'kal', 'coda-l'],
+  ['kol', 0.84, ambiguous, profile, '?', 'coda-l'],
+  ['kol', 0.84, null, profile, 'kol'],
+  ['kol', 0.84, undefined, profile, 'kol'],
+  ['kol', 0.84, profile.vowels.a, undefined, 'kol'],
+  ['chal', 0.84, profile.vowels.o, profile, 'chol', 'coda-l'],
+  ['chal', 0.84, ambiguous, profile, 'chal'],
+  ['mal', 0.84, undefined, undefined, 'mal'],
+  ['lal', 0.84, undefined, undefined, 'lal'],
+  ['chel', 0.84, profile.vowels.o, profile, 'chel'],
+  ['kol', 0.07, profile.vowels.o, profile, 'kal', 'phoneme'],
+  ['kol', 0.07, null, undefined, 'kal', 'phoneme'],
+  ['la', 0.84, profile.vowels.a, profile, 'lo', 'phoneme'],
+  ['lo', 0.84, profile.vowels.a, profile, 'lo'],
+]) {
+  test(`final l: ${from} with score ${score}, point ${JSON.stringify(point)} and profile ${!!voice} gives ${to}`, () => {
+    const result = applyReferee([[from]], [vowel(score)], calibration, { points: [point], profile: voice });
+    assert.deepEqual(result, { words: [[to]], changes: rule
+      ? [{ word: 0, syllable: 0, from, to, rule }] : [], status: 'checked' });
+  });
+}
+
+for (const [score, point, voice, to, rule] of [
+  [0.37, profile.vowels.a, profile, 'kam', 'band'],
+  [0.37, profile.vowels.o, profile, 'kom'],
+  [0.37, ambiguous, profile, '?', 'band'],
+  [0.37, null, profile, 'kom'],
+  [0.37, undefined, undefined, 'kom'],
+  [0.37, profile.vowels.a, undefined, 'kom'],
+  [0.15, profile.vowels.a, profile, 'kam', 'band'],
+  [0.5, profile.vowels.a, profile, 'kom'],
+  [0.07, profile.vowels.o, profile, 'kam', 'phoneme'],
+]) {
+  test(`band: kom with score ${score}, point ${JSON.stringify(point)} and profile ${!!voice} gives ${to}`, () => {
+    const result = applyReferee([['kom']], [vowel(score)], calibration, { points: [point], profile: voice });
+    assert.deepEqual(result, { words: [[to]], changes: rule
+      ? [{ word: 0, syllable: 0, from: 'kom', to, rule }] : [], status: 'checked' });
+  });
+}
+
+test('the band requires a front or back token and follows the calibrated line', () => {
+  const options = { points: [profile.vowels.a], profile };
+  assert.deepEqual(applyReferee([['kom']], [vowel(0.37, 'e')], calibration, options).words, [['kom']]);
+  assert.deepEqual(applyReferee([['kom']], [vowel(0.6)], calibration, options).words, [['kom']]);
+  assert.deepEqual(applyReferee([['kom']], [vowel(0.6)], { ...calibration, a: 0.65, o: 0.99 }, options),
+    { words: [['kam']], changes: [{ word: 0, syllable: 0, from: 'kom', to: 'kam', rule: 'band' }], status: 'checked' });
+});
+
+test('points use flat syllable indices even across words and syllables without nuclei', () => {
+  const words = Object.freeze([Object.freeze(["b'", 'kol']), Object.freeze(['?', 'kom'])]);
+  const points = Object.freeze([null, profile.vowels.a, profile.vowels.a, profile.vowels.o]);
+  const before = structuredClone(profile);
+  assert.deepEqual(applyReferee(words, [vowel(0.84), vowel(0.37)], calibration, { points, profile }), {
+    words: [["b'", 'kal'], ['?', 'kom']],
+    changes: [{ word: 0, syllable: 1, from: 'kol', to: 'kal', rule: 'coda-l' }], status: 'checked',
+  });
+  assert.deepEqual(profile, before);
+  assert.deepEqual(words, [["b'", 'kol'], ['?', 'kom']]);
+});
+
+test('equal counts retain identity pairing even when the classes suggest gaps', () => {
+  assert.deepEqual(applyReferee([['ba', 'mi', 'te']],
+    [vowel(0.9, 'i'), vowel(0.9), vowel(0.9)], calibration), {
+    words: [['ba', 'mi', 'to']],
+    changes: [{ word: 0, syllable: 2, from: 'te', to: 'to', rule: 'phoneme' }], status: 'checked',
+  });
+});
+
+const phoneme = token => ({ token, top: [[token, 1]] });
+
+test('13 syllables align to 11 vowels, correcting matches while leaving both gap syllables alone', () => {
+  const words = [['ka', 'mi', 'nu'], ['be', 'tan', 'toy', 'bay'], ['li', 'ku', 'mey', 'pa', 'ra', 'ni']];
+  const tokens = [vowel(0.9), phoneme('i'), phoneme('u'), phoneme('e'), phoneme('oɪ'), phoneme('aɪ'),
+    phoneme('ɪ'), phoneme('ʊ'), vowel(0.9), vowel(0.07), phoneme('i')];
+  assert.deepEqual(applyReferee(words, tokens, calibration), {
+    words: [['ko', 'mi', 'nu'], ['be', 'tan', 'toy', 'bay'], ['li', 'ku', 'mey', 'po', 'ra', 'ni']],
+    changes: [{ word: 0, syllable: 0, from: 'ka', to: 'ko', rule: 'phoneme' },
+      { word: 2, syllable: 3, from: 'pa', to: 'po', rule: 'phoneme' }], status: 'aligned',
+  });
+});
+
+test('alignment skips an extra phoneme vowel without shifting the following syllables', () => {
+  assert.deepEqual(applyReferee([['ka', 'mi', 'nu']],
+    [vowel(0.9), phoneme('e'), phoneme('i'), phoneme('u')], calibration), {
+    words: [['ko', 'mi', 'nu']],
+    changes: [{ word: 0, syllable: 0, from: 'ka', to: 'ko', rule: 'phoneme' }], status: 'aligned',
+  });
+});
+
+test('alignment ties prefer a diagonal match on traceback, leaving the earliest repeated vowel at a gap', () => {
+  const words = [['ka', 'tan', 'ma']];
+  const expected = { words: [['ka', 'ton', 'ma']],
+    changes: [{ word: 0, syllable: 1, from: 'tan', to: 'ton', rule: 'phoneme' }], status: 'aligned' };
+  assert.deepEqual(applyReferee(words, [vowel(0.9), vowel(0.07)], calibration), expected);
+  assert.deepEqual(applyReferee(words, [vowel(0.9), vowel(0.07)], calibration), expected);
+});
+
+test('alignment refuses excessive gaps or a count difference above one third in either direction', () => {
+  const words = [['ka', 'ba', 'mi', 'nu', 'te']];
+  assert.deepEqual(applyReferee(words, [phoneme('i'), phoneme('u'), phoneme('e'), vowel(0.9)], calibration),
+    { words, changes: [], status: 'count' });
+  for (const [heard, tokens] of [
+    [[['ka', 'mi', 'nu', 'te']], [vowel(0.9), phoneme('i')]],
+    [[['ka', 'mi']], [vowel(0.9), phoneme('i'), phoneme('u'), phoneme('e')]],
+  ]) assert.deepEqual(applyReferee(heard, tokens, calibration), { words: heard, changes: [], status: 'count' });
+});
+
+for (const [syllable, examples] of [
+  ['ma', 'a æ ɐ ɑ ɔ o ɒ ʌ aʊ oʊ ã o̞ aɜ ɑɹ'],
+  ['me', 'e ɛ ə eɪ eː'], ['mey', 'e ɛ ə eɪ'],
+  ['mi', 'i ɪ iː'], ['mu', 'u ʊ u5'],
+  ['moy', 'oɪ ɔɪ ɔɨ oɪː'], ['may', 'aɪ aɨ ɑɨ aɪ5'],
+]) {
+  test(`alignment recognizes the normalized phoneme class for ${syllable}`, () => {
+    for (const token of examples.split(' ')) {
+      const result = applyReferee([['ka', syllable, 'bo']], [phoneme(token), vowel(0.07)], calibration);
+      const middle = ['ma', 'me'].includes(syllable) && vowelClass(token) === 'back'
+        ? syllable.replace(nucleus(syllable), 'o') : syllable;
+      assert.deepEqual(result.words, [['ka', middle, 'ba']], token);
+      assert.equal(result.status, 'aligned', token);
+    }
+  });
+}

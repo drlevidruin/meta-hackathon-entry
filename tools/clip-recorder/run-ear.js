@@ -1,6 +1,6 @@
 import '../../ear/env.js';
 import { defaultVotes, hear } from '../../ear/hear.js';
-import { applyMeter, buildVoiceProfile, pairsApart, VoiceCheckError } from '../../ear/meter.js';
+import { applyMeter, buildVoiceProfile, pairsApart, syllablePoints, VoiceCheckError } from '../../ear/meter.js';
 import { voiceCardToEar } from '../../ear/card-gate.js';
 import { hearPhonemes } from '../../ear/phonemes.js';
 import { applyReferee, cardCalibration, refereeSettings } from '../../ear/referee.js';
@@ -115,7 +115,8 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), votes =
             const tokens = await phonemesWithRetry(audio, phonemes);
             if (tokens == null) status = null;
             else {
-              const answer = applyReferee(words, tokens, calibration);
+              const options = profile ? { points: syllablePoints(words, audio), profile } : undefined;
+              const answer = applyReferee(words, tokens, calibration, options);
               words = answer.words;
               status = answer.status;
             }
@@ -141,10 +142,10 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), votes =
       }
     }
     if (refereeOn) {
-      const checked = outcomes.filter(outcome => outcome.status === 'checked').length;
+      const checked = outcomes.filter(outcome => ['checked', 'aligned'].includes(outcome.status)).length;
       const noAnswer = outcomes.filter(outcome => outcome.status === null).map(outcome => outcome.clip);
       const count = outcomes.filter(outcome => outcome.status === 'count').map(outcome => outcome.clip);
-      const other = outcomes.filter(outcome => ![null, 'checked', 'count'].includes(outcome.status))
+      const other = outcomes.filter(outcome => ![null, 'checked', 'aligned', 'count'].includes(outcome.status))
         .map(outcome => outcome.clip);
       log(`Phoneme referee: checked ${checked} of ${outcomes.length} readings`);
       if (noAnswer.length) log(`Phoneme referee: no answer for ${noAnswer.join(', ')}`);

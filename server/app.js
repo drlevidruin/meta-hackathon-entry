@@ -4,7 +4,7 @@ import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { SKILLS } from '../rulebook/index.js';
 import { cardLabels, voiceCardFor } from '../rulebook/voice-card.js';
 import { itemsForVowels, normalizeVowels, VOWEL_IDS } from '../rulebook/vowels.js';
-import { applyMeter, buildVoiceProfile, VoiceCheckError } from '../ear/meter.js';
+import { applyMeter, buildVoiceProfile, syllablePoints, VoiceCheckError } from '../ear/meter.js';
 import { voiceCardToEar } from '../ear/card-gate.js';
 import { applyReferee, cardCalibration, refereeSettings } from '../ear/referee.js';
 import { createStore, durable } from './store.js';
@@ -469,7 +469,9 @@ export function createApp({
               if (tokens != null && calibration && current
                 && ['version', 'a', 'o'].every(key => current[key] === calibration[key])
                 && ['a', 'o'].every(key => current.n?.[key] === calibration.n?.[key])) {
-                words = applyReferee(words, tokens, calibration).words;
+                const profile = getChild(turn.childId).voice;
+                const options = profile ? { points: syllablePoints(words, data), profile } : undefined;
+                words = applyReferee(words, tokens, calibration, options).words;
               }
             } catch {
               // A changed calibration or referee failure leaves the metered words.

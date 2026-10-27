@@ -148,6 +148,23 @@ function bark(hz) {
   return 26.81 * hz / (1960 + hz) - 0.53;
 }
 
+export function syllablePoints(words, data) {
+  let audio;
+  try {
+    audio = decodeWav(data);
+  } catch (error) {
+    if (error instanceof VoiceCheckError) return null;
+    throw error;
+  }
+  const { samples, rate } = audio;
+  const islands = soundIslands(samples, rate);
+  if (islands.length !== words.flat().length) return null;
+  return islands.map(({ start, end }) => {
+    const value = measureVowel(samples, rate, start, end);
+    return value ? { f1: bark(value.f1), f2: bark(value.f2) } : null;
+  });
+}
+
 export function buildVoiceProfile(data, labels) {
   if (!hasUsablePair(labels)) throw new VoiceCheckError('card');
   const { samples, rate } = decodeWav(data);
@@ -187,6 +204,30 @@ function centroidsApart(first, second, spread, minGap, gapFactor) {
   const gap = Math.hypot(first.f1 - second.f1, first.f2 - second.f2);
   const requiredGap = Math.max(minGap, gapFactor * spread * Math.sqrt(1 / first.n + 1 / second.n));
   return !(gap < requiredGap);
+}
+
+export function meterChoice(point, profile, candidates, options = {}) {
+  try {
+    const { margin = 0.75, minGap = 0.8, gapFactor = 3 } = options;
+    if (!Number.isFinite(point?.f1) || !Number.isFinite(point?.f2)
+      || !validProfile(profile) || !Array.isArray(candidates)) return null;
+    if (!Object.values(profile.vowels).every(c => Number.isFinite(c?.f1) && Number.isFinite(c?.f2)
+      && Number.isInteger(c?.n) && c.n > 0)) return null;
+    const available = [...new Set(candidates)].filter(v => Object.hasOwn(profile.vowels, v));
+    if (available.length < 2) return null;
+    const distances = available.map(v => {
+      const c = profile.vowels[v];
+      return { v, d: Math.hypot(point.f1 - c.f1, point.f2 - c.f2) };
+    }).sort((a, b) => a.d - b.d);
+    const [best, second] = distances;
+    if (!(best.d / second.d < margin)) return null;
+    const centroid = profile.vowels[best.v];
+    if (!distances.slice(1).every(({ v }) => centroidsApart(centroid, profile.vowels[v],
+      profile.spread, minGap, gapFactor))) return null;
+    return best.v;
+  } catch {
+    return null;
+  }
 }
 
 export function pairsApart(profile, options = {}) {
