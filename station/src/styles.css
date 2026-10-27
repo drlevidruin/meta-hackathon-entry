@@ -1,0 +1,120 @@
+:root {
+  font-family: 'Montserrat', sans-serif;
+  color: #1b2a2f;
+  background: #ffffff;
+  font-synthesis: none;
+  font-weight: 500;
+  --ink: #1b2a2f;
+  --green: #10653c;
+  --gold: #f2b705;
+  --red: #d64545;
+  --gray: #8a94a6;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 280px; }
+button, input, a { -webkit-tap-highlight-color: transparent; }
+button, a { touch-action: manipulation; }
+button { font: inherit; cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+button:disabled { cursor: default; opacity: .45; }
+button:focus-visible, a:focus-visible, input:focus-visible + span { outline: 3px solid var(--gold); outline-offset: 5px; }
+h1 { font-size: clamp(30px, 4vw, 54px); letter-spacing: -.045em; font-weight: 800; margin: 0 0 32px; }
+main:focus { outline: none; }
+.app { min-height: 100svh; display: flex; flex-direction: column; }
+.stats { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 22px 24px; }
+.wordmark { display: flex; gap: 12px; align-items: center; font-weight: 800; line-height: 1.2; font-size: 15px; letter-spacing: -.03em; margin-right: auto; }
+.brand-mark { width: 40px; height: 44px; border-radius: 14px 14px 6px 14px; background: var(--green); color: white; font-family: 'Frank Ruhl Libre', serif; font-size: 36px; display: grid; place-items: center; padding-bottom: 5px; }
+.level-badge { color: var(--green); background: #edf5ef; font-size: 14px; font-weight: 800; padding: 12px 17px; border-radius: 30px; }
+.stat { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.stat strong { display: flex; align-items: center; gap: 5px; font-size: 18px; }
+.stat .star { width: 22px; height: 22px; }
+.icon-button { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; }
+.icon-button:hover { background: #f5f7f5; }
+.gear { position: absolute; top: 86px; right: 13px; color: var(--gray); }
+.gear svg { width: 25px; height: 25px; fill: none; stroke: currentColor; stroke-width: 1.4; }
+main { flex: 1; display: flex; min-width: 0; }
+.primary, .secondary { min-height: 64px; min-width: 150px; display: inline-flex; align-items: center; justify-content: center; border-radius: 22px; padding: 18px 30px; font-weight: 800; font-size: 18px; border: 2px solid var(--green); }
+.primary { background: var(--green); color: white; }
+.primary:hover:not(:disabled) { background: #0c5130; }
+.secondary { background: white; color: var(--green); }
+.secondary:hover { background: #edf5ef; }
+.home-content, .settings-content, .done-content, .microphone-off, .loading-screen { width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 24px 60px; text-align: center; }
+.home-art { position: relative; width: 270px; height: 200px; display: flex; align-items: center; justify-content: center; margin-bottom: 36px; }
+.home-art > span { display: grid; place-items: center; width: 88px; height: 112px; background: #edf5ef; border-radius: 24px; font: 700 78px/1.4 'Frank Ruhl Libre', serif; color: var(--green); border: 4px solid white; }
+.home-art > span:nth-child(1) { transform: translate(12px, 10px) rotate(-13deg); }
+.home-art > span:nth-child(2) { transform: translateY(-15px); background: var(--green); color: white; z-index: 1; }
+.home-art > span:nth-child(3) { transform: translate(-12px, 10px) rotate(13deg); }
+.home-art .star { position: absolute; width: 46px; height: 46px; right: 0; top: 0; transform: rotate(15deg); }
+.start-button { min-width: 248px; min-height: 80px; font-size: 26px; justify-content: space-between; }
+.start-button span { font-size: 30px; margin-left: 50px; }
+.star { width: 44px; height: 44px; fill: #ffffff; stroke: #dce2dc; stroke-width: 1.5; }
+.star.filled { fill: var(--gold); stroke: var(--gold); }
+.star.filling { animation: star-pulse 1s ease-in-out infinite alternate; }
+@keyframes star-pulse { from { opacity: .4; transform: scale(.88); } to { opacity: 1; transform: scale(1.04); } }
+.settings-content { gap: 12px; }
+fieldset { padding: 0; margin: 0 0 24px; border: 0; width: min(100%, 460px); text-align: left; }
+legend { font-weight: 700; font-size: 16px; margin-bottom: 20px; }
+.preset-option { min-height: 76px; padding: 20px 24px; border: 2px solid #e3e8e4; border-radius: 22px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; cursor: pointer; font-size: 18px; font-weight: 700; position: relative; }
+.preset-option.selected { border-color: var(--green); background: #edf5ef; color: var(--green); }
+.preset-option input { position: absolute; opacity: 0; width: 24px; height: 24px; right: 24px; }
+.radio-mark { width: 24px; height: 24px; border-radius: 50%; border: 2px solid #cbd5ce; }
+.selected .radio-mark { border: 7px solid var(--green); }
+.reading-content { display: grid; grid-template-rows: auto minmax(80px, auto) 1fr auto; width: 100%; min-height: calc(100svh - 156px); padding: 8px 20px 36px; text-align: center; }
+.turn-stars { display: flex; gap: 12px; justify-content: center; padding: 10px 0 12px; }
+.turn-stars .star { width: 34px; height: 34px; }
+.previous-line { font: 700 clamp(26px, 3.6vw, 52px)/2.2 'Frank Ruhl Libre', serif; color: var(--gray); padding: 6px 8px; align-self: center; overflow-wrap: break-word; }
+.graded-word { display: inline-block; margin-inline: .18em; position: relative; }
+.pair { animation: pair-light .35s ease-out both; }
+@keyframes pair-light { from { opacity: .45; } to { opacity: 1; } }
+.pair-ok { color: var(--green); }
+.pair-wrong_letter, .pair-wrong_vowel, .pair-skipped, .pair-extra, .word-skipped { color: var(--red); }
+.pair-uncertain, .pair-not_decoded, .word-not_decoded { color: var(--gray); }
+.word-extra { color: var(--gray); }
+.extra-dot { display: inline-block; background: var(--red); width: 7px; height: 7px; border-radius: 50%; position: absolute; top: .5em; inset-inline-end: -5px; }
+.current-line { width: 100%; align-self: center; font: 700 clamp(44px, 7vw, 120px)/2.15 'Frank Ruhl Libre', serif; padding: 12px 0 24px; overflow-wrap: break-word; }
+.current-line > .star { width: 86px; height: 86px; }
+.record-area { display: flex; align-items: center; justify-content: center; min-height: 144px; padding-top: 16px; }
+.record-button { width: 112px; height: 112px; border-radius: 50%; background: var(--green); color: white; border: 0; display: grid; place-items: center; box-shadow: 0 0 0 12px #edf5ef; }
+.record-button:hover:not(:disabled) { box-shadow: 0 0 0 16px #edf5ef; }
+.record-button svg, .mic-off-icon svg { width: 50px; height: 50px; fill: currentColor; }
+.record-button svg path, .mic-off-icon svg path { fill: none; stroke: currentColor; stroke-width: 3.5; stroke-linecap: round; }
+.record-button.recording { background: var(--red); box-shadow: 0 0 0 12px #fceded; animation: record-pulse 1.5s ease-in-out infinite; }
+.stop-icon { width: 30px; height: 30px; border-radius: 7px; background: white; }
+@keyframes record-pulse { 50% { box-shadow: 0 0 0 18px #fceded; } }
+.microphone-off h1 { font-size: clamp(28px, 4vw, 44px); }
+.mic-off-icon { background: #f0f2f5; color: var(--gray); padding: 28px; border-radius: 50%; margin-bottom: 36px; }
+.done-stars { display: flex; gap: 14px; margin-bottom: 36px; }
+.done-stars .star { width: 64px; height: 64px; }
+.done-stars .star:nth-child(2) { transform: translateY(-14px); }
+.done-content h1 { margin-bottom: 20px; }
+.turn-message { font-size: clamp(20px, 2.5vw, 28px); line-height: 1.6; max-width: 650px; margin: 0 0 40px; }
+.done-actions { display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; }
+
+@media (min-width: 1024px) {
+  .app { flex-direction: row; }
+  .stats { width: 248px; flex-shrink: 0; border-right: 1px solid #e9ede9; padding: 42px 30px; flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: 30px; }
+  .wordmark { margin: 0 0 30px; font-size: 19px; }
+  .brand-mark { width: 48px; height: 52px; font-size: 42px; }
+  .level-badge { align-self: flex-start; padding: 14px 20px; font-size: 16px; }
+  .stat { flex-direction: column; align-items: flex-start; gap: 8px; font-size: 14px; }
+  .stat strong { font-size: 34px; gap: 10px; }
+  .stat .star { width: 30px; height: 30px; }
+  .gear { position: static; margin-top: auto; margin-left: -8px; }
+  .reading-content { padding: 36px clamp(32px, 4vw, 90px) 54px; min-height: 100svh; grid-template-rows: auto minmax(110px, auto) 1fr auto; }
+  .turn-stars { padding-top: 0; }
+  .turn-stars .star { width: 40px; height: 40px; }
+  .record-button { width: 128px; height: 128px; }
+  .home-art { transform: scale(1.25); margin-bottom: 64px; }
+  .home-content, .done-content, .settings-content { padding: 64px; }
+}
+
+@media (max-width: 370px) {
+  .stats { padding-inline: 16px; gap: 12px; }
+  .stat { font-size: 10px; }
+  .done-actions { flex-direction: column; width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
