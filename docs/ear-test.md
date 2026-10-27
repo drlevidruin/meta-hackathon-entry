@@ -180,6 +180,36 @@ Read each clip once, after Round 1b, in Ashkenazi pronunciation. Their results s
 | leyv_chirik-for-tzere | לֵב | liv | tzere read as chirik | liv |
 | beney_patach-for-sheva | בְּנֵי | ba-ney | sheva read as patach | ba-ney |
 
+## Round 1c results, October 27
+
+Levi read Round 1c at 11:25 AM, after the settings were frozen at `d109049`. Muse Wonder 1.0 heard each clip once between 11:28 and 11:36 AM, with the meter from `90658ef` and his voice check. Nobody read these answers before the run.
+
+| Round | Clips | With the meter | Ear alone |
+| --- | --- | --- | --- |
+| Round 1c | 11 | 4 of 4 plants marked, 15 false marks | 3 of 4 plants marked, 17 false marks |
+
+The meter caught every plant, but it did not carry over to new words. On the words it was built on, it cut false marks from 16 to 4 and from 11 to 3. Here it cut them from 17 to 15. Only one of the seven clean words came out clean.
+
+| File name | Say | Ear wrote | With the meter |
+| --- | --- | --- | --- |
+| odom_clean | o-dom | a-dam | e-dam, 3 false marks |
+| chochom_clean | cho-chom | cha-cham | unchanged, 2 false marks |
+| neshomo_clean | ne-sho-mo | ne-sha-ma | unchanged, 2 false marks |
+| tzedoko_clean | tze-do-ko | tse-da-ka | unchanged, 3 false marks |
+| shono_clean | sho-no | sha-na | unchanged, 2 false marks |
+| bonim_clean | bo-nim | ba-nim | bo-nim, clean |
+| kosuv_clean | ko-suv | ka-sov | unchanged, 3 false marks |
+| cholov_patach-for-kamatz | cha-lov | cha-lav | cha-lov, plant marked |
+| bayis_kamatz-for-patach | bo-yis | ba yes | bo yis, plant marked |
+| leyv_chirik-for-tzere | liv | liv | liv, plant marked |
+| beney_patach-for-sheva | ba-ney | ba-ney | ba-ney, plant marked |
+
+Every syllable formed its own sound island, so the meter measured every vowel. It left the ear's a in place because most of Levi's kamatz vowels in these words measured next to his patach from the card. In tzedoko, the do measured 0.12 Bark from his card patach and 1.25 from his card kamatz. After b and l, kamatz still measured as o, which is why bonim and cholov came out right. On the card he read each kamatz on its own. Inside words the same vowel came out more open. The card did not predict how he reads kamatz in words.
+
+Some false marks are not kamatz at all. The ear wrote ts for tz in tzedoko and o for the shuruk in kosuv. The meter does not handle either.
+
+The meter on the beginner-vowels branch gives the same numbers on these answers: 4 of 4 plants, 15 false marks. Round 1c has now been read, so it no longer counts as a sealed test. A change made from here needs new words.
+
 ## Card tests
 
 Read these after Round 1c, syllable by syllable, with a short pause between syllables. The first is the voice check for a reader who has learned only kamatz. The other two are read wrong on purpose, every kamatz as patach, to test that a wrong voice check cannot hide a mistake.
