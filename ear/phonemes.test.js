@@ -30,7 +30,7 @@ test('hearPhonemes posts only the WAV buffer with an abort signal and refuses re
   const result = await hearPhonemes(audio, { url, fetch: async (address, options) => {
     assert.equal(address, `${url}/phonemes`);
     assert.equal(options.method, 'POST');
-    assert.deepEqual(options.headers, { 'Content-Type': 'audio/wav' });
+    assert.deepEqual(options.headers, { 'Content-Type': 'audio/wav', 'X-Timeout-Ms': '15000' });
     assert.equal(options.body, audio);
     assert.ok(options.signal instanceof AbortSignal);
     assert.equal(options.redirect, 'error');

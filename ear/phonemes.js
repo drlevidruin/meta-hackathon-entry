@@ -45,8 +45,10 @@ export function phonemeTimeout(audio) {
 export async function hearPhonemes(audio, { url = phonemeUrl(), fetch = globalThis.fetch, timeoutMs } = {}) {
   try {
     if (!Buffer.isBuffer(audio)) return null;
-    const reply = await requestJson('/phonemes', { url, fetch, timeoutMs: timeoutMs ?? phonemeTimeout(audio) }, {
-      method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: audio,
+    const wait = timeoutMs ?? phonemeTimeout(audio);
+    // The service skips a recording still queued when this wait runs out.
+    const reply = await requestJson('/phonemes', { url, fetch, timeoutMs: wait }, {
+      method: 'POST', headers: { 'Content-Type': 'audio/wav', 'X-Timeout-Ms': String(wait) }, body: audio,
     });
     if (!Array.isArray(reply?.tokens) || !reply.tokens.every(value => value && typeof value.token === 'string'
       && Number.isFinite(value.start) && Number.isFinite(value.end) && Array.isArray(value.top)

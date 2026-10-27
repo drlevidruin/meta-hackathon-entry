@@ -1,10 +1,9 @@
 import argparse
 import json
 import os
-import select
-import socket
 import sys
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -20,6 +19,15 @@ AUDIO_LIMIT = 25 * 1024 * 1024
 # One reading runs and three wait. More get a fast 503, which the app treats as
 # referee off for that reading, instead of a queue that outlasts its callers.
 ADMISSION_LIMIT = 4
+
+
+def deadline(headers, now):
+    # The app sends how long it will wait. Past that, nobody reads the answer.
+    try:
+        milliseconds = int(headers.get('X-Timeout-Ms', ''))
+    except ValueError:
+        return None
+    return now + milliseconds / 1000 if 0 < milliseconds <= 600000 else None
 
 
 def load_inference():
@@ -70,14 +78,6 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
-    def client_gone(self):
-        # A caller that timed out has closed its socket, so nobody will read this answer.
-        try:
-            readable, _, _ = select.select([self.connection], [], [], 0)
-            return bool(readable) and self.connection.recv(1, socket.MSG_PEEK) == b''
-        except (OSError, ValueError):
-            return True
-
     def do_GET(self):
         if self.path != '/health':
             self.reply(404, {'error': 'not found'})
@@ -85,6 +85,7 @@ class Handler(BaseHTTPRequestHandler):
         self.reply(200, {'ok': True, 'model': MODEL, 'revision': REVISION})
 
     def do_POST(self):
+        give_up = deadline(self.headers, time.monotonic())
         try:
             if self.path != '/phonemes':
                 self.reply(404, {'error': 'not found'})
@@ -103,21 +104,24 @@ class Handler(BaseHTTPRequestHandler):
             if length <= 0:
                 self.reply(400, {'error': 'empty audio'})
                 return
-            data = self.rfile.read(length)
-            if len(data) != length:
-                self.reply(400, {'error': 'incomplete audio'})
-                return
             if not self.server.admission.acquire(blocking=False):
+                # The unread body would be parsed as the next request, so hang up.
+                self.close_connection = True
                 self.reply(503, {'error': 'busy'})
                 return
             try:
+                data = self.rfile.read(length)
+                if len(data) != length:
+                    self.reply(400, {'error': 'incomplete audio'})
+                    return
                 try:
                     samples = read_wav(data)
                 except ValueError:
                     self.reply(400, {'error': 'unreadable audio'})
                     return
                 with self.server.lock:
-                    if self.client_gone():
+                    if give_up is not None and time.monotonic() > give_up:
+                        self.reply(503, {'error': 'too late'})
                         return
                     tokens = self.server.infer(samples)
             finally:

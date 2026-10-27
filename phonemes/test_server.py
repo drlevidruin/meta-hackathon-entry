@@ -1,7 +1,7 @@
 import io
+import itertools
 import json
 import os
-import socket
 import sys
 import threading
 import unittest
@@ -30,49 +30,62 @@ class QuietHandler(Handler):
         pass
 
 
-SOCKETS = []
-
-
-def request(path, data=b'', content_type='audio/wav', length=None, infer=None, admission=None):
+def request(path, data=b'', content_type='audio/wav', length=None, infer=None, admission=None, timeout=None):
     handler = QuietHandler.__new__(QuietHandler)
     handler.path = path
     handler.headers = Message()
     handler.headers['Content-Type'] = content_type
     handler.headers['Content-Length'] = str(len(data) if length is None else length)
+    if timeout is not None:
+        handler.headers['X-Timeout-Ms'] = timeout
     handler.rfile = io.BytesIO(data)
     handler.wfile = io.BytesIO()
-    # The handler's end of a live connection; the test holds the caller's end.
-    handler.connection, handler.caller = socket.socketpair()
-    SOCKETS.extend([handler.connection, handler.caller])
     handler.server = SimpleNamespace(infer=infer or (lambda samples: []), lock=threading.Lock(),
                                      admission=admission or threading.BoundedSemaphore(service.ADMISSION_LIMIT))
     return handler
 
 
 class ServerTests(unittest.TestCase):
-    def tearDown(self):
-        while SOCKETS:
-            SOCKETS.pop().close()
-
-    def test_a_full_queue_answers_busy_without_decoding_or_inference(self):
+    def test_a_full_queue_answers_busy_before_reading_the_upload(self):
         admission = threading.BoundedSemaphore(service.ADMISSION_LIMIT)
         for _ in range(service.ADMISSION_LIMIT):
             admission.acquire()
         handler = request('/phonemes', make_wav(bytes(8)), admission=admission,
                           infer=lambda _: self.fail('a busy request reached inference'))
-        with patch.object(service, 'read_wav', side_effect=AssertionError('a busy request was decoded')):
-            handler.do_POST()
+        handler.do_POST()
         self.assertEqual(handler.status, 503)
         self.assertEqual(json.loads(handler.wfile.getvalue()), {'error': 'busy'})
+        self.assertEqual(handler.rfile.tell(), 0)
+        self.assertTrue(handler.close_connection)
 
-    def test_a_caller_that_left_is_skipped_and_its_slot_is_freed(self):
+    def test_the_wait_header_sets_a_deadline_and_bad_values_set_none(self):
+        headers = Message()
+        headers['X-Timeout-Ms'] = '15000'
+        self.assertEqual(service.deadline(headers, 100.0), 115.0)
+        for value in [None, '', 'soon', '0', '-5', '600001', '1.5']:
+            with self.subTest(value=value):
+                headers = Message()
+                if value is not None:
+                    headers['X-Timeout-Ms'] = value
+                self.assertIsNone(service.deadline(headers, 100.0))
+
+    def test_a_reading_still_waiting_after_its_deadline_is_skipped_and_frees_its_slot(self):
         admission = threading.BoundedSemaphore(1)
-        handler = request('/phonemes', make_wav(bytes(8)), admission=admission,
-                          infer=lambda _: self.fail('a departed caller reached inference'))
-        handler.caller.close()
-        handler.do_POST()
-        self.assertEqual(handler.wfile.getvalue(), b'')
+        clock = itertools.count(0, 10)  # every reading of the clock is 10 seconds later
+        handler = request('/phonemes', make_wav(bytes(8)), admission=admission, timeout='5000',
+                          infer=lambda _: self.fail('a late reading reached inference'))
+        with patch.object(service.time, 'monotonic', side_effect=lambda: next(clock)):
+            handler.do_POST()
+        self.assertEqual(handler.status, 503)
+        self.assertEqual(json.loads(handler.wfile.getvalue()), {'error': 'too late'})
         self.assertTrue(admission.acquire(blocking=False))
+
+    def test_a_reading_inside_its_deadline_runs(self):
+        clock = itertools.count(0, 10)
+        handler = request('/phonemes', make_wav(bytes(8)), timeout='60000')
+        with patch.object(service.time, 'monotonic', side_effect=lambda: next(clock)):
+            handler.do_POST()
+        self.assertEqual(handler.status, 200)
 
     def test_unreadable_audio_frees_its_slot(self):
         admission = threading.BoundedSemaphore(1)

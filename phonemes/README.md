@@ -14,9 +14,9 @@ the port. Set the app's `PHONEME_URL` to the same local address when changing it
 Audio stays in memory on this computer. The service writes no audio files and
 logs nothing per request. It never sees the printed text. It accepts 16-bit PCM
 WAV, mono or stereo, at 8 to 96 kHz and up to 60 seconds. One recording runs at a
-time and three may wait. A fifth gets a busy reply, and the app grades that
-reading without the referee. A recording whose caller has already given up is
-skipped.
+time and three may wait. A fifth gets a busy reply before its upload is read,
+and the app grades that reading without the referee. The app sends how long it
+will wait in `X-Timeout-Ms`; a recording still queued past that time is skipped.
 
 The app works without this service. The referee is then off. `PHONEME_URL=off`
 also disables it. Run `npm run test:phonemes` for the model-free Python tests.
