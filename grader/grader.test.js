@@ -59,6 +59,36 @@ test('a restart keeps the last attempt even if the earlier attempt was better', 
   assert.equal(extras(result).length, 0);
 });
 
+test('Ein Keloheinu grades the wrong final ein before a repeated keloheinu', () => {
+  const result = grade('אֵין כֵּאלֹהֵינוּ אֵין כַּאדוֹנֵינוּ', 'ashkenazi',
+    'eyn iyn key-loy-hey-nu key-loy-hey-nu eyn ka-do-ney-nu');
+  assert.equal(result.words.length, 4);
+  assert.deepEqual(verdicts(result.words[0]), ['wrong_vowel', 'ok']);
+  assert.equal(result.words[0].pairs[0].text, 'אֵי');
+  assert.equal(result.words[0].pairs[0].heard, 'iy');
+  assert.ok(result.words.slice(1).every((word) => verdicts(word).every((v) => v === 'ok')));
+  assert.equal(result.summary.wrong_vowel, 1);
+  assert.equal(result.summary.ok, result.summary.pairs - 1);
+  assert.equal(result.summary.extra, 0);
+});
+
+test('Ein Keloheinu grades the wrong final keloheinu and skips the unread ending', () => {
+  const result = grade('אֵין כֵּאלֹהֵינוּ אֵין כַּאדוֹנֵינוּ', 'ashkenazi',
+    'eyn key-loy-hey-nu key-loy-hey-no');
+  assert.deepEqual(result.words.map((word) => word.verdict), [null, null, 'skipped', 'skipped']);
+  assert.deepEqual(verdicts(result.words[0]), ['ok', 'ok']);
+  assert.deepEqual(verdicts(result.words[1]), ['ok', 'ok', 'ok', 'wrong_vowel']);
+  assert.equal(result.words[1].pairs[3].text, 'נוּ');
+  assert.equal(result.words[1].pairs[3].heard, 'no');
+  assert.deepEqual(verdicts(result.words[2]), Array(2).fill('skipped'));
+  assert.deepEqual(verdicts(result.words[3]), Array(4).fill('skipped'));
+  assert.equal(result.summary.wrong_vowel, 1);
+  assert.equal(result.summary.ok, 5);
+  assert.equal(result.summary.skipped, 6);
+  assert.equal(result.summary.not_decoded, 0);
+  assert.equal(result.summary.extra, 0);
+});
+
 for (const heard of ['sha bos', 'sha bo s']) {
   test(`split word ${heard} joins up to three heard words`, () => {
     const result = grade('שַׁבָּת', 'ashkenazi', heard);
@@ -114,6 +144,19 @@ for (const [earlier, final, wrong] of [['a-na', 'a-ni', 0], ['a-ni', 'a-na', 1]]
   });
 }
 
+test('a two-word line restart keeps the wrong final name before continuing to eloheinu', () => {
+  const result = grade('יְהֹוָה אֱלֹהֵינוּ אֱלֹהֵינוּ יְהֹוָה אֱלֹהֵינוּ', 'ashkenazi',
+    'a-do-noy e-loy-hey-nu a-do-nay e-loy-hey-nu e-loy-hey-nu a-do-noy e-loy-hey-nu');
+  assert.deepEqual(result.words.map((word) => word.verdict), Array(5).fill(null));
+  assert.deepEqual(verdicts(result.words[0]), ['ok', 'ok', 'wrong_vowel', 'ok']);
+  assert.equal(result.words[0].pairs[2].text, 'נָ');
+  assert.equal(result.words[0].pairs[2].heard, 'na');
+  assert.ok(result.words.slice(1).every((word) => verdicts(word).every((v) => v === 'ok')));
+  assert.equal(result.summary.wrong_vowel, 1);
+  assert.equal(result.summary.ok, result.summary.pairs - 1);
+  assert.equal(result.summary.extra, 0);
+});
+
 for (const [heard, after, sound] of [['e-cho-de', 2, 'e'], ['ba-e-chod', -1, 'ba'], ['e-ba-chod', 0, 'ba']]) {
   test(`extra phonemes in ${heard} are anchored after pair ${after}`, () => {
     const result = grade('אֶחָד', 'ashkenazi', heard);
@@ -160,6 +203,36 @@ for (const [name, heard, skipped] of [
     assert.equal(result.summary.extra, 0);
   });
 }
+
+test('Shema grades the wrong final first divine name before a repeated eloheinu', () => {
+  const result = grade('שְׁמַע יִשְׂרָאֵל יְהֹוָה אֱלֹהֵינוּ יְהֹוָה אֶחָד', 'ashkenazi',
+    'she-ma yis-ro-eyl a-do-noy a-do-nay e-loy-hey-nu e-loy-hey-nu a-do-noy e-chod');
+  assert.deepEqual(result.words.map((word) => word.verdict), Array(6).fill(null));
+  assert.deepEqual(verdicts(result.words[2]), ['ok', 'ok', 'wrong_vowel', 'ok']);
+  assert.equal(result.words[2].pairs[2].text, 'נָ');
+  assert.equal(result.words[2].pairs[2].heard, 'na');
+  assert.ok(result.words.filter((_, index) => index !== 2).every((word) => verdicts(word).every((v) => v === 'ok')));
+  assert.equal(result.summary.wrong_vowel, 1);
+  assert.equal(result.summary.ok, 21);
+  assert.equal(result.summary.extra, 0);
+});
+
+test('Shema skips eloheinu and grades the misread second divine name separately', () => {
+  const result = grade('שְׁמַע יִשְׂרָאֵל יְהֹוָה אֱלֹהֵינוּ יְהֹוָה אֶחָד', 'ashkenazi',
+    'she-ma yis-ro-eyl a-do-noy a-do-nay e-chod');
+  assert.deepEqual(result.words.map((word) => word.verdict), [null, null, null, 'skipped', null, null]);
+  assert.deepEqual(verdicts(result.words[3]), Array(4).fill('skipped'));
+  assert.deepEqual(verdicts(result.words[4]), ['ok', 'ok', 'wrong_vowel', 'ok']);
+  assert.equal(result.words[4].pairs[2].text, 'נָ');
+  assert.equal(result.words[4].pairs[2].heard, 'na');
+  assert.ok(result.words.filter((_, index) => index !== 3 && index !== 4)
+    .every((word) => verdicts(word).every((v) => v === 'ok')));
+  assert.equal(result.summary.wrong_vowel, 1);
+  assert.equal(result.summary.ok, 17);
+  assert.equal(result.summary.skipped, 4);
+  assert.equal(result.summary.not_decoded, 0);
+  assert.equal(result.summary.extra, 0);
+});
 
 test('an extra heard word stays between its neighboring expected words', () => {
   const result = grade('שְׁמַע יִשְׂרָאֵל', 'ashkenazi', 'she-ma ba yis-ro-eyl');
