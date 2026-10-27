@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { checkPass, parseRun, scoreMarks, scoreRun, summarizeRows } from './score.js';
+import { loadClips } from './clips.js';
 
 const clips = [
   { name: 'shabbos', hebrew: 'שַׁבָּת', section: 'Round A', say: 'unused' },
@@ -138,6 +139,27 @@ test('status lines, blank lines and the clip header are ignored, including CRLF 
   assert.equal(rows[0].line, 4);
 });
 
+test('a status line containing a clip name after its first token is still ignored', async () => {
+  const rows = await parseRun([
+    'Checking shabbos and child_line', '  Waiting for child_shabbos',
+    'shabbos_extra is not a clip', 'clip said heard result ear', '  ',
+    row('shabbos', 'sha-bos'),
+  ].join('\n'), { clips, file: 'status.tsv' });
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].clip, 'shabbos');
+  assert.equal(rows[0].line, 6);
+});
+
+for (const truncated of ['shabbos', 'child_shabbos', '  shabbos sha-bos', 'child_line sha-bos e-chod']) {
+  for (const round of [undefined, 'Round A']) {
+    test(`a truncated row ${JSON.stringify(truncated)} is an error ${round ? 'with' : 'without'} --round`, async () => {
+      const source = ['status', row('shabbos', 'sha-bos'), truncated].join('\r\n');
+      await assert.rejects(score(source, { round }),
+        error => /saved\.tsv:3:/.test(error.message) && /5 tab-separated cells/.test(error.message));
+    });
+  }
+}
+
 for (const [name, source] of emptyRuns) {
   for (const round of [undefined, 'Round A']) {
     test(`${name} is an error ${round === undefined ? 'without' : 'with'} --round`, async () => {
@@ -187,6 +209,38 @@ test('--round keeps only matching rows and rejects an unknown or absent round', 
   await assert.rejects(score(source, { round: 'Round unknown' }), /Unknown round.*Round unknown/);
   await assert.rejects(score(row('shabbos', 'sha-bos'), { round: 'Round B' }),
     error => /saved\.tsv/.test(error.message) && /Round B/.test(error.message));
+});
+
+test('the pass rule requires each clip of a round once, including child_ aliases', async () => {
+  const complete = [row('child_line', 'sha-bos e-chod'), row('child_shema', 'she-ma yis-ro-eyl')];
+  for (const [source, pass, missing, repeated] of [
+    [complete.join('\n'), true, [], []],
+    [complete[0], false, ['shema'], []],
+    [[...complete, row('line', 'sha-bos e-chod')].join('\n'), false, [], ['line']],
+    [[complete[0], row('line', 'sha-bos e-chod')].join('\n'), false, ['shema'], ['line']],
+  ]) {
+    const run = await score(source, { round: 'Round B' });
+    const result = checkPass(run, 0);
+    assert.equal(result.pass, pass);
+    assert.deepEqual(result.missingClips, missing);
+    assert.deepEqual(result.repeatedClips, repeated);
+    assert.equal(run.rounds[0].expectedClips, 2);
+    assert.equal(run.totals.columns.final.falseMarks, 0);
+  }
+});
+
+test('coverage checks every appearing round unless --round selects one', async () => {
+  const source = [
+    row('shabbos', 'sha-bos'), row('line', 'sha-bos e-chod'), row('line', 'sha-bos e-chod'),
+  ].join('\n');
+  const all = checkPass(await score(source), 0);
+  assert.equal(all.pass, false);
+  assert.deepEqual(all.missingClips, ['shema']);
+  assert.deepEqual(all.repeatedClips, ['line']);
+  const selected = checkPass(await score(source, { round: 'Round A' }), 0);
+  assert.equal(selected.pass, true);
+  assert.deepEqual(selected.missingClips, []);
+  assert.deepEqual(selected.repeatedClips, []);
 });
 
 test('an extra heard word does not shift the same wrong vowel on the second printed word', async () => {
@@ -299,6 +353,14 @@ function cli(...args) {
 
 const passing = [row('gal_clean', 'gal'), row('tal_kamatz-for-patach', 'tol')].join('\n');
 const failing = [row('gal_clean', 'gal', 'gol'), row('tal_kamatz-for-patach', 'tol', 'tal')].join('\n');
+const catalogue = await loadClips('adult');
+
+function completeRound(round, overrides = {}) {
+  return catalogue.filter(clip => clip.section === round)
+    .map(clip => overrides[clip.name] ?? row(clip.name, clip.say)).join('\n');
+}
+
+const completePassing = completeRound('Round 1f');
 
 for (const [name, source] of emptyRuns) {
   for (const flags of [[], ['--round', 'Round 1f']]) {
@@ -311,6 +373,72 @@ for (const [name, source] of emptyRuns) {
       assert.equal(result.stdout, '');
     });
   }
+}
+
+for (const truncated of ['tal_kamatz-for-patach', 'child_tal_kamatz-for-patach tol', 'child_shom_clean']) {
+  for (const flags of [[], ['--round', 'Round 1f']]) {
+    for (const passFlags of [[], ['--max-uncertain', '0', '--runs-needed', '1']]) {
+      test(`CLI rejects truncated ${JSON.stringify(truncated)} ${flags.length ? 'with' : 'without'} --round and ${passFlags.length ? 'with' : 'without'} pass flags`, t => {
+        const [file] = savedRuns(t, [['status', completePassing, truncated].join('\r\n')]);
+        const result = cli(file, ...flags, ...passFlags);
+        assert.equal(result.status, 2);
+        assert.ok(result.stderr.includes(`${file}:15:`));
+        assert.match(result.stderr, /5 tab-separated cells/);
+        assert.equal(result.stdout, '');
+      });
+    }
+  }
+}
+
+for (const flags of [[], ['--round', 'Round 1f']]) {
+  for (const [name, source, missing, repeated] of [
+    ['a missing clip', completePassing.split('\n').slice(0, -1).join('\n'), 'shulchon_clean', 'none'],
+    ['a repeated clip', `${completePassing}\n${row('gal_clean', 'gal')}`, 'none', 'gal_clean'],
+    ['a missing clip replaced by a child_ duplicate', [
+      ...completePassing.split('\n').slice(0, -1), row('child_gal_clean', 'gal'),
+    ].join('\n'), 'shulchon_clean', 'gal_clean'],
+  ]) {
+    test(`CLI fails and names ${name} ${flags.length ? 'with' : 'without'} --round only with pass flags`, t => {
+      const [file] = savedRuns(t, [source]);
+      const result = cli(file, ...flags, '--max-uncertain', '0', '--runs-needed', '1');
+      assert.equal(result.status, 1, result.stderr);
+      assert.equal(result.stderr, '');
+      const fileLine = result.stdout.split('\n').find(line => line.startsWith(`${file}: `));
+      assert.ok(fileLine.startsWith(`${file}: FAIL;`));
+      assert.ok(fileLine.endsWith(`; missing clips: ${missing}; repeated clips: ${repeated}`));
+      assert.ok(result.stdout.includes(`Round 1f: clips ${source.split('\n').length} of 13, ear errors 0`));
+
+      const scored = cli(file, ...flags);
+      assert.equal(scored.status, 0, scored.stderr);
+      assert.equal(scored.stderr, '');
+      assert.ok(!scored.stdout.includes(`${file}: FAIL;`));
+    });
+  }
+}
+
+test('a complete child_ run passes with no missing or repeated clips', t => {
+  const source = completePassing.split('\n').map(line => `child_${line}`).join('\n');
+  const [file] = savedRuns(t, [source]);
+  const result = cli(file, '--round', 'Round 1f', '--max-uncertain', '0', '--runs-needed', '1');
+  assert.equal(result.status, 0, result.stderr);
+  assert.ok(result.stdout.includes(`${file}: PASS;`));
+  assert.match(result.stdout, /Round 1f: clips 13 of 13/);
+  assert.match(result.stdout, /; missing clips: none; repeated clips: none\n/);
+});
+
+for (const complete of [true, false]) {
+  test(`without --round, a ${complete ? 'complete' : 'partially complete'} two-round file ${complete ? 'passes' : 'fails'}`, t => {
+    const second = completeRound('Round 1g').split('\n');
+    if (!complete) second.pop();
+    const [file] = savedRuns(t, [[completePassing, ...second].join('\n')]);
+    const result = cli(file, '--max-uncertain', '0', '--runs-needed', '1');
+    assert.equal(result.status, complete ? 0 : 1, result.stderr);
+    assert.equal(result.stderr, '');
+    assert.ok(result.stdout.includes(`${file}: ${complete ? 'PASS' : 'FAIL'};`));
+    assert.match(result.stdout, /Round 1f: clips 13 of 13/);
+    assert.ok(result.stdout.includes(`Round 1g: clips ${complete ? 13 : 12} of 13`));
+    assert.ok(result.stdout.includes(`; missing clips: ${complete ? 'none' : 'suko_clean'}; repeated clips: none`));
+  });
 }
 
 test('the scorer defaults to loadClips(adult) for Hebrew and round metadata', async () => {
@@ -331,9 +459,9 @@ test('CLI prints per-file round summaries in file order and first-appearance ord
   assert.equal(result.stderr, '');
   const lines = result.stdout.trim().split('\n');
   assert.equal(lines.length, 3);
-  assert.ok(lines[0].startsWith(`${first} | Round 1f: clips 2, ear errors 0; final:`));
-  assert.ok(lines[1].startsWith(`${first} | Round 1e: clips 1, ear errors 0; final:`));
-  assert.ok(lines[2].startsWith(`${second} | Round 1f: clips 2, ear errors 0; final:`));
+  assert.ok(lines[0].startsWith(`${first} | Round 1f: clips 2 of 13, ear errors 0; final:`));
+  assert.ok(lines[1].startsWith(`${first} | Round 1e: clips 1 of 12, ear errors 0; final:`));
+  assert.ok(lines[2].startsWith(`${second} | Round 1f: clips 2 of 13, ear errors 0; final:`));
   assert.match(lines[0], /plants caught 1 of 1, hidden 0, unsure 0, other 0, false marks 0, uncertain marks 0/);
   assert.match(lines[0], /; ear: plants caught 1 of 1/);
   assert.ok(!lines[0].includes('metered:'));
@@ -378,26 +506,26 @@ test('--detail shows uncertainty on a clean control without calling it a false m
 });
 
 test('--round filters detail, summaries and the pass rule to the selected round', t => {
-  const [file] = savedRuns(t, [[passing, row('shom_clean', 'shom', 'ERROR')].join('\n')]);
+  const [file] = savedRuns(t, [[completePassing, row('shom_clean', 'shom', 'ERROR')].join('\n')]);
   const result = cli(file, '--round', 'Round 1f', '--detail', '--max-uncertain', '0', '--runs-needed', '1');
   assert.equal(result.status, 0, result.stderr);
   assert.ok(!result.stdout.includes('Round 1e'));
   assert.ok(!result.stdout.includes('shom_clean'));
-  assert.match(result.stdout, /clips 2, ear errors 0/);
+  assert.match(result.stdout, /clips 13 of 13, ear errors 0/);
   assert.match(result.stdout, /Round 1f: 1 of 1 runs pass; 1 needed: PASS\n$/);
 });
 
 test('the pass rule prints a PASS and FAIL file and passes when enough files pass', t => {
-  const [good, bad] = savedRuns(t, [passing, failing]);
+  const [good, bad] = savedRuns(t, [completePassing, failing]);
   const result = cli('--max-uncertain', '0', '--runs-needed', '1', good, bad);
   assert.equal(result.status, 0, result.stderr);
-  assert.ok(result.stdout.includes(`${good}: PASS; clips 2, ear errors 0; final: plants caught 1 of 1`));
+  assert.ok(result.stdout.includes(`${good}: PASS; clips 13, ear errors 0; final: plants caught 4 of 4`));
   assert.ok(result.stdout.includes(`${bad}: FAIL; clips 2, ear errors 0; final: plants caught 0 of 1`));
   assert.match(result.stdout, /All rounds: 1 of 2 runs pass; 1 needed: PASS\n$/);
 });
 
 test('the pass rule exits 1 when fewer than K files pass', t => {
-  const files = savedRuns(t, [passing, failing]);
+  const files = savedRuns(t, [completePassing, failing]);
   const result = cli(...files, '--max-uncertain', '0', '--runs-needed', '2');
   assert.equal(result.status, 1, result.stderr);
   assert.equal(result.stderr, '');
@@ -405,10 +533,10 @@ test('the pass rule exits 1 when fewer than K files pass', t => {
 });
 
 test('the uncertain cap is inclusive and the pass rule uses final only', t => {
-  const [file] = savedRuns(t, [[
-    row('gal_clean', 'gal', '?', { metered: 'gol', ear: 'gol' }),
-    row('tal_kamatz-for-patach', 'tol', 'tol', { metered: 'tal', ear: 'tal' }),
-  ].join('\n')]);
+  const [file] = savedRuns(t, [completeRound('Round 1f', {
+    gal_clean: row('gal_clean', 'gal', '?', { metered: 'gol', ear: 'gol' }),
+    'tal_kamatz-for-patach': row('tal_kamatz-for-patach', 'tol', 'tol', { metered: 'tal', ear: 'tal' }),
+  })]);
   const accepted = cli(file, '--max-uncertain', '2', '--runs-needed', '1');
   assert.equal(accepted.status, 0, accepted.stderr);
   assert.match(accepted.stdout, /false marks 0, uncertain marks 2/);
@@ -420,16 +548,17 @@ test('the uncertain cap is inclusive and the pass rule uses final only', t => {
 
 for (const [name, source, counts] of [
   ['ear error', row('gal_clean', 'gal', 'ERROR'), /ear errors 1/],
-  ['hidden plant', row('tal_kamatz-for-patach', 'tol', 'tal'), /plants caught 0 of 1, hidden 1/],
-  ['unsure plant', row('tal_kamatz-for-patach', 'tol', '?'), /plants caught 0 of 1, hidden 0, unsure 1/],
+  ['hidden plant', row('tal_kamatz-for-patach', 'tol', 'tal'), /plants caught 3 of 4, hidden 1/],
+  ['unsure plant', row('tal_kamatz-for-patach', 'tol', '?'), /plants caught 3 of 4, hidden 0, unsure 1/],
   ['false mark', row('gal_clean', 'gal', 'gol'), /false marks 1/],
 ]) {
   test(`the pass rule fails independently for an ${name}`, t => {
-    const [file] = savedRuns(t, [source]);
+    const [file] = savedRuns(t, [completeRound('Round 1f', { [source.split('\t')[0]]: source })]);
     const result = cli(file, '--max-uncertain', '100', '--runs-needed', '1');
     assert.equal(result.status, 1, result.stderr);
     assert.ok(result.stdout.includes(`${file}: FAIL;`));
     assert.match(result.stdout, counts);
+    assert.match(result.stdout, /; missing clips: none; repeated clips: none\n/);
   });
 }
 

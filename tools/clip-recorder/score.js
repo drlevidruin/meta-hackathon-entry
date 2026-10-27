@@ -7,7 +7,7 @@ import { loadClips } from './clips.js';
 const usage = [
   'Usage: npm run -s ear-score -- [--preset NAME] [--round NAME] [--detail] [--max-uncertain N --runs-needed K] FILE [FILE ...]',
   'Default preset: ashkenazi. N must be a whole number >= 0; K must be from 1 to the number of files.',
-  'A run passes when final has no ear errors, every plant caught, no false marks, and at most N uncertain marks.',
+  'A run passes when every clip of each scored round appears once, final has no ear errors, every plant caught, no false marks, and at most N uncertain marks.',
 ].join('\n');
 
 const wordsHeard = sounds => sounds.trim()
@@ -18,7 +18,11 @@ export async function parseRun(source, { file = '<input>', clips = loadClips('ad
   const byName = new Map((await clips).map(clip => [clip.name, clip]));
   const rows = [];
   for (const [index, line] of source.split(/\r?\n/u).entries()) {
-    if (!line.includes('\t') || line.startsWith('clip\t')) continue;
+    if (line.startsWith('clip\t')) continue;
+    if (!line.includes('\t')) {
+      const name = line.trim().split(/\s+/u, 1)[0].replace(/^child_/u, '');
+      if (!byName.has(name)) continue;
+    }
     const cells = line.split('\t');
     const at = `${file}:${index + 1}`;
     if (cells.length < 5) throw new Error(`${at}: Expected at least 5 tab-separated cells.`);
@@ -137,7 +141,19 @@ export async function scoreRun(source, {
     if (!groups.has(row.round)) groups.set(row.round, []);
     groups.get(row.round).push(row);
   }
-  const rounds = [...groups].map(([round, group]) => ({ round, ...summarizeRows(group) }));
+  const rounds = [...groups].map(([round, group]) => {
+    const expected = clips.filter(clip => clip.section === round);
+    const counts = new Map();
+    for (const row of group) {
+      const name = row.clip.replace(/^child_/u, '');
+      counts.set(name, (counts.get(name) ?? 0) + 1);
+    }
+    return {
+      round, ...summarizeRows(group), expectedClips: expected.length,
+      missingClips: expected.filter(clip => !counts.has(clip.name)).map(clip => clip.name),
+      repeatedClips: [...counts].filter(([, count]) => count > 1).map(([name]) => name),
+    };
+  });
   return { file, rows, rounds, totals: summarizeRows(rows) };
 }
 
@@ -186,13 +202,18 @@ export function parseOptions(argv) {
   return options;
 }
 
-/** The pass rule depends only on final, over all selected rows in one file. */
+/** The pass rule requires complete selected rounds and checks only the final column. */
 export function checkPass(run, maxUncertain) {
   const { clips, earErrors, columns: { final } } = run.totals;
+  const rounds = run.rounds ?? [];
+  const missingClips = rounds.flatMap(round => round.missingClips);
+  const repeatedClips = rounds.flatMap(round => round.repeatedClips);
   return {
     clips, earErrors, plants: final.plants, caught: final.caught,
     falseMarks: final.falseMarks, uncertainMarks: final.uncertainMarks,
-    pass: clips > 0 && earErrors === 0 && final.caught === final.plants
+    missingClips, repeatedClips,
+    pass: clips > 0 && rounds.length > 0 && missingClips.length === 0 && repeatedClips.length === 0
+      && earErrors === 0 && final.caught === final.plants
       && final.falseMarks === 0 && final.uncertainMarks <= maxUncertain,
   };
 }
@@ -203,7 +224,7 @@ function formatCounts(counts) {
 
 export function formatSummary(file, summary) {
   const columns = Object.entries(summary.columns).map(([name, counts]) => `${name}: ${formatCounts(counts)}`);
-  return `${file} | ${summary.round}: clips ${summary.clips}, ear errors ${summary.earErrors}; ${columns.join('; ')}`;
+  return `${file} | ${summary.round}: clips ${summary.clips} of ${summary.expectedClips}, ear errors ${summary.earErrors}; ${columns.join('; ')}`;
 }
 
 export function formatDetail(row) {
@@ -237,7 +258,7 @@ export async function main(argv = process.argv.slice(2)) {
       if (options.runsNeeded !== undefined) {
         const result = checkPass(run, options.maxUncertain);
         if (result.pass) passed += 1;
-        console.log(`${run.file}: ${result.pass ? 'PASS' : 'FAIL'}; clips ${result.clips}, ear errors ${result.earErrors}; final: ${formatCounts(run.totals.columns.final)}`);
+        console.log(`${run.file}: ${result.pass ? 'PASS' : 'FAIL'}; clips ${result.clips}, ear errors ${result.earErrors}; final: ${formatCounts(run.totals.columns.final)}; missing clips: ${result.missingClips.join(', ') || 'none'}; repeated clips: ${result.repeatedClips.join(', ') || 'none'}`);
       }
     }
     if (options.runsNeeded === undefined) return 0;
