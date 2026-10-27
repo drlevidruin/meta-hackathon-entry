@@ -220,6 +220,23 @@ Read these after Round 1c, syllable by syllable, with a short pause between syll
 | kamatz-card_patach-for-kamatz | בָּ דָ מָ גָ תָּ קָ | ba da ma ga ta ka | every kamatz read as patach | not graded |
 | voice-check_patach-for-kamatz | בָּ בַּ בֶּ בִּ בֹּ דָ דַ דֶ דִ דֹ מָ מַ מֶ מִ מֹ | ba ba be bi boy da da de di doy ma ma me mi moy | every kamatz read as patach | not graded |
 
+## Card test results, October 27
+
+The live ear wrote ba da ma ga ta ka for the kamatz-only card in 20 of 20 runs. On that card it hears Levi's kamatz as patach every time, so a kamatz-only voice check gives the ear nothing to compare.
+
+A lab copy of the ear had one more vowel to write, aw, for a rounded open o. Each card ran five times.
+
+| Card | Read | The lab ear wrote | Runs |
+| --- | --- | --- | --- |
+| kamatz-card_clean | bo do mo go to ko | ba da ma ga ta ka | 5 of 5 |
+| kamatz-card_patach-for-kamatz | ba da ma ga ta ka | ba da ma ka ta ka | 5 of 5 |
+| voice-check | bo ba be bi boy, and so on | baw ba be bi boy daw da de di doy maw ma me mi moy | 4 of 5; the fifth swapped baw and ba |
+| voice-check_patach-for-kamatz | ba ba be bi boy, and so on | ba ba be bi boy ta ta de di doy ma ma me mi moy | 5 of 5 |
+
+The ear heard the open o only when a patach was there to compare it with. It never wrote aw for a patach read in its place.
+
+The meter was also run with the card read wrong, every kamatz as patach. On the saved Round 1 and Round 1b answers it marked 10 of 10 and 3 of 4 plants, with 8 and 10 false marks. With the real card it marked 10 of 10 and 4 of 4, with 4 and 3. The ear alone marked 8 of 10 and 3 of 4, with 16 and 11. A card read wrong costs accuracy, but it did not hide a planted mistake that the ear alone caught.
+
 ## Sheva tests
 
 Levi found that the sound alphabet writes a sheva as e, the same letter as segol, so a quick sheva and a full eh look alike. An apostrophe now marks a sheva: n'-sho-mo is a quick n with no full vowel. Each word is read three ways: with a quick sheva, with the sheva as a full segol, and with the sheva as patach. These test whether the ear and the meter can tell a sheva from a full vowel.
@@ -238,6 +255,34 @@ Levi found that the sound alphabet writes a sheva as e, the same letter as segol
 | sheva-zman_clean | זְמַן | z'-man | nothing | not graded |
 | sheva-zman_segol-for-sheva | זְמַן | ze-man | sheva read as a full segol | not graded |
 | sheva-zman_patach-for-sheva | זְמַן | za-man | sheva read as patach | not graded |
+
+## Sheva test results, October 27
+
+Levi recorded the twelve sheva clips at 11:43 AM. He wants a sheva read as a full eh marked wrong, once a test shows the system can hear the difference. These results say it cannot yet.
+
+The live ear heard each clip four times. This is what it wrote for the first syllable.
+
+| Word | Quick sheva | Full eh | Patach |
+| --- | --- | --- | --- |
+| brocho | be, 4 of 4 | be, 4 of 4 | ba, 4 of 4 |
+| neshomo | ne, 4 of 4 | ne, 4 of 4 | na, 4 of 4 |
+| shema | she, 4 of 4 | she, 4 of 4 | sha, 4 of 4 |
+| zman | za 2, ze 2 | ze, 4 of 4 | za, 4 of 4 |
+
+A lab copy of the ear was told to write a vowel too short to have a full sound as an apostrophe, like k'-lo. It wrote the apostrophe once in 48 answers.
+
+| Word | Quick sheva | Full eh | Patach |
+| --- | --- | --- | --- |
+| brocho | be, 4 of 4 | ba, 4 of 4 | ba, 4 of 4 |
+| neshomo | ne, 4 of 4 | ne, 4 of 4 | na, 4 of 4 |
+| shema | she, 4 of 4 | she 3, sha 1 | sha, 4 of 4 |
+| zman | za 3, z' 1 | ze, 4 of 4 | za, 4 of 4 |
+
+The ear writes the same e for a quick sheva and a full eh. A patach read for a sheva is caught every time. In zman the live ear also wrote a for a correct quick sheva in 2 of 4 runs, which marks a right reading wrong.
+
+The meter does find a difference in Levi's voice. His full eh is more open than his quick sheva in all four words, by 0.35 to 1.19 Bark in the first formant. But his quick sheva sits 0.25 to 0.56 Bark from the segol on his voice card, closer than his full eh does. A rule that called a sheva near the card's segol a mistake would mark his correct shevas wrong. Length does not help either: he held each sheva as its own syllable for 170 to 340 ms, about as long as his full eh, 250 to 360 ms.
+
+So a sheva read as a full eh is still accepted. Marking it needs a measure that tells a quick sheva from a full eh in the reader's own voice, and a test on fresh recordings that shows it.
 
 ## Round 1d: sealed test
 
