@@ -7,3 +7,4 @@ node_modules/
 coverage/
 # Children's voices never enter this public repo, consent or not.
 recordings/private/
+recordings/synthetic/
