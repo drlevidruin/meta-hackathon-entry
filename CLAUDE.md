@@ -23,7 +23,7 @@ A classroom reading station. A child reads one line of Hebrew with nekudos from 
 | The ear, fallback | `muse-wonder-1.0` | Meta Model API |
 | The coach | `muse-spark-1.3` | Meta Model API |
 
-Only Muse Wonder 1.0 through the Meta Model API has run as the ear, on synthetic clips. Muse Spark Open through Baseten is wired and has never run. The coach is wired; live run pending. An earlier coach call spent its token limit reasoning and always used the rule fallback. A fix is in progress; no live coach answer has been recorded.
+Only Muse Wonder 1.0 through the Meta Model API has run as the ear, on synthetic clips. Muse Spark Open through Baseten is wired and has never run. The coach ran live through the server on 2026-10-26 (docs/live-run.md) after max_tokens went to 16000 with minimal reasoning.
 
 Notes on Spark Open: it always reasons. The reasoning comes back in `reasoning_content`, the answer in `content`. `max_tokens` caps both together, so keep it high. There is no JSON mode; ask for one line per word and parse. Audio goes in as an `audio_url` content part, as a `data:` URL. The client accepts WAV, MP3, FLAC, OGG, or M4A, up to 25 MiB per file. Audio is billed as input tokens.
 

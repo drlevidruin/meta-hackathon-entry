@@ -16,7 +16,7 @@ Voice: "Here the grader compares typed sounds with the printed word. The bet wit
 
 Picture: the mock checkpoint, level change and challenge card. The "Mock mode" label stays visible.
 
-Voice: "The server runs a coach and turns its bank ids into the next lines. The rule fallback moves between levels and targets missed skills. That rule is what has run. Muse Spark 1.3 is wired as the model coach, but a live answer is still pending. An earlier call used its token limit on reasoning and fell back to the rule. A fix is in progress. Code checks the model's picks before showing bank text."
+Voice: "The server runs a coach and turns its bank ids into the next lines. Muse Spark 1.3 picks the next two or three lines from the bank after every set. Code checks every pick, and a plain rule takes over if a pick fails. The model's reasons stay in a developer trace; the teacher sees a templated line."
 
 Voice: "A challenge is a nonsense word built from sounds the child has read correctly. A clean challenge adds evidence of decoding. It does not establish mastery by itself."
 

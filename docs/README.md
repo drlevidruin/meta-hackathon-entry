@@ -12,3 +12,4 @@
 - [Core fix round](reviews/2026-10-26-core-fix-round.md): regression findings, fixes and test names.
 
 [Recording instructions](../recordings/README.md) and the [local recorder](../tools/clip-recorder/README.md) describe test audio storage and deletion. The [main README](../README.md) covers setup, model status and privacy.
+- [live-run.md](live-run.md): one full turn through the real server with the coach model on.

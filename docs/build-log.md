@@ -30,7 +30,7 @@ The grader was tested with synthetic sound strings and reported synthetic ear ou
 
 `4358515` added the adapting rule, validated Muse Spark picks, challenges, stop conditions and template explanations. The coach branch merged in `283c18f`.
 
-The rule fallback has run. The model call is wired, but no live answer has been recorded. An earlier call exhausted its token limit on reasoning and always fell back to the rule. A fix is in progress. The model parser and selection checks have offline tests.
+The first live calls exhausted their 2,000 token limit on reasoning, so the rule always took over. Fix round 2 (`95a163f`) gave the model 16,000 tokens with minimal reasoning and stopped showing it the rule's own pick. In the live run that followed, the model answered all 7 of its checkpoints with valid picks ([live run](live-run.md)). The model parser and selection checks also have offline tests.
 
 ## Server
 

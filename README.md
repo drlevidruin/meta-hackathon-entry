@@ -24,7 +24,7 @@ flowchart LR
 
 1. **Ear.** The model gets audio and a sound alphabet. It never sees the printed line, so the line cannot steer its answer. It can still mishear. A heuristic rejects responses longer than six whitespace tokens when they contain a listed refusal phrase or at least two distinct listed prose words; the parser replaces syllables outside the sound alphabet with `?`.
 2. **Rulebook and grader.** Plain code defines expected sounds in Sephardi, Ashkenazi and Chassidish pronunciation. The grader aligns the heard sounds with the printed line. Flagged readings can accept alternatives.
-3. **Coach.** The server runs the coach at each checkpoint. Code checks model picks against bank ids and allowed levels, then the server resolves the ids to bank lines. A rule selects lines when the model is unavailable or its answer fails validation. The rule fallback is what has run so far.
+3. **Coach.** The server runs the coach at each checkpoint. Code checks model picks against bank ids and allowed levels, then the server resolves the ids to bank lines. A rule selects lines when the model is unavailable or its answer fails validation.
 
 ## Meta models
 
@@ -32,9 +32,9 @@ flowchart LR
 | --- | --- | --- | --- |
 | Ear, primary | `meta-models/muse-spark-open-1026` | Baseten | Wired; never run |
 | Ear, fallback | `muse-wonder-1.0` | Meta Model API | Ran on synthetic clips |
-| Coach | `muse-spark-1.3` | Meta Model API | Wired; live run pending |
+| Coach | `muse-spark-1.3` | Meta Model API | Ran live through the server: 7 of 7 checkpoints answered, all picks valid ([live run](docs/live-run.md)) |
 
-Only Muse Wonder 1.0 through the Meta Model API has run as the ear. An earlier coach call exhausted its token limit on reasoning and always used the rule fallback. A fix is in progress; no live coach answer has been recorded.
+Only Muse Wonder 1.0 through the Meta Model API has run as the ear. The coach first failed live: with a 2,000 token limit it spent every token reasoning and the rule took over. With room to answer and minimal reasoning it now answers in about 2 seconds.
 
 ## What the tests show so far
 
