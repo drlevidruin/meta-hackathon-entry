@@ -1,6 +1,6 @@
 import { meterChoice } from './meter.js';
 
-const vowelSymbols = 'aɑɔoɒʌæɐeɛəiɪuʊyøœɜɯɨɚɝ';
+const vowelSymbols = 'aɑɔoɒʌæɐeɛəiɪuʊyʏøœɜɯɨɚɝ';
 const vowel = new RegExp(`[${vowelSymbols}]`);
 const openDiphthong = new RegExp(`^[ao][${vowelSymbols}]+$`);
 const tone = new RegExp(`([${vowelSymbols}])ɜ`, 'g');
@@ -189,9 +189,23 @@ export function applyReferee(words, tokens, calibration, options = {}) {
     const kind = vowelClass(vowels[tokenIndex].token);
     const score = kind === 'front' || kind === 'back' ? backScore(vowels[tokenIndex].top) : null;
     const finalL = from.slice(from.indexOf(sound) + sound.length).endsWith('l');
+    const openEnd = words[word].length >= 2 && syllable === words[word].length - 1
+      && ['a', 'o'].includes(sound) && from.endsWith(sound);
     let replacement = sound;
     let rule = 'phoneme';
-    if (sound === 'o' && score !== null && score < low) replacement = 'a';
+    if (sound === 'o' && /^[uʊyʏøœ]$/.test(normalizeVowel(vowels[tokenIndex].token))) {
+      replacement = 'u';
+      rule = 'rounded';
+    } else if (openEnd && score !== null && score < line) {
+      // Reduced final vowels can sound front to the phoneme model.
+      rule = 'open-end';
+      if (sound === 'a' || score < low) {
+        const point = options.points?.[index];
+        const choice = meterReady ? meterChoice(point, options.profile, ['a', 'o']) : null;
+        if (choice) replacement = choice;
+        else if (point && meterReady) replacement = '?';
+      }
+    } else if (sound === 'o' && score !== null && score < low) replacement = 'a';
     else if (finalL || (sound === 'o' && score !== null && score >= low && score < line)) {
       rule = finalL ? 'coda-l' : 'band';
       const point = options.points?.[index];

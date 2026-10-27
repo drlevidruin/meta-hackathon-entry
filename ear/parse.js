@@ -20,7 +20,7 @@ function unwrap(text) {
 }
 
 const preamble = /^(?:sounds?|syllables|transcription|what i heard|here(?: is|'s) what i heard|here are the sounds(?: i heard)?|here is the transcription)\s*[:.!]?$/;
-const normalizeSyllable = syllable => syllable.toLowerCase().replaceAll('aw', 'o');
+const normalizeSyllable = syllable => syllable.toLowerCase().replaceAll('aw', 'o').replaceAll('ts', 'tz');
 
 // The formatting the models add around sounds: outer quotes, list markers and
 // a heading line such as "Sounds:".
