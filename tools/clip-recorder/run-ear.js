@@ -1,5 +1,7 @@
 import '../../ear/env.js';
 import { hear } from '../../ear/hear.js';
+import { applyMeter, buildVoiceProfile, VoiceCheckError } from '../../ear/meter.js';
+import { cardLabels } from '../../rulebook/voice-card.js';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { loadClips } from './clips.js';
@@ -16,39 +18,61 @@ export function matchesSay(heard, say) {
 }
 
 export async function runEar({ set = 'adult', model = defaultEarModel(), keep = false, directory,
-  ear = hear, log = console.log } = {}) {
+  preset = 'ashkenazi', meter = true, ear = hear, log = console.log } = {}) {
   const store = recordingStore(await loadClips(set), directory);
   let failed = false;
   const rows = [];
   try {
     const recorded = (await store.list()).filter((clip) => clip.done);
+    const readings = recorded.filter((clip) => clip.kind === 'reading');
+    const voice = recorded.find((clip) => clip.kind === 'voice');
     const modelId = model === 'primary'
       ? process.env.EAR_PRIMARY_MODEL || 'meta-models/muse-spark-open-1026'
       : process.env.EAR_FALLBACK_MODEL || 'muse-wonder-1.0';
     log(`Ear model: ${model} (${modelId})`);
-    log('clip\tsaid\theard\tresult');
-    for (const clip of recorded) {
+    let profile;
+    let meterStatus;
+    if (!meter) meterStatus = 'off (--no-meter)';
+    else if (!voice) meterStatus = 'off (no voice check recorded)';
+    else {
+      try {
+        profile = buildVoiceProfile(await store.read(voice.name), cardLabels(preset));
+        meterStatus = `on (${preset} voice check)`;
+      } catch (error) {
+        if (!(error instanceof VoiceCheckError)) throw error;
+        meterStatus = error.code === 'count'
+          ? `off (voice check unusable: heard ${error.heard} sounds for 15)`
+          : 'off (voice check unusable)';
+      }
+    }
+    log(`Vowel meter: ${meterStatus}`);
+    log('clip\tsaid\theard\tresult\tear');
+    for (const clip of readings) {
       let heard = 'ERROR';
+      let earSounds = 'ERROR';
       let result = 'MISS';
       try {
         // Only the audio reaches the ear, never the Hebrew, Say, or planted mistake.
-        const words = await ear({ data: await store.read(clip.name), format: 'wav' }, { model });
+        const audio = await store.read(clip.name);
+        const earWords = await ear({ data: audio, format: 'wav' }, { model });
+        earSounds = earWords.map((word) => word.join('-')).join(' ');
+        const words = profile ? applyMeter(earWords, audio, profile).words : earWords;
         heard = words.map((word) => word.join('-')).join(' ');
         result = matchesSay(words, clip.say) ? 'PASS' : 'MISS';
       } catch {
         failed = true;
       }
       try {
-        const row = { clip: clip.name, said: clip.say, heard, result };
+        const row = { clip: clip.name, said: clip.say, heard, result, ear: earSounds };
         rows.push(row);
-        log([row.clip, row.said, row.heard, row.result].join('\t'));
+        log([row.clip, row.said, row.heard, row.result, row.ear].join('\t'));
         if (result === 'MISS') failed = true;
       } finally {
         // Print the verdict, then immediately discard this child's audio.
         if (set === 'child' && !keep) await store.remove(clip.name);
       }
     }
-    return { rows, code: failed || !recorded.length ? 1 : 0 };
+    return { rows, code: failed || !readings.length ? 1 : 0 };
   } finally {
     if (set === 'child' && !keep) await store.deleteChildren();
   }
@@ -59,6 +83,7 @@ export async function main(argv = process.argv.slice(2)) {
     return (await runEar(parseOptions(argv, 'ear'))).code;
   } catch (error) {
     console.error(error.message.startsWith('Set must') || error.message.startsWith('Model must')
+      || error.message.startsWith('Preset must')
       || error.message.startsWith('Unknown option:') ? error.message : 'Could not run the ear test.');
     return 1;
   }

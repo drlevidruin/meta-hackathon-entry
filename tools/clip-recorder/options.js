@@ -1,4 +1,5 @@
 import { checkSet } from './clips.js';
+import { PRESETS } from '../../rulebook/index.js';
 
 export function defaultEarModel(env = process.env) {
   return env.BASETEN_API_KEY?.trim() ? 'primary' : 'fallback';
@@ -7,7 +8,7 @@ export function defaultEarModel(env = process.env) {
 export function parseOptions(argv, command) {
   const options = command === 'server'
     ? { set: 'adult', port: 8790 }
-    : { set: 'adult', model: defaultEarModel(), keep: false };
+    : { set: 'adult', model: defaultEarModel(), keep: false, preset: 'ashkenazi', meter: true };
   for (let index = 0; index < argv.length; index += 1) {
     const flag = argv[index];
     if (flag === '--set') options.set = checkSet(argv[++index]);
@@ -20,7 +21,11 @@ export function parseOptions(argv, command) {
     } else if (flag === '--model' && command === 'ear') {
       options.model = argv[++index];
       if (!['primary', 'fallback'].includes(options.model)) throw new Error('Model must be primary or fallback.');
-    } else if (flag === '--keep' && command === 'ear') options.keep = true;
+    } else if (flag === '--preset' && command === 'ear') {
+      options.preset = argv[++index];
+      if (!Object.hasOwn(PRESETS, options.preset)) throw new Error(`Preset must be one of: ${Object.keys(PRESETS).join(', ')}`);
+    } else if (flag === '--no-meter' && command === 'ear') options.meter = false;
+    else if (flag === '--keep' && command === 'ear') options.keep = true;
     else throw new Error(`Unknown option: ${flag}`);
   }
   return options;

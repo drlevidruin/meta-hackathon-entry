@@ -5,6 +5,7 @@ import { access, mkdir, readFile, readdir, rm, symlink, writeFile } from 'node:f
 import { join } from 'node:path';
 import { Readable } from 'node:stream';
 import { test } from 'node:test';
+import { cardLabels, VOICE_CARD } from '../../rulebook/voice-card.js';
 import { isClipName, loadClips, parseClips } from './clips.js';
 import { defaultEarModel, parseOptions } from './options.js';
 import { MAX_BYTES, recordingStore } from './recordings.js';
@@ -27,6 +28,36 @@ const expectedClips = [
   ['shema-line_skipped-word', 'she-ma yis-ro-eyl a-do-noy a-do-noy e-chod'],
 ];
 const wav = Buffer.from(encodeWav(new Float32Array([0, .25, -.25, 0])));
+
+function syntheticWav(labels) {
+  const rate = 16000;
+  const length = rate / 4;
+  const formants = { a: [780, 1230], o: [650, 1090], e: [700, 1600], i: [300, 2200], u: [350, 900] };
+  const samples = new Float32Array(length + labels.length * length * 2);
+  for (const [index, label] of labels.entries()) {
+    let segment = new Float64Array(length);
+    for (let i = 0; i < length; i += 1) {
+      const impulse = i === 0 || Math.floor(i * 120 / rate) !== Math.floor((i - 1) * 120 / rate) ? 1 : 0;
+      // Glottal rolloff matches the voiced meter fixtures.
+      segment[i] = impulse + (i ? 0.95 * segment[i - 1] : 0);
+    }
+    const [f1, f2] = formants[label ?? 'o'];
+    for (const [f, bw] of [[f1, 80], [f2, 100], [2500, 120], [3500, 150]]) {
+      const c = -Math.exp(-2 * Math.PI * bw / rate);
+      const b = 2 * Math.exp(-Math.PI * bw / rate) * Math.cos(2 * Math.PI * f / rate);
+      const a = 1 - b - c;
+      const output = new Float64Array(length);
+      for (let i = 0; i < length; i += 1) {
+        output[i] = a * segment[i] + (i > 0 ? b * output[i - 1] : 0) + (i > 1 ? c * output[i - 2] : 0);
+      }
+      segment = output;
+    }
+    for (let i = 0; i < length; i += 1) segment[i] *= Math.min(1, i / 320, (length - i - 1) / 320);
+    const peak = segment.reduce((max, value) => Math.max(max, Math.abs(value)), 0);
+    samples.set(segment.map((value) => value / peak * 0.5), length + index * length * 2);
+  }
+  return Buffer.from(encodeWav(samples));
+}
 
 async function fixtureDirectory(t) {
   const directory = fs.realpathSync(fs.mkdtempSync(join(os.tmpdir(), 'kriah-recorder-test-')));
@@ -90,15 +121,30 @@ test('parser follows the table instead of hardcoding its rows and rejects malfor
     name: 'baruch_changed', hebrew: 'בָּרוּךְ', say: 'ba-ruch', planted: 'nothing',
   });
   assert.throws(() => parseClips('## Round 2\n'), /missing/);
-  assert.throws(() => parseClips(markdown.replace('File name', 'Filename')), /columns/);
+  assert.throws(() => parseClips(markdown.replaceAll('File name', 'Filename')), /columns/);
   assert.throws(() => parseClips(markdown.replace('| baruch_clean |', '| ../escape |')), /Invalid/);
   assert.throws(() => parseClips(markdown.replace('| baruch_clean |', '| shabbos_va-for-ba |')), /unique/);
+});
+
+test('parser selects the voice check section, escapes heading names and names errors for that section', async () => {
+  const markdown = await readFile(new URL('../../docs/ear-test.md', import.meta.url), 'utf8');
+  const voice = parseClips(markdown, 'Voice check');
+  assert.deepEqual(voice, [{ name: 'voice-check', hebrew: VOICE_CARD.join(' '),
+    say: 'bo ba be bi boy do da de di doy mo ma me mi moy', planted: 'nothing' }]);
+  assert.deepEqual(parseClips(markdown.replace('## Voice check', '## Voice [check]. card'), 'Voice [check]. card'), voice);
+  assert.throws(() => parseClips(markdown, 'Missing'), /Missing clip table is missing/);
+  assert.throws(() => parseClips(markdown.replace('File name | Hebrew | Say', 'File | Hebrew | Say'), 'Voice check'), /Voice check.*columns/);
+  assert.throws(() => parseClips(markdown.replace('| voice-check |', '| ../escape |'), 'Voice check'), /Invalid Voice check/);
 });
 
 test('name validation accepts only exact table names in the selected set', async () => {
   const adult = await loadClips();
   const child = await loadClips('child');
-  assert.equal(adult.length, 12);
+  assert.equal(adult.length, 13);
+  assert.equal(adult[0].name, 'voice-check');
+  assert.equal(adult[0].kind, 'voice');
+  assert.ok(adult.slice(1).every((clip) => clip.kind === 'reading'));
+  assert.equal(new Set(adult.map((clip) => clip.name)).size, 13);
   assert.deepEqual(child, adult.map((clip) => ({ ...clip, name: `child_${clip.name}` })));
   for (const clip of adult) {
     assert.equal(isClipName(clip.name, adult), true);
@@ -137,7 +183,7 @@ test('server writes a posted WAV, lists completion, and reads it back from the s
   const server = await createRecorderServer({ directory });
   let list = await request(server, '/clips');
   assert.equal(list.json.set, 'adult');
-  assert.equal(list.json.clips.length, 12);
+  assert.equal(list.json.clips.length, 13);
   assert.ok(list.json.clips.every((clip) => !clip.done));
   const response = await post(server, 'baruch_clean');
   assert.equal(response.status, 200);
@@ -153,6 +199,24 @@ test('server writes a posted WAV, lists completion, and reads it back from the s
   assert.equal((await post(childServer, 'baruch_clean')).status, 400);
   assert.deepEqual(await readFile(join(directory, 'child_baruch_clean.wav')), wav);
   assert.equal((await request(childServer, '/clips')).json.set, 'child');
+});
+
+test('server lists, saves and plays the adult and child voice check like other clips', async (t) => {
+  const directory = await fixtureDirectory(t);
+  for (const set of ['adult', 'child']) {
+    const server = await createRecorderServer({ set, directory });
+    const name = `${set === 'child' ? 'child_' : ''}voice-check`;
+    const list = await request(server, '/clips');
+    assert.equal(list.json.clips.length, 13);
+    assert.equal(list.json.clips[0].name, name);
+    assert.equal(list.json.clips[0].kind, 'voice');
+    assert.equal((await post(server, name)).status, 200);
+    assert.deepEqual((await request(server, `/clip?name=${name}`)).body, wav);
+    assert.equal((await request(server, '/clips')).json.clips[0].done, true);
+  }
+  const server = await createRecorderServer({ directory });
+  assert.deepEqual((await request(server, '/clips?set=child', { method: 'DELETE' })).json.deleted, ['child_voice-check.wav']);
+  assert.deepEqual(await readdir(directory), ['voice-check.wav']);
 });
 
 test('server rejects traversal, unknown names, wrong sets, wrong MIME, and cross-origin writes', async (t) => {
@@ -252,7 +316,7 @@ test('comparison ignores case and spaces but preserves syllables, word boundarie
 
 test('ear runner sends only audio, respects the model, and prints PASS and MISS next to Say', async (t) => {
   const directory = await fixtureDirectory(t);
-  const clips = await loadClips();
+  const clips = (await loadClips()).filter((clip) => clip.kind === 'reading');
   const store = recordingStore(clips, directory);
   await store.save(clips[0].name, wav);
   await store.save(clips[1].name, wav);
@@ -267,14 +331,133 @@ test('ear runner sends only audio, respects the model, and prints PASS and MISS 
   assert.equal(calls, 2);
   assert.equal(result.code, 1);
   assert.match(output[0], /^Ear model: fallback \(.+\)$/);
-  assert.deepEqual(output.slice(1), ['clip\tsaid\theard\tresult',
-    'shabbos_va-for-ba\tsha-vos\tSHA-VOS\tPASS', 'baruch_clean\tbo-ruch\tba-ruch\tMISS']);
+  assert.deepEqual(output.slice(1), ['Vowel meter: off (no voice check recorded)', 'clip\tsaid\theard\tresult\tear',
+    'shabbos_va-for-ba\tsha-vos\tSHA-VOS\tPASS\tSHA-VOS', 'baruch_clean\tbo-ruch\tba-ruch\tMISS\tba-ruch']);
   assert.ok((await store.list()).slice(0, 2).every((clip) => clip.done));
+});
+
+test('voice check calibrates metered heard sounds while preserving ear sounds and audio-only calls', async (t) => {
+  const directory = await fixtureDirectory(t);
+  const clips = await loadClips();
+  const store = recordingStore(clips, directory);
+  const voice = syntheticWav(cardLabels('ashkenazi'));
+  const reading = syntheticWav(['o', 'u']);
+  await store.save('voice-check', voice);
+  await store.save('baruch_clean', reading);
+  let calls = 0;
+  const output = [];
+  const earWords = Object.freeze([Object.freeze(['ba', 'ruch'])]);
+  const result = await runEar({ directory, model: 'fallback', log: line => output.push(line),
+    ear: async (audio, options) => {
+      calls += 1;
+      assert.deepEqual(audio, { data: reading, format: 'wav' });
+      assert.deepEqual(options, { model: 'fallback' });
+      return earWords;
+    } });
+  assert.equal(calls, 1);
+  assert.equal(result.code, 0);
+  assert.equal(output[1], 'Vowel meter: on (ashkenazi voice check)');
+  assert.equal(output[2], 'clip\tsaid\theard\tresult\tear');
+  assert.equal(output[3], 'baruch_clean\tbo-ruch\tbo-ruch\tPASS\tba-ruch');
+  assert.equal(output.length, 4);
+  assert.deepEqual(result.rows, [{ clip: 'baruch_clean', said: 'bo-ruch', heard: 'bo-ruch', result: 'PASS', ear: 'ba-ruch' }]);
+  assert.deepEqual(earWords, [['ba', 'ruch']]);
+});
+
+test('--no-meter skips calibration and leaves heard and ear columns equal', async (t) => {
+  const directory = await fixtureDirectory(t);
+  const store = recordingStore(await loadClips(), directory);
+  await store.save('voice-check', Buffer.from('Unusable synthetic WAV'));
+  const reading = syntheticWav(['o', 'u']);
+  await store.save('baruch_clean', reading);
+  const output = [];
+  let calls = 0;
+  const result = await runEar({ ...parseOptions(['--no-meter'], 'ear'), directory,
+    log: line => output.push(line), ear: async (audio) => {
+      calls += 1;
+      assert.deepEqual(audio.data, reading);
+      return [['ba', 'ruch']];
+    } });
+  assert.equal(calls, 1);
+  assert.equal(result.code, 1);
+  assert.equal(output[1], 'Vowel meter: off (--no-meter)');
+  assert.equal(output[3], 'baruch_clean\tbo-ruch\tba-ruch\tMISS\tba-ruch');
+  assert.equal(result.rows[0].heard, result.rows[0].ear);
+});
+
+test('missing and unusable voice checks log meter status and fall back to the ear', async (t) => {
+  const directory = await fixtureDirectory(t);
+  const store = recordingStore(await loadClips(), directory);
+  const reading = syntheticWav(['o', 'u']);
+  await store.save('baruch_clean', reading);
+  const oneClass = syntheticWav(Array(15).fill('a'));
+  // Chassidish leaves kamatz and cholam unlabeled, so only a measures here.
+  const quietCard = Buffer.from(oneClass);
+  for (const index of [2, 3, 7, 8, 12, 13]) {
+    const offset = 44 + (4000 + index * 8000) * 2;
+    for (let i = 0; i < 4000; i += 1) quietCard.writeInt16LE(i % 2 ? 16384 : -16384, offset + i * 2);
+  }
+  for (const [voice, preset, status] of [
+    [null, 'ashkenazi', 'off (no voice check recorded)'],
+    [syntheticWav(['a', 'o']), 'ashkenazi', 'off (voice check unusable: heard 2 sounds for 15)'],
+    [wav, 'ashkenazi', 'off (voice check unusable: heard 0 sounds for 15)'],
+    [Buffer.alloc(0), 'ashkenazi', 'off (voice check unusable)'],
+    [quietCard, 'chassidish', 'off (voice check unusable)'],
+  ]) {
+    if (voice) await store.save('voice-check', voice);
+    const output = [];
+    let calls = 0;
+    const result = await runEar({ directory, preset, log: line => output.push(line), ear: async (audio) => {
+      calls += 1;
+      assert.deepEqual(audio.data, reading);
+      return [['ba', 'ruch']];
+    } });
+    assert.equal(calls, 1);
+    assert.equal(output[1], `Vowel meter: ${status}`);
+    assert.equal(output[3], 'baruch_clean\tbo-ruch\tba-ruch\tMISS\tba-ruch');
+    assert.equal(result.rows[0].heard, result.rows[0].ear);
+  }
+});
+
+test('ear runner uses the selected preset for voice card labels', async (t) => {
+  const directory = await fixtureDirectory(t);
+  const store = recordingStore(await loadClips(), directory);
+  await store.save('voice-check', syntheticWav(cardLabels('sephardi')));
+  await store.save('ani_clean', syntheticWav(['a', 'i']));
+  const output = [];
+  const result = await runEar({ ...parseOptions(['--preset', 'sephardi'], 'ear'), directory,
+    log: line => output.push(line), ear: async () => [['a', 'ne']] });
+  assert.equal(result.code, 0);
+  assert.equal(output[1], 'Vowel meter: on (sephardi voice check)');
+  assert.equal(output[3], 'ani_clean\ta-ni\ta-ni\tPASS\ta-ne');
+});
+
+test('child runner deletes voice checks after success, ear failure and voice-only runs, unless kept', async (t) => {
+  const directory = await fixtureDirectory(t);
+  const store = recordingStore(await loadClips('child'), directory);
+  const voice = syntheticWav(cardLabels('ashkenazi'));
+  const reading = syntheticWav(['o', 'u']);
+  for (const mode of ['success', 'failure', 'voice-only', 'disabled', 'keep']) {
+    await store.save('child_voice-check', voice);
+    if (!['voice-only', 'disabled'].includes(mode)) await store.save('child_baruch_clean', reading);
+    let calls = 0;
+    const result = await runEar({ set: 'child', directory, keep: mode === 'keep', meter: mode !== 'disabled',
+      log: () => {}, ear: async (audio) => {
+        calls += 1;
+        assert.deepEqual(audio.data, reading);
+        if (mode === 'failure') throw new Error('Synthetic ear failure');
+        return [['ba', 'ruch']];
+      } });
+    assert.equal(calls, ['voice-only', 'disabled'].includes(mode) ? 0 : 1);
+    assert.equal(result.rows.length, calls);
+    assert.equal(result.code, ['success', 'keep'].includes(mode) ? 0 : 1);
+    assert.deepEqual((await readdir(directory)).sort(), mode === 'keep' ? ['child_baruch_clean.wav', 'child_voice-check.wav'] : []);
+  }
 });
 
 test('child runner prints then deletes each clip before the next call, including failures', async (t) => {
   const directory = await fixtureDirectory(t);
-  const clips = await loadClips('child');
+  const clips = (await loadClips('child')).filter((clip) => clip.kind === 'reading');
   const store = recordingStore(clips, directory);
   for (const clip of clips.slice(0, 2)) await store.save(clip.name, wav);
   await writeFile(join(directory, 'baruch_clean.wav'), wav);
@@ -285,25 +468,25 @@ test('child runner prints then deletes each clip before the next call, including
     output.push(line);
     if (line.startsWith(`${clips[0].name}\t`)) {
       // The output is emitted before deletion is scheduled.
-      assert.equal(line.endsWith('PASS'), true);
+      assert.equal(line.split('\t')[3], 'PASS');
     }
   }, ear: async () => {
     calls += 1;
     if (calls === 1) return [['sha', 'vos']];
     await assert.rejects(access(join(directory, `${clips[0].name}.wav`)));
-    assert.equal(output.length, 3);
+    assert.equal(output.length, 4);
     throw new Error('Provider error that must not be printed');
   } });
   assert.equal(result.code, 1);
   assert.equal(calls, 2);
   assert.deepEqual(await readdir(directory), ['baruch_clean.wav']);
-  assert.equal(output[3], 'child_baruch_clean\tbo-ruch\tERROR\tMISS');
+  assert.equal(output[4], 'child_baruch_clean\tbo-ruch\tERROR\tMISS\tERROR');
   assert.ok(output.every((line) => !line.includes('Provider error')));
 });
 
 test('--keep retains child audio and an all-PASS run succeeds', async (t) => {
   const directory = await fixtureDirectory(t);
-  const clips = await loadClips('child');
+  const clips = (await loadClips('child')).filter((clip) => clip.kind === 'reading');
   await recordingStore(clips, directory).save(clips[0].name, wav);
   const result = await runEar({ set: 'child', keep: true, directory, log: () => {}, ear: async (_audio, options) => {
     assert.deepEqual(options, { model: defaultEarModel() });
@@ -324,19 +507,26 @@ test('child audio is still deleted when printing fails; empty sets make no ear c
   assert.equal((await runEar({ directory, log: () => {}, ear: async () => { assert.fail('No recordings'); } })).code, 1);
 });
 
-test('CLI flags have safe defaults and reject invalid sets, models, ports and unknown flags', () => {
+test('CLI flags have safe defaults and reject invalid sets, models, presets, ports and unknown flags', () => {
   assert.deepEqual(parseOptions([], 'server'), { set: 'adult', port: 8790 });
   assert.deepEqual(parseOptions(['--set', 'child', '--port', '9123'], 'server'), { set: 'child', port: 9123 });
-  assert.deepEqual(parseOptions([], 'ear'), { set: 'adult', model: defaultEarModel(), keep: false });
+  assert.deepEqual(parseOptions([], 'ear'), { set: 'adult', model: defaultEarModel(), keep: false, preset: 'ashkenazi', meter: true });
   assert.deepEqual(parseOptions(['--set', 'child', '--model', 'fallback', '--keep'], 'ear'), {
-    set: 'child', model: 'fallback', keep: true,
+    set: 'child', model: 'fallback', keep: true, preset: 'ashkenazi', meter: true,
   });
+  assert.deepEqual(parseOptions(['--preset', 'sephardi', '--no-meter'], 'ear'), {
+    set: 'adult', model: defaultEarModel(), keep: false, preset: 'sephardi', meter: false,
+  });
+  assert.equal(parseOptions(['--preset', 'chassidish'], 'ear').preset, 'chassidish');
   for (const args of [['--set'], ['--set', 'x'], ['--port'], ['--port', '0'], ['--port', '65536'],
-    ['--port', '1.5'], ['--port', 'oops'], ['--host', '0.0.0.0']]) {
+    ['--port', '1.5'], ['--port', 'oops'], ['--host', '0.0.0.0'], ['--preset', 'sephardi'], ['--no-meter']]) {
     assert.throws(() => parseOptions(args, 'server'));
   }
   for (const args of [['--set', 'x'], ['--model'], ['--model', 'other'], ['--port', '9000']]) {
     assert.throws(() => parseOptions(args, 'ear'));
+  }
+  for (const args of [['--preset'], ['--preset', 'unknown'], ['--preset', 'toString']]) {
+    assert.throws(() => parseOptions(args, 'ear'), /^Error: Preset must be one of: sephardi, ashkenazi, chassidish$/);
   }
 });
 
@@ -361,7 +551,7 @@ test('ear runner and CLI select and print the default model and honor explicit o
   delete process.env.EAR_PRIMARY_MODEL;
   delete process.env.EAR_FALLBACK_MODEL;
   const directory = await fixtureDirectory(t);
-  const clips = await loadClips();
+  const clips = (await loadClips()).filter((clip) => clip.kind === 'reading');
   await recordingStore(clips, directory).save(clips[0].name, wav);
   for (const [key, model, id] of [
     [undefined, 'fallback', 'muse-wonder-1.0'],

@@ -60,6 +60,14 @@ Meta's transcription endpoint, `POST /v1/asr/transcribe`, was tried with and wit
 
 The prose check removes outer wrappers, list markers and a known heading such as `Sounds:`. In lowercase readings, trailing commas and periods separate words and are stripped before parsing. Capitals with punctuation, internal apostrophes and other punctuation count as prose. Capitals alone can be readings, such as `Sha-vos` or `SHA-BOS`. Listed English refusal words count as prose at any length, including `silent`, `inaudible` and `unclear`. Longer answers also fail on a listed refusal phrase or two distinct listed prose words. A prose answer is retried once, then counts as a failed call. Prose made entirely of allowed characters can still escape these checks.
 
+## Voice check
+
+Each reader reads this card once before Round 1. Its vowels give the vowel meter the reader's own a, o, e and i. Read it syllable by syllable, with a short pause between syllables, in the same pronunciation as the clips.
+
+| File name | Hebrew | Say | Planted | The ear should write |
+| --- | --- | --- | --- | --- |
+| voice-check | בָּ בַּ בֶּ בִּ בֹּ דָ דַ דֶ דִ דֹ מָ מַ מֶ מִ מֹ | bo ba be bi boy do da de di doy mo ma me mi moy | nothing | not graded |
+
 ## Round 1: an adult voice
 
 Read each clip once, at a normal pace, in Ashkenazi pronunciation. One clip per recording, with the [local clip recorder](../tools/clip-recorder/README.md).
