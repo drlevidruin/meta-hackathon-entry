@@ -519,6 +519,41 @@ test('grading sends only the reading buffer to phonemes and corrects ka-tan to k
   assert.deepEqual(gradeLine.mock.calls[0].arguments[0].heard, [['ko', 'ton']]);
 });
 
+for (const [measurement, data, expected] of [
+  ['a', wav(utterance(['u', 'a', 'a', 'a'])), [["b'", 'chal'], ['kal', 'kam']]],
+  ['o', wav(utterance(['u', 'a', 'o', 'o'])), [["b'", 'chal'], ['kol', 'kom']]],
+  ['no points', Buffer.from('unusable WAV'), [["b'", 'chal'], ['kol', 'kom']]],
+]) {
+  test(`grading passes the profile and flat syllable points to the referee with ${measurement}`, async () => {
+    let calls = 0;
+    const { app, gradeLine } = setup({
+      phonemes: async () => ++calls === 1 ? phonemeCard()
+        : [phonemeVowel(0.84), phonemeVowel(0.84), phonemeVowel(0.37)],
+      listen: async () => ({ words: [["b'", 'chal'], ['kol', 'kom']] }),
+    });
+    const child = await add(app, { preset: 'ashkenazi' });
+    await voice(app, child);
+    const turn = await start(app, child.id);
+    assert.equal((await grade(app, turn.turnId, 'kamatz-0', { data })).status, 200);
+    assert.deepEqual(gradeLine.mock.calls[0].arguments[0].heard, expected);
+  });
+}
+
+test('grading referees aligned vowels when a small count mismatch leaves a syllable at a gap', async () => {
+  let calls = 0;
+  const { app, gradeLine } = setup({
+    phonemes: async () => ++calls === 1 ? phonemeCard()
+      : [phonemeVowel(0.9), { token: 'u', top: [['u', 1]] }],
+    listen: async () => ({ words: [['ba', 'ruch', 'mi']] }),
+  });
+  const child = await add(app, { preset: 'ashkenazi' });
+  await voice(app, child);
+  const turn = await start(app, child.id);
+  const data = wav(utterance(['a', 'u', 'i']));
+  assert.equal((await grade(app, turn.turnId, 'kamatz-0', { data })).status, 200);
+  assert.deepEqual(gradeLine.mock.calls[0].arguments[0].heard, [['bo', 'ruch', 'mi']]);
+});
+
 test('reading phonemes start while listen is unresolved', async () => {
   const entered = deferred(), release = deferred();
   const phonemes = mock.fn(async () => phonemes.mock.callCount() === 0 ? phonemeCard()

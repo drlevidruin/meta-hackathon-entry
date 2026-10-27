@@ -129,6 +129,21 @@ test('an entirely unknown word remains uncertain', () => {
   assert.deepEqual(verdicts(result.words[0]), ['uncertain', 'uncertain', 'uncertain']);
 });
 
+test('an uncertain kal has no wrong vowel or missed skills', () => {
+  const result = grade('קַל', 'ashkenazi', '?');
+  assert.deepEqual(verdicts(result.words[0]), ['uncertain', 'uncertain']);
+  assert.equal(result.summary.wrong_vowel, 0);
+  assert.deepEqual(result.summary.missedSkills, []);
+});
+
+test('a-? for ochal still marks the known first kamatz wrong', () => {
+  const result = grade('אָכַל', 'ashkenazi', 'a-?');
+  assert.deepEqual(verdicts(result.words[0]), ['wrong_vowel', 'uncertain', 'uncertain']);
+  assert.equal(result.summary.wrong_vowel, 1);
+  assert.deepEqual(result.words[0].pairs[0].blame, ['vowel:kamatz']);
+  assert.deepEqual(result.summary.missedSkills, ['vowel:kamatz']);
+});
+
 for (const heard of ['a-doy-noy', 'ha-shem']) {
   test(`the divine name accepts the reading ${heard}`, () => {
     const result = grade('יְהֹוָה', 'ashkenazi', heard);

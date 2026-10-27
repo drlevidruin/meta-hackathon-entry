@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { applyMeter, buildVoiceProfile, decodeWav, measureVowel, meterDecision, pairsApart, soundIslands, VoiceCheckError } from './meter.js';
+import { applyMeter, buildVoiceProfile, decodeWav, measureVowel, meterChoice, meterDecision, pairsApart,
+  soundIslands, syllablePoints, VoiceCheckError } from './meter.js';
 import { hasUsablePair, USABLE_PAIRS } from './pairs.js';
 import { cardLabels } from '../rulebook/voice-card.js';
 
@@ -128,6 +129,91 @@ test('measureVowel returns null for silence, short ranges and high zero crossing
   assert.equal(measureVowel(tone(vowels.a), rate, 0, 800), null);
   const noise = new Float64Array(4000).map((_, i) => i % 2 ? 0.5 : -0.5);
   assert.equal(measureVowel(noise, rate, 0, noise.length), null);
+});
+
+test('syllablePoints measures every flat syllable in Bark using the meter islands', () => {
+  const words = Object.freeze([Object.freeze(["b'", 'bo']), Object.freeze(['?', 'bi'])]);
+  const data = wav(utterance(['a', 'o', 'e', 'i']));
+  const { samples } = decodeWav(data);
+  const expected = soundIslands(samples, rate).map(({ start, end }) => {
+    const value = measureVowel(samples, rate, start, end);
+    return { f1: bark(value.f1), f2: bark(value.f2) };
+  });
+  assert.deepEqual(syllablePoints(words, data), expected);
+});
+
+test('syllablePoints retains a null for a sound island without measurable formants', () => {
+  const hum = silence(0.25).map((_, i) => 0.5 * Math.sin(2 * Math.PI * 100 * i / rate));
+  const data = wav(join([utterance(['a']), hum, silence(0.25), utterance(['o'])]));
+  const points = syllablePoints([['ba', 'bo', 'bo']], data);
+  assert.equal(points.length, 3);
+  assert.ok(points[0]);
+  assert.equal(points[1], null);
+  assert.ok(points[2]);
+});
+
+test('syllablePoints returns null for island mismatches and undecodable WAV', () => {
+  assert.equal(syllablePoints([['ba']], wav(utterance(['a', 'o']))), null);
+  assert.equal(syllablePoints([['ba', 'bo']], wav(utterance(['a']))), null);
+  assert.equal(syllablePoints([['ba']], wav(silence(0.25))), null);
+  for (const data of [null, Buffer.from('not WAV'), wav(utterance(['a'])).subarray(0, 50)]) {
+    assert.equal(syllablePoints([['ba']], data), null);
+  }
+});
+
+test('meterChoice chooses either vowel only with a strict margin', () => {
+  const voice = { version: 2, vowels: {
+    a: { f1: 0, f2: 8, n: 3 }, o: { f1: 7, f2: 8, n: 3 },
+  }, spread: 0 };
+  assert.equal(meterChoice(voice.vowels.a, voice, ['a', 'o']), 'a');
+  assert.equal(meterChoice(voice.vowels.o, voice, ['a', 'o']), 'o');
+  assert.equal(meterChoice({ f1: 2.9, f2: 8 }, voice, ['a', 'o']), 'a');
+  assert.equal(meterChoice({ f1: 3, f2: 8 }, voice, ['a', 'o']), null);
+  assert.equal(meterChoice({ f1: 3, f2: 8 }, voice, ['a', 'o'], { margin: 0.8 }), 'a');
+  assert.equal(meterChoice({ f1: 3.5, f2: 8 }, voice, ['a', 'o']), null);
+  assert.equal(meterChoice(voice.vowels.o, voice, ['a', 'o', 'u']), 'o');
+});
+
+test('meterChoice requires every other candidate to be apart with the meter defaults and options', () => {
+  const voice = { version: 2, vowels: {
+    a: { f1: 4, f2: 9, n: 3 }, o: { f1: 4, f2: 8, n: 3 },
+  }, spread: 0.2 };
+  assert.equal(meterChoice(voice.vowels.o, voice, ['a', 'o']), 'o');
+  const wide = { ...voice, spread: 0.6 };
+  assert.equal(meterChoice(voice.vowels.o, wide, ['a', 'o']), null);
+  assert.equal(meterChoice(voice.vowels.o, wide, ['a', 'o'], { gapFactor: 1 }), 'o');
+  assert.equal(meterChoice(voice.vowels.o, voice, ['a', 'o'], { minGap: 1.1 }), null);
+  const merged = { ...voice, vowels: { ...voice.vowels, a: { f1: 4, f2: 8.5, n: 3 } }, spread: 0 };
+  assert.equal(meterChoice(merged.vowels.o, merged, ['a', 'o']), null);
+  assert.equal(meterChoice(merged.vowels.o, merged, ['a', 'o'], { minGap: 0.4 }), 'o');
+  const three = { ...voice, vowels: { ...voice.vowels, e: merged.vowels.a } };
+  assert.equal(meterChoice(voice.vowels.o, three, ['a', 'o']), 'o');
+  assert.equal(meterChoice(voice.vowels.o, three, ['a', 'o', 'e']), null);
+  const unequal = { ...voice, spread: 0.45, vowels: {
+    a: { ...voice.vowels.a, n: 2 }, o: { ...voice.vowels.o, n: 15 },
+  } };
+  assert.equal(meterChoice(voice.vowels.o, unequal, ['a', 'o']), null);
+  assert.equal(meterChoice(voice.vowels.o, { ...unequal,
+    vowels: { ...unequal.vowels, a: { ...unequal.vowels.a, n: 15 } } }, ['a', 'o']), 'o');
+});
+
+test('meterChoice rejects missing points, damaged profiles and fewer than two available candidates', () => {
+  const voice = voiceProfile();
+  const point = voice.vowels.a;
+  for (const missing of [null, undefined, {}, { f1: NaN, f2: 8 }, { f1: 4, f2: Infinity }]) {
+    assert.equal(meterChoice(missing, voice, ['a', 'o']), null);
+  }
+  for (const invalid of [null, undefined, {}, { ...voice, version: 1 },
+    ...[null, [], {}, 'vowels'].map(vowels => ({ ...voice, vowels })),
+    ...[-1, NaN, Infinity, '0.3', undefined].map(spread => ({ ...voice, spread })),
+    ...[null, { f1: NaN, f2: 8, n: 3 }, { f1: 4, f2: 8, n: 0 },
+      { f1: 4, f2: 8, n: 2.5 }].map(o => ({ ...voice, vowels: { ...voice.vowels, o } })),
+  ]) assert.equal(meterChoice(point, invalid, ['a', 'o']), null);
+  for (const candidates of [null, [], ['a'], ['a', 'u'], ['a', 'a']]) {
+    assert.equal(meterChoice(point, voice, candidates), null);
+  }
+  const coincident = { ...voice, vowels: { a: point, o: point } };
+  assert.equal(meterChoice(point, coincident, ['a', 'o'], { minGap: 0, gapFactor: 0 }), null);
 });
 
 test('buildVoiceProfile keeps numeric Bark means and counts, skipping null labels and singleton classes', () => {

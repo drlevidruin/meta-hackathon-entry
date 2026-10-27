@@ -1337,14 +1337,45 @@ test('referee calibrates once and grades final sounds while keeping ear and mete
       calls.push(args);
       return calls.length === 1 ? phonemeCard() : [phonemeVowel(0.9), phonemeVowel(0.8)];
     }, ear: async () => earAnswer(++reads === 1 ? [['ga', 'mal']] : [['ka', 'tan']]), log: line => output.push(line) });
-  assert.equal(result.code, 0);
+  assert.equal(result.code, 1);
   assert.deepEqual(calls, [[card], [reading], [reading]]);
   assert.deepEqual(result.rows, [
-    { clip: 'gomol_clean', said: 'go-mol', heard: 'go-mol', result: 'PASS', ear: 'ga-mal', metered: 'ga-mal', votes: 'ga-mal' },
+    { clip: 'gomol_clean', said: 'go-mol', heard: 'go-mal', result: 'MISS', ear: 'ga-mal', metered: 'ga-mal', votes: 'ga-mal' },
     { clip: 'koton_clean', said: 'ko-ton', heard: 'ko-ton', result: 'PASS', ear: 'ka-tan', metered: 'ka-tan', votes: 'ka-tan' },
   ]);
   assert.equal(output[8], 'koton_clean\tko-ton\tko-ton\tPASS\tka-tan\tka-tan\tka-tan');
   assert.deepEqual(output.slice(9), ['Phoneme referee: checked 2 of 2 readings']);
+});
+
+for (const [label, heard, result] of [['a', 'ga-mal', 'MISS'], ['o', 'go-mol', 'PASS']]) {
+  test(`runner passes meter points and the profile to the band and final-l rules for measured ${label}`, async t => {
+    const directory = await fixtureDirectory(t);
+    const store = recordingStore(await loadClips(), directory);
+    await store.save('voice-check', syntheticWav(cardLabels('ashkenazi')));
+    await store.save('gomol_clean', syntheticWav([label, label]));
+    let calls = 0;
+    const answer = await runEar({ directory, ear: async () => earAnswer([['go', 'mol']]),
+      phonemes: async () => ++calls === 1 ? phonemeCard() : [phonemeVowel(0.37), phonemeVowel(0.84)],
+      log: () => {} });
+    assert.deepEqual(answer.rows, [{ clip: 'gomol_clean', said: 'go-mol', heard, result,
+      ear: 'go-mol', metered: 'go-mol', votes: 'go-mol' }]);
+    assert.equal(answer.code, result === 'PASS' ? 0 : 1);
+  });
+}
+
+test('runner counts an aligned reading as checked and leaves a syllable at a gap alone', async t => {
+  const directory = await fixtureDirectory(t);
+  const store = recordingStore(await loadClips(), directory);
+  await store.save('voice-check', syntheticWav(cardLabels('ashkenazi')));
+  await store.save('baruch_clean', syntheticWav(['a', 'u', 'i']));
+  let calls = 0;
+  const output = [];
+  const answer = await runEar({ directory, ear: async () => earAnswer([['ba', 'ruch', 'mi']]),
+    phonemes: async () => ++calls === 1 ? phonemeCard()
+      : [phonemeVowel(0.9), { token: 'u', top: [['u', 1]] }], log: line => output.push(line) });
+  assert.deepEqual(answer.rows, [{ clip: 'baruch_clean', said: 'bo-ruch', heard: 'bo-ruch-mi', result: 'MISS',
+    ear: 'ba-ruch-mi', metered: 'ba-ruch-mi', votes: 'ba-ruch-mi' }]);
+  assert.deepEqual(output.slice(8), ['Phoneme referee: checked 1 of 1 readings']);
 });
 
 test('referee runs after the meter and can undo its o while preserving the metered column', async t => {
@@ -1419,8 +1450,8 @@ for (const failure of ['null', 'throws']) {
     assert.equal(reads, 1);
     assert.deepEqual(calls, [[card], [reading], [reading]]);
     assert.strictEqual(calls[1][0], calls[2][0]);
-    assert.equal(result.code, 0);
-    assert.deepEqual(result.rows, [{ clip: 'gomol_clean', said: 'go-mol', heard: 'go-mol', result: 'PASS',
+    assert.equal(result.code, 1);
+    assert.deepEqual(result.rows, [{ clip: 'gomol_clean', said: 'go-mol', heard: 'go-mal', result: 'MISS',
       ear: 'ga-mal', metered: 'ga-mal', votes: 'ga-mal' }]);
     assert.deepEqual(output.slice(8), ['Phoneme referee: checked 1 of 1 readings']);
   });
