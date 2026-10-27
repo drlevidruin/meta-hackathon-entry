@@ -284,6 +284,35 @@ The meter does find a difference in Levi's voice. His full eh is more open than 
 
 So a sheva read as a full eh is still accepted. Marking it needs a measure that tells a quick sheva from a full eh in the reader's own voice, and a test on fresh recordings that shows it.
 
+## Voice card to the ear, October 27
+
+The card tests showed the ear hears Levi's kamatz as an open o only when a patach is in the same recording to compare. So the lab played the ear his voice card first, as its own recording, then the reading. It also let the ear write aw for a rounded open o, which is read as o.
+
+The ear heard the 34 clips of Rounds 1, 1b and 1c three times in each setup. They hold 18 plants. Each cell lists the three runs.
+
+| Setup | Plants caught of 18 | False marks | False marks in Round 1c |
+| --- | --- | --- | --- |
+| Live ear | 14, 14, 15 | 41, 40, 41 | 16, 16, 17 |
+| aw, no card | 12, 13, 14 | 48, 43, 41 | 17, 16, 17 |
+| Card first, with aw | 15, 17, 18 | 28, 25, 26 | 11, 11, 12 |
+
+The same answers with the vowel meter:
+
+| Setup | Plants caught of 18 | False marks | False marks in Round 1c |
+| --- | --- | --- | --- |
+| Live ear | 17, 18, 18 | 23, 21, 23 | 14, 14, 15 |
+| aw, no card | 16, 17, 18 | 29, 23, 22 | 15, 14, 15 |
+| Card first, with aw | 17, 18, 18 | 18, 15, 17 | 9, 9, 11 |
+
+The card caught as many plants and cut false marks by about a quarter with the meter, and by about a third without it. The aw letter alone made things worse. Most false marks left with the card and the meter come from a kamatz written as a, in neshomo, tzedoko, kosuv, odom, toyro, shono, dovor and yisroel. In tzedoko and kosuv that vowel, with ts for tz or o for the shuruk, leaves too few right syllables, so the whole word is marked. Most of the rest are in yisroel, where the ear wrote e for the tzere and for the chirik. In one run the meter moved the ear's sha in shomayim to she instead of sho.
+
+Two other tries failed:
+
+- Playing the reading to the ear cut into single syllables, in order or shuffled. The ear joined the syllables back into words.
+- Telling kamatz from patach by measuring them inside words. There Levi's kamatz overlaps his patach: first formant 4.8 to 7.3 Bark for kamatz, 6.8 to 7.6 for patach. Even a line drawn knowing the answers misplaced 5 of 41 vowels.
+
+Levi also read the card wrong on purpose, with every kamatz as a patach, and the ear heard the 34 clips twice with that card first. With the meter it caught 14 and 16 of 18 plants, about what the live ear catches with no card. But plant by plant it hid two mistakes the live ear never missed. Once in two runs it wrote cho-lov for the planted cha-lov. In both runs it wrote ha-mo-kom for ha-ma-kom, so the wrong word still got marks, but not on the syllable the plant needs. A wrong card teaches the ear that this reader's kamatz sounds like a patach.
+
 ## Round 1d: sealed test
 
 Read each clip once, after the sheva tests, in Ashkenazi pronunciation. Round 1c has been read, so these twelve words take its place as the sealed test. Nobody reads the ear's answers on them until the next ear change is final.
