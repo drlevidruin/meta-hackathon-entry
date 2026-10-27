@@ -1,0 +1,91 @@
+@font-face {
+  font-family: Montserrat;
+  src: url('/fonts/Montserrat-400.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: Montserrat;
+  src: url('/fonts/Montserrat-700.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Frank Ruhl Libre';
+  src: url('/fonts/FrankRuhlLibre.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 300 900;
+  font-display: swap;
+}
+
+:root {
+  font: 400 16px/1.5 Montserrat, sans-serif;
+  color: #1b2a2f;
+  background: #fff;
+  --green: #10653c;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; min-height: 100svh; display: flex; flex-direction: column; }
+button { font: inherit; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+button:disabled { cursor: default; opacity: .45; }
+button:focus-visible { outline: 3px solid #1b2a2f; outline-offset: 5px; }
+
+.chips {
+  display: flex;
+  gap: 10px;
+  width: min(100%, 1100px);
+  margin-inline: auto;
+  padding: 26px 24px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.chip {
+  flex: 0 0 52px;
+  height: 48px;
+  border: 1px solid #d6dfd9;
+  border-radius: 16px;
+  background: #fff;
+  color: #1b2a2f;
+  font-weight: 700;
+  position: relative;
+}
+.chip.done { background: #edf5ef; border-color: #edf5ef; color: var(--green); }
+.chip.done::after { content: ''; position: absolute; width: 7px; height: 7px; border-radius: 50%; background: var(--green); right: 5px; top: 5px; }
+.chip[aria-current="step"] { border: 2px solid var(--green); box-shadow: 0 0 0 2px #edf5ef; }
+
+main { width: min(100%, 1100px); flex: 1; margin-inline: auto; padding: 22px 24px 32px; text-align: center; }
+.reading { min-height: 310px; display: flex; flex-direction: column; justify-content: center; }
+.hebrew { font: 700 clamp(56px, 6.5vw, 94px)/2 'Frank Ruhl Libre', serif; margin: 0; overflow-wrap: break-word; }
+.say { font-size: clamp(28px, 3.3vw, 44px); line-height: 1.65; font-weight: 700; margin: 12px 0 0; overflow-wrap: break-word; }
+.planted { font-size: 14px; color: #737e82; line-height: 1.7; margin: 12px 0 26px; unicode-bidi: plaintext; }
+.record { display: grid; place-items: center; width: 116px; height: 116px; border-radius: 50%; border: 0; margin: 30px auto; background: var(--green); color: #fff; box-shadow: 0 0 0 12px #edf5ef; }
+.microphone { width: 49px; height: 49px; fill: currentColor; }
+.microphone path { fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; }
+.stop { display: none; width: 32px; height: 32px; border-radius: 6px; background: currentColor; }
+.record.recording .microphone { display: none; }
+.record.recording .stop { display: block; }
+.record.recording { animation: pulse 1.3s ease-in-out infinite; }
+.actions { display: flex; justify-content: center; gap: 12px; padding-top: 20px; }
+.actions button { border: 1px solid #d6dfd9; border-radius: 16px; min-width: 92px; min-height: 54px; padding: 12px 20px; font-weight: 700; background: #fff; color: var(--green); }
+#next { background: var(--green); color: #fff; border-color: var(--green); }
+footer { text-align: center; padding: 24px; }
+.delete-child { min-height: 44px; color: #737e82; border: 0; background: transparent; font-size: 12px; text-decoration: underline; text-underline-offset: 4px; }
+@keyframes pulse { 50% { box-shadow: 0 0 0 19px #edf5ef; } }
+
+@media (max-width: 480px) {
+  .chips { padding: 18px; gap: 8px; }
+  main { padding: 10px 20px 24px; }
+  .reading { min-height: 290px; }
+  .actions { gap: 8px; }
+  .actions button { min-width: 0; flex: 1; padding-inline: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .record.recording { animation: none; }
+}

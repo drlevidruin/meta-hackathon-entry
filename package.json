@@ -9,6 +9,8 @@
   },
   "scripts": {
     "test": "node --test",
+    "record": "node tools/clip-recorder/server.js",
+    "ear-test": "node tools/clip-recorder/run-ear.js",
     "build:bank": "node bank/build.js",
     "check:page": "node bank/check-page.js",
     "test:station": "cd station && npx vitest run"
