@@ -402,11 +402,11 @@ test('voice check calibrates metered heard sounds while preserving ear sounds an
   let calls = 0;
   const output = [];
   const earWords = Object.freeze([Object.freeze(['ba', 'ruch'])]);
-  const result = await runEar({ directory, model: 'fallback', log: line => output.push(line),
+  const result = await runEar({ directory, model: 'primary', log: line => output.push(line),
     ear: async (audio, options) => {
       calls += 1;
       assert.deepEqual(audio, { data: reading, format: 'wav' });
-      assert.deepEqual(options, { model: 'fallback', reference: { data: voice, format: 'wav' } });
+      assert.deepEqual(options, { model: 'primary', reference: { data: voice, format: 'wav' } });
       return earWords;
     } });
   assert.equal(calls, 1);
@@ -537,11 +537,11 @@ test('a usable Chassidish voice check omits the card while the same audio is a r
   for (const preset of ['chassidish', 'ashkenazi']) {
     const output = [];
     let calls = 0;
-    const result = await runEar({ ...parseOptions(['--preset', preset], 'ear'), directory,
+    const result = await runEar({ ...parseOptions(['--preset', preset, '--model', 'primary'], 'ear'), directory,
       log: line => output.push(line), ear: async (audio, options) => {
         calls += 1;
         assert.deepEqual(audio, { data: reading, format: 'wav' });
-        const expected = { model: defaultEarModel() };
+        const expected = { model: 'primary' };
         if (preset === 'ashkenazi') expected.reference = { data: voice, format: 'wav' };
         assert.deepEqual(options, expected);
         return [['bo', 'ruch']];
@@ -552,6 +552,26 @@ test('a usable Chassidish voice check omits the card while the same audio is a r
     assert.equal(output[2], `Voice card to the ear: ${preset === 'chassidish'
       ? 'off (kamatz not checked on the card)' : 'on'}`);
   }
+});
+
+test('the fallback ear never gets the card, so the runner reports it off', async t => {
+  const directory = await fixtureDirectory(t);
+  const store = recordingStore(await loadClips(), directory);
+  await store.save('voice-check', syntheticWav(cardLabels('ashkenazi')));
+  await store.save('baruch_clean', syntheticWav(['o', 'u']));
+  let calls = 0;
+  const output = [];
+  const result = await runEar({ ...parseOptions(['--model', 'fallback'], 'ear'), directory,
+    log: line => output.push(line), ear: async (_audio, options) => {
+      assert.deepEqual(options, { model: 'fallback' });
+      calls += 1;
+      return [['bo', 'ruch']];
+    } });
+  assert.equal(calls, 1);
+  assert.equal(result.code, 0);
+  assert.deepEqual(output.slice(1, 3), [
+    'Vowel meter: on (ashkenazi voice check)', 'Voice card to the ear: off (fallback ear)',
+  ]);
 });
 
 test('--no-card omits the reference while leaving the vowel meter enabled', async t => {

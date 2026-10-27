@@ -51,7 +51,9 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), keep = 
       : !voice ? 'off (no voice check recorded)'
       : !profile ? 'off (voice check unusable)'
       : !pairsApart(profile) ? 'off (vowels merged on the card)'
-      : !voiceCardToEar(profile, null, preset) ? 'off (kamatz not checked on the card)' : 'on';
+      : !voiceCardToEar(profile, null, preset) ? 'off (kamatz not checked on the card)'
+      // listen() never sends the card to the fallback ear.
+      : model === 'fallback' ? 'off (fallback ear)' : 'on';
     const reference = cardStatus === 'on' ? { data: voiceAudio, format: 'wav' } : undefined;
     log(`Vowel meter: ${meterStatus}`);
     log(`Voice card to the ear: ${cardStatus}`);
