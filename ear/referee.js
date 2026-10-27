@@ -1,6 +1,6 @@
 import { meterChoice } from './meter.js';
 
-const vowelSymbols = 'aɑɔoɒʌæɐeɛəiɪuʊyʏøœɜɯɨɚɝ';
+const vowelSymbols = 'aɑɔoɒʌæɐeɛəiɪuʊʉɵyʏøœɜɯɨɚɝ';
 const vowel = new RegExp(`[${vowelSymbols}]`);
 const openDiphthong = new RegExp(`^[ao][${vowelSymbols}]+$`);
 const tone = new RegExp(`([${vowelSymbols}])ɜ`, 'g');
@@ -167,6 +167,10 @@ export function alignVowels(syllables, vowels) {
   });
 }
 
+function hasFiniteFormants(point) {
+  return Number.isFinite(point?.f1) && Number.isFinite(point?.f2);
+}
+
 export function applyReferee(words, tokens, calibration, options = {}) {
   const result = { words: words.map(word => [...word]), changes: [], status: 'off' };
   const { on, line, low } = refereeSettings(calibration);
@@ -194,7 +198,8 @@ export function applyReferee(words, tokens, calibration, options = {}) {
       && ['a', 'o'].includes(sound) && from.endsWith(sound);
     let replacement = sound;
     let rule = 'phoneme';
-    if (sound === 'o' && /^[uʊyʏøœ]$/.test(normalizeVowel(vowels[tokenIndex].token))) {
+    if (sound === 'o' && /^[uʊʉyʏøœ]$/.test(normalizeVowel(vowels[tokenIndex].token))
+      && !(meterReady && meterChoice(options.points?.[index], options.profile, ['a', 'o']) === 'a')) {
       replacement = 'u';
       rule = 'rounded';
     } else if (openEnd && score !== null && score < line) {
@@ -204,7 +209,7 @@ export function applyReferee(words, tokens, calibration, options = {}) {
         const point = options.points?.[index];
         const choice = meterReady ? meterChoice(point, options.profile, ['a', 'o']) : null;
         if (choice) replacement = choice;
-        else if (point && meterReady) replacement = '?';
+        else if (hasFiniteFormants(point) && meterReady) replacement = '?';
       }
     } else if (sound === 'o' && score !== null && score < low) replacement = 'a';
     else if (finalL || (sound === 'o' && score !== null && score >= low && score < line)) {
@@ -214,7 +219,7 @@ export function applyReferee(words, tokens, calibration, options = {}) {
       if (sound === 'a' && choice === 'o') replacement = 'o';
       else if (sound === 'o') {
         if (choice === 'a') replacement = 'a';
-        else if (choice === null && point && meterReady) replacement = '?';
+        else if (choice === null && hasFiniteFormants(point) && meterReady) replacement = '?';
       }
     } else if (score !== null && score >= line) replacement = 'o';
     const to = replacement === '?' ? '?' : from.replace(sound, replacement);

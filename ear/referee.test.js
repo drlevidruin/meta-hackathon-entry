@@ -11,7 +11,7 @@ const vowel = (score, token = score >= 0.5 ? 'ɑ' : 'a') => ({
 for (const [expected, examples] of [
   ['front', 'a aː a5 a. ã æ æː ɐ ɐ̃ a: aɜ aɹ aɚ'],
   ['back', 'ɑ ɑː ɑ5 ɑ̃ ɔ ɔː ɔ̃ o oː o5 o̞ õ ɒ ʌ ɑɜ'],
-  ['other', 'e ɛ ə i iː ɪ u uː y ʏ œ ø aɪ oɪ ɔɪ aʊ eɪ ja ər ɚ ɝ'],
+  ['other', 'e ɛ ə i iː ɪ u uː ʉ ʉː ɵ ɵː y ʏ œ ø aɪ oɪ ɔɪ aʊ eɪ ja ər ɚ ɝ'],
   [null, 'b ʃ x ɹ ts <pad> <s> </s> <unk>'],
 ]) {
   for (const token of examples.split(' ')) {
@@ -119,24 +119,50 @@ const profile = { version: 2, vowels: {
 }, spread: 0.2 };
 const ambiguous = { f1: 5.5, f2: 9 };
 
-test('rounded corrects ko-sov to ko-suv from a normalized œ token', () => {
-  assert.deepEqual(applyReferee([['ko', 'sov']], [vowel(0.9, 'ɑː'), vowel(0.1, 'œ')], calibration), {
-    words: [['ko', 'suv']],
-    changes: [{ word: 0, syllable: 1, from: 'sov', to: 'suv', rule: 'rounded' }], status: 'checked',
+for (const token of ['œ', 'ʉ']) {
+  test(`rounded corrects ko-sov to ko-suv from a normalized ${token} token`, () => {
+    assert.deepEqual(applyReferee([['ko', 'sov']], [vowel(0.9, 'ɑː'), vowel(0.1, token)], calibration), {
+      words: [['ko', 'suv']],
+      changes: [{ word: 0, syllable: 1, from: 'sov', to: 'suv', rule: 'rounded' }], status: 'checked',
+    });
   });
-});
+}
 
-for (const token of 'u ʊ y ʏ ø œ uː ʊ5 ỹ ʏː ø̞ œɹ'.split(' ')) {
-  test(`rounded normalizes ${token} and takes precedence over coda-l`, () => {
+for (const token of 'u ʊ ʉ y ʏ ø œ uː ʊ5 ʉː ỹ ʏː ø̞ œɹ'.split(' ')) {
+  test(`rounded normalizes ${token} and takes precedence over coda-l when the meter hears o`, () => {
     assert.deepEqual(applyReferee([['kol']], [vowel(0.1, token)], calibration,
-      { points: [profile.vowels.a], profile }), {
+      { points: [profile.vowels.o], profile }), {
       words: [['kul']],
       changes: [{ word: 0, syllable: 0, from: 'kol', to: 'kul', rule: 'rounded' }], status: 'checked',
     });
   });
 }
 
-for (const [from, token] of [['ka', 'œ'], ['toy', 'œ'], ['ke', 'œ'], ['ku', 'œ'], ['ko', 'ɑ']]) {
+test('rounded yields to coda-l when the meter hears a', () => {
+  assert.deepEqual(applyReferee([['kol']], [vowel(0.1, 'ʊ')], calibration,
+    { points: [profile.vowels.a], profile }), {
+    words: [['kal']],
+    changes: [{ word: 0, syllable: 0, from: 'kol', to: 'kal', rule: 'coda-l' }], status: 'checked',
+  });
+});
+
+test('rounded still applies when the meter cannot choose a vowel', () => {
+  for (const point of [undefined, null, {}, ambiguous]) {
+    assert.deepEqual(applyReferee([['kol']], [vowel(0.1, 'ʊ')], calibration,
+      { points: [point], profile }), {
+      words: [['kul']],
+      changes: [{ word: 0, syllable: 0, from: 'kol', to: 'kul', rule: 'rounded' }], status: 'checked',
+    });
+  }
+  assert.deepEqual(applyReferee([['kol']], [vowel(0.1, 'ʊ')], calibration,
+    { points: [profile.vowels.a], profile: { ...profile, spread: 2 } }), {
+    words: [['kul']],
+    changes: [{ word: 0, syllable: 0, from: 'kol', to: 'kul', rule: 'rounded' }], status: 'checked',
+  });
+});
+
+for (const [from, token] of [['ka', 'œ'], ['toy', 'œ'], ['ke', 'œ'], ['ku', 'œ'], ['ko', 'ɑ'],
+  ['ko', 'ɵ'], ['ko', 'ɵː']]) {
   test(`rounded leaves ${from} paired with ${token} unchanged`, () => {
     const words = [[from]];
     assert.deepEqual(applyReferee(words, [vowel(0.9, token)], calibration),
@@ -151,6 +177,8 @@ for (const [from, score, point, voice, to, rule] of [
   ['toy-ra', 0.37, profile.vowels.o, profile, 'toy-ro', 'open-end'],
   ['toy-ra', 0.07, null, profile, 'toy-ra'],
   ['toy-ra', 0.07, undefined, profile, 'toy-ra'],
+  ['toy-ra', 0.07, {}, profile, 'toy-ra'],
+  ['toy-ra', 0.07, { f1: null, f2: null }, profile, 'toy-ra'],
   ['toy-ra', 0.07, profile.vowels.o, undefined, 'toy-ra'],
   ['she-ma', 0.07, profile.vowels.a, profile, 'she-ma'],
   ['so-ro', 0.07, profile.vowels.o, profile, 'so-ro'],
@@ -158,6 +186,8 @@ for (const [from, score, point, voice, to, rule] of [
   ['so-ro', 0.07, ambiguous, profile, 'so-?', 'open-end'],
   ['so-ro', 0.07, null, profile, 'so-ro'],
   ['so-ro', 0.07, undefined, profile, 'so-ro'],
+  ['so-ro', 0.07, {}, profile, 'so-ro'],
+  ['so-ro', 0.07, { f1: null, f2: null }, profile, 'so-ro'],
   ['so-ro', 0.07, profile.vowels.a, undefined, 'so-ro'],
   ['so-ro', 0.07, profile.vowels.a, { ...profile, spread: 2 }, 'so-ro'],
   ['so-ro', 0.15, profile.vowels.a, profile, 'so-ro'],
@@ -219,6 +249,8 @@ for (const [from, score, point, voice, to, rule] of [
   ['kol', 0.84, ambiguous, profile, '?', 'coda-l'],
   ['kol', 0.84, null, profile, 'kol'],
   ['kol', 0.84, undefined, profile, 'kol'],
+  ['kol', 0.84, {}, profile, 'kol'],
+  ['kol', 0.84, { f1: null, f2: null }, profile, 'kol'],
   ['kol', 0.84, profile.vowels.a, undefined, 'kol'],
   ['chal', 0.84, profile.vowels.o, profile, 'chol', 'coda-l'],
   ['chal', 0.84, ambiguous, profile, 'chal'],
@@ -243,6 +275,8 @@ for (const [score, point, voice, to, rule] of [
   [0.37, profile.vowels.o, profile, 'kom'],
   [0.37, ambiguous, profile, '?', 'band'],
   [0.37, null, profile, 'kom'],
+  [0.37, {}, profile, 'kom'],
+  [0.37, { f1: null, f2: null }, profile, 'kom'],
   [0.37, undefined, undefined, 'kom'],
   [0.37, profile.vowels.a, undefined, 'kom'],
   [0.15, profile.vowels.a, profile, 'kam', 'band'],
@@ -425,10 +459,11 @@ for (const [syllable, examples] of [
   test(`alignment recognizes the normalized phoneme class for ${syllable}`, () => {
     for (const token of examples.split(' ')) {
       const gap = syllable === 'ma' ? 'li' : 'ka';
-      const result = applyReferee([[gap, syllable, 'bo']], [phoneme(token), vowel(0.07)], calibration);
+      // A closed final syllable makes its correction prove the last pair aligned.
+      const result = applyReferee([[gap, syllable, 'bom']], [phoneme(token), vowel(0.07)], calibration);
       const middle = ['ma', 'me'].includes(syllable) && vowelClass(token) === 'back'
         ? syllable.replace(nucleus(syllable), 'o') : syllable;
-      assert.deepEqual(result.words, [[gap, middle, 'bo']], token);
+      assert.deepEqual(result.words, [[gap, middle, 'bam']], token);
       assert.equal(result.status, 'aligned', token);
     }
   });

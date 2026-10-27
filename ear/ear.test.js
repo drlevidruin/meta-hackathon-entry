@@ -180,10 +180,14 @@ test('aw becomes o before syllable validation and the prose check', () => {
   assert.equal(looksLikeProse('Bawx'), true);
 });
 
-test('ts becomes tz throughout syllables while preserving aw normalization', () => {
+test('ts becomes tz except before h while preserving aw normalization', () => {
   assert.deepEqual(parseEarOutput('tse-da-ka e-rets'), [['tze', 'da', 'ka'], ['e', 'retz']]);
   assert.deepEqual(parseEarOutput('TSE-DA-KA E-RETS tsawts'),
     [['tze', 'da', 'ka'], ['e', 'retz'], ['tzotz']]);
+  const words = parseEarOutput('tshu-vo');
+  assert.deepEqual(words, [['tshu', 'vo']]);
+  assert.deepEqual(tokenize(words[0][0]), ['t', 'sh', 'u']);
+  assert.deepEqual(parseEarOutput('TSHU-VO'), [['tshu', 'vo']]);
   assert.equal(looksLikeProse('TSE-DA-KA E-RETS'), false);
 });
 
