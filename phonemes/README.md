@@ -9,6 +9,10 @@ From the repo root, run `npm run phonemes:setup` once to install the pinned Pyth
 packages and download the model. Setup needs a network connection. Then run
 `npm run phonemes`. Normal startup uses only the local model snapshot.
 
+The model downloads into `phonemes/.models`, about 1.3 GB, which git ignores. A
+cleanup of shared caches cannot remove it there. Set `HF_HOME` to keep it
+somewhere else.
+
 The service pins the model in RAM while it runs, about 1.2 GB, so it stays fast
 when the Mac is short of memory. Stop it when not grading.
 
