@@ -249,15 +249,24 @@ class ServerTests(unittest.TestCase):
         self.assertIs(server.infer, infer)
         server.server_close.assert_called_once_with()
 
-    def test_download_requests_only_the_pinned_snapshot_and_exits(self):
-        download = Mock()
+    def test_download_requests_only_the_pinned_snapshot_into_the_service_folder_and_exits(self):
+        homes = []
+        download = Mock(side_effect=lambda *args, **kwargs: homes.append(os.environ.get('HF_HOME')))
         with patch.dict(sys.modules, {'huggingface_hub': SimpleNamespace(snapshot_download=download)}), \
+                patch.dict(os.environ), \
                 patch.object(service, 'load_inference', side_effect=AssertionError('no model load')), \
                 patch.object(sys, 'argv', ['server.py', '--download']):
+            os.environ.pop('HF_HOME', None)
             service.main()
         download.assert_called_once_with('facebook/wav2vec2-lv-60-espeak-cv-ft',
                                          revision='ae45363bf3413b374fecd9dc8bc1df0e24c3b7f4',
                                          allow_patterns=['*.json', 'pytorch_model.bin'])
+        self.assertEqual(homes, [str(Path(service.__file__).resolve().parent / '.models')])
+
+    def test_a_model_folder_already_set_is_kept(self):
+        with patch.dict(os.environ, {'HF_HOME': '/elsewhere'}):
+            service.use_model_home()
+            self.assertEqual(os.environ['HF_HOME'], '/elsewhere')
 
 
 if __name__ == '__main__':

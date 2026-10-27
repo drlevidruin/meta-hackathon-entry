@@ -17,6 +17,8 @@ from wav import read_wav
 
 MODEL = 'facebook/wav2vec2-lv-60-espeak-cv-ft'
 REVISION = 'ae45363bf3413b374fecd9dc8bc1df0e24c3b7f4'
+# The model is kept beside this service, because cleanup tools empty shared caches.
+MODEL_HOME = Path(__file__).resolve().parent / '.models'
 AUDIO_LIMIT = 25 * 1024 * 1024
 # One reading runs and three wait. More get a fast 503, which the app treats as
 # referee off for that reading, instead of a queue that outlasts its callers.
@@ -63,7 +65,13 @@ def pin(tensors, mlock=None, munlock=None):
         return 0
 
 
+def use_model_home():
+    # Hugging Face reads HF_HOME when it is first imported. A value already set wins.
+    os.environ.setdefault('HF_HOME', str(MODEL_HOME))
+
+
 def load_inference():
+    use_model_home()
     os.environ['HF_HUB_OFFLINE'] = '1'
     os.environ['TRANSFORMERS_OFFLINE'] = '1'
     import torch
@@ -173,6 +181,7 @@ def main():
     parser.add_argument('--download', action='store_true')
     args = parser.parse_args()
     if args.download:
+        use_model_home()
         from huggingface_hub import snapshot_download
         snapshot_download(MODEL, revision=REVISION, allow_patterns=['*.json', 'pytorch_model.bin'])
         return
