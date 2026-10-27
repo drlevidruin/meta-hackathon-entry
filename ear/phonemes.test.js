@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { hearPhonemes, phonemesReady, phonemeUrl } from './phonemes.js';
+import { hearPhonemes, phonemesReady, phonemeTimeout, phonemeUrl } from './phonemes.js';
 
 const url = 'http://127.0.0.1:8791';
 const tokens = [{ token: 'ɑ', start: 0.02, end: 0.06, top: [['ɑ', 0.91], ['a', 0.09]] }];
@@ -45,6 +45,13 @@ test('hearPhonemes aborts a slow request and bounds a fetch that ignores abort',
   assert.equal(await hearPhonemes(Buffer.from('wav'), { url, timeoutMs: 5,
     fetch: async (_url, options) => { signal = options.signal; return new Promise(() => {}); } }), null);
   assert.equal(signal.aborted, true);
+});
+
+test('the default phoneme time limit grows with the audio length', () => {
+  assert.equal(phonemeTimeout(Buffer.alloc(0)), 15000);
+  assert.equal(phonemeTimeout(Buffer.alloc(5 * 32000)), 15000);
+  assert.equal(phonemeTimeout(Buffer.alloc(6 * 32000)), 18000);
+  assert.equal(phonemeTimeout(Buffer.alloc(672044)), 66000);
 });
 
 test('hearPhonemes refuses remote, HTTPS and disabled explicit URLs without calling fetch', async () => {

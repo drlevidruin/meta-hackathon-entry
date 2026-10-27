@@ -126,7 +126,9 @@ When the local phoneme service answers the voice check, the profile also stores
 `voice.phonemes`: `{ version: 1, a, o, n: { a, o } }`. The two medians are the
 model's back-vowel scores for the card's labeled a and o, with their counts.
 Each class needs at least two scores and the card's vowel count must line up.
-This stores no audio or phoneme tokens. A phoneme failure still saves a usable
+This stores no audio or phoneme tokens. Each phoneme call waits 3 seconds per
+second of audio, and at least 15 seconds; a 21-second card took up to 13 seconds
+on the iMac under load. A phoneme failure or timeout still saves a usable
 meter profile without a phoneme calibration. Refused voice checks save nothing.
 
 Grade accepts an item only from the turn's current set. An unknown or expired

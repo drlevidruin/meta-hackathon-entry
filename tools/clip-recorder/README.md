@@ -62,7 +62,7 @@ npm run ear-test -- --model fallback
 npm run ear-test -- --model primary
 ```
 
-After `Voice card to the ear:`, the runner prints `Phoneme referee:` and its status. The referee calibrates once from the recorded voice check using the local [phoneme service](../../phonemes/README.md). It is on only when the card's o and a stay apart in that model. An on line looks like `Phoneme referee: on (o 0.91, a 0.43, line 0.50)`. An off line explains whether the service is unavailable, the card is missing, its vowels did not line up, or its o and a did not stay apart. A phoneme failure leaves the metered answer.
+After `Voice card to the ear:`, the runner prints `Phoneme referee:` and its status. The referee calibrates once from the recorded voice check using the local [phoneme service](../../phonemes/README.md). It is on only when the card's o and a stay apart in that model. An on line looks like `Phoneme referee: on (o 0.91, a 0.43, line 0.50)`. An off line explains whether the service gave no answer (not running, or slower than the time limit), the card is missing, its vowels did not line up, or its o and a did not stay apart. A phoneme failure leaves the metered answer.
 
 To turn the referee off for a run:
 

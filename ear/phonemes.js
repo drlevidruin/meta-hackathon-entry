@@ -33,10 +33,16 @@ async function requestJson(path, { url, fetch, timeoutMs }, options) {
   }
 }
 
-export async function hearPhonemes(audio, { url = phonemeUrl(), fetch = globalThis.fetch, timeoutMs = 15000 } = {}) {
+// A 21-second voice card took up to 13 seconds on the iMac under load, so allow
+// 3 seconds per second of 16 kHz mono audio, and never less than 15 seconds.
+export function phonemeTimeout(audio) {
+  return Math.max(15000, Math.ceil(audio.length / 32000) * 3000);
+}
+
+export async function hearPhonemes(audio, { url = phonemeUrl(), fetch = globalThis.fetch, timeoutMs } = {}) {
   try {
     if (!Buffer.isBuffer(audio)) return null;
-    const reply = await requestJson('/phonemes', { url, fetch, timeoutMs }, {
+    const reply = await requestJson('/phonemes', { url, fetch, timeoutMs: timeoutMs ?? phonemeTimeout(audio) }, {
       method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: audio,
     });
     if (!Array.isArray(reply?.tokens) || !reply.tokens.every(value => value && typeof value.token === 'string'

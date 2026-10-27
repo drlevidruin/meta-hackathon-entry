@@ -454,7 +454,7 @@ test('voice check calibrates metered heard sounds while preserving ear sounds an
   assert.equal(output[1], `Ear votes: ${defaultVotes()}`);
   assert.equal(output[2], 'Vowel meter: on (ashkenazi voice check)');
   assert.equal(output[3], 'Voice card to the ear: on');
-  assert.equal(output[4], 'Phoneme referee: off (phoneme service not running)');
+  assert.equal(output[4], 'Phoneme referee: off (no answer from the phoneme service)');
   assert.equal(output[5], 'clip\tsaid\theard\tresult\tear\tmetered');
   assert.equal(output[6], 'baruch_clean\tbo-ruch\tbo-ruch\tPASS\tba-ruch\tbo-ruch');
   assert.equal(output.length, 7);
@@ -803,8 +803,8 @@ function phonemeCard(a = 0.43, o = 0.91) {
 for (const [mode, expected] of [
   ['disabled', 'off (--no-referee)'],
   ['missing', 'off (no voice check recorded)'],
-  ['unavailable', 'off (phoneme service not running)'],
-  ['throws', 'off (phoneme service not running)'],
+  ['unavailable', 'off (no answer from the phoneme service)'],
+  ['throws', 'off (no answer from the phoneme service)'],
   ['count', 'off (card vowels did not line up)'],
   ['merged', 'off (card does not keep o and a apart)'],
   ['on', 'on (o 0.91, a 0.43, line 0.50)'],

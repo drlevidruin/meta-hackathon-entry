@@ -44,6 +44,16 @@ class WavTests(unittest.TestCase):
         self.assertEqual(result.dtype, np.float32)
         np.testing.assert_array_equal(result, np.full(1600, 0.25, dtype=np.float32))
 
+    def test_rates_and_lengths_that_would_blow_up_resampling_are_refused(self):
+        samples = np.zeros(16000, dtype='<i2').tobytes()
+        for rate in [1, 7999, 96001]:
+            with self.subTest(rate=rate):
+                with self.assertRaises(ValueError):
+                    read_wav(make_wav(samples, rate=rate))
+        self.assertEqual(len(read_wav(make_wav(np.zeros(8000 * 60, dtype='<i2').tobytes(), rate=8000))), 16000 * 60)
+        with self.assertRaises(ValueError):
+            read_wav(make_wav(np.zeros(8000 * 60 + 1, dtype='<i2').tobytes(), rate=8000))
+
     def test_unsupported_and_unreadable_audio_raise_short_value_errors(self):
         valid = make_wav(np.array([0, 8192], dtype='<i2').tobytes())
         for data in [b'not WAV', b'', make_wav(bytes([0, 127, 255]), width=1),

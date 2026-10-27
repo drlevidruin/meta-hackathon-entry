@@ -3,6 +3,10 @@ import wave
 
 import numpy as np
 
+# Bounds decoding and resampling memory before any samples are read. A voice
+# card runs about 21 seconds and a reading line far less.
+MIN_RATE, MAX_RATE, MAX_SECONDS = 8000, 96000, 60
+
 
 def read_wav(data: bytes):
     try:
@@ -14,6 +18,10 @@ def read_wav(data: bytes):
                 raise ValueError('use 16-bit PCM mono or stereo')
             if rate <= 0 or frames <= 0:
                 raise ValueError('empty audio')
+            if not MIN_RATE <= rate <= MAX_RATE:
+                raise ValueError('use a rate from 8 to 96 kHz')
+            if frames > MAX_SECONDS * rate:
+                raise ValueError('audio over 60 seconds')
             raw = reader.readframes(frames)
             if len(raw) != frames * channels * 2:
                 raise ValueError('incomplete WAV')

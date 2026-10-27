@@ -65,7 +65,7 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), votes =
     if (referee && voice) {
       try {
         const tokens = await phonemes(voiceAudio);
-        if (tokens == null) refereeStatus = 'off (phoneme service not running)';
+        if (tokens == null) refereeStatus = 'off (no answer from the phoneme service)';
         else {
           calibration = cardCalibration(tokens, cardLabels(preset));
           const settings = refereeSettings(calibration);
@@ -74,7 +74,7 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), votes =
             : `on (o ${calibration.o.toFixed(2)}, a ${calibration.a.toFixed(2)}, line ${settings.line.toFixed(2)})`;
         }
       } catch {
-        refereeStatus = 'off (phoneme service not running)';
+        refereeStatus = 'off (no answer from the phoneme service)';
       }
     }
     const refereeOn = refereeSettings(calibration).on;
