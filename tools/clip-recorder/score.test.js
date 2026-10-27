@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { parseRun, scoreRun } from './score.js';
+import { checkPass, parseRun, scoreMarks, scoreRun, summarizeRows } from './score.js';
 
 const clips = [
   { name: 'shabbos', hebrew: 'שַׁבָּת', section: 'Round A', say: 'unused' },
@@ -21,6 +21,11 @@ function row(clip, said, heard = said, { ear = heard, metered, votes, result = '
 
 const score = (source, options = {}) => scoreRun(source, { clips, file: 'saved.tsv', ...options });
 const one = async (...args) => (await score(...args)).rows[0];
+const emptyRuns = [
+  ['an empty file', ''],
+  ['a header-only file', 'clip\tsaid\theard\tresult\tear\n'],
+  ['a status-lines-only file', 'Ear model: primary\n\nPhoneme referee: on\n'],
+];
 
 test('a clean control has no ideal or observed marks', async () => {
   const run = await score(row('shabbos', '  sha-bos  '));
@@ -133,6 +138,21 @@ test('status lines, blank lines and the clip header are ignored, including CRLF 
   assert.equal(rows[0].line, 4);
 });
 
+for (const [name, source] of emptyRuns) {
+  for (const round of [undefined, 'Round A']) {
+    test(`${name} is an error ${round === undefined ? 'without' : 'with'} --round`, async () => {
+      await assert.rejects(score(source, { round }),
+        error => error.message.includes('saved.tsv') && /No rows/.test(error.message));
+    });
+  }
+}
+
+test('a zero-clip total never passes when checkPass is called directly', () => {
+  const result = checkPass({ totals: summarizeRows([]) }, 0);
+  assert.equal(result.clips, 0);
+  assert.equal(result.pass, false);
+});
+
 test('an unknown clip is an error naming its file and original line', async () => {
   await assert.rejects(score('status\nclip\tsaid\theard\tresult\tear\nunknown\tx\tx\tPASS\tx'),
     error => /saved\.tsv:3/.test(error.message) && /unknown/i.test(error.message));
@@ -189,6 +209,49 @@ test('an extra mark matches only the same text at the same printed-word boundary
   assert.equal(changedBoundary.columns.final.state, 'hidden');
 });
 
+test('two identical planted extras require two observed occurrences to be caught', async () => {
+  const run = await score(row('shema', 'she-ma ba ba yis-ro-eyl', 'she-ma ba yis-ro-eyl'));
+  const plant = run.rows[0];
+  assert.equal(plant.ideal.length, 2);
+  assert.equal(plant.ideal[0].key, plant.ideal[1].key);
+  assert.equal(plant.columns.final.state, 'other');
+  assert.equal(run.totals.columns.final.caught, 0);
+  assert.equal(run.totals.columns.final.falseMarks, 0);
+});
+
+test('two identical planted extras are caught by two observed occurrences', async () => {
+  const run = await score(row('shema', 'she-ma ba ba yis-ro-eyl'));
+  assert.equal(run.rows[0].columns.final.state, 'caught');
+  assert.equal(run.totals.columns.final.caught, 1);
+  assert.equal(run.totals.columns.final.falseMarks, 0);
+});
+
+test('one planted extra with two identical observed extras is caught with one false mark', async () => {
+  const run = await score(row('shema', 'she-ma ba yis-ro-eyl', 'she-ma ba ba yis-ro-eyl'));
+  assert.equal(run.rows[0].columns.final.state, 'caught');
+  assert.equal(run.totals.columns.final.caught, 1);
+  assert.equal(run.totals.columns.final.falseMarks, 1);
+  assert.equal(run.rows[0].columns.final.unexpected.length, 1);
+});
+
+test('a clean control with two identical extras has two false marks', async () => {
+  const run = await score(row('shema', 'she-ma yis-ro-eyl', 'she-ma ba ba yis-ro-eyl'));
+  assert.equal(run.rows[0].columns.final.state, 'clean');
+  assert.equal(run.totals.columns.final.plants, 0);
+  assert.equal(run.totals.columns.final.falseMarks, 2);
+  assert.equal(run.rows[0].columns.final.unexpected.length, 2);
+});
+
+test('a surplus identical uncertain mark counts as unexpected uncertainty', async () => {
+  const { ideal } = await one(row('shabbos', '?-bos'));
+  assert.equal(ideal.length, 1);
+  const result = scoreMarks(ideal, [...ideal, ...ideal]);
+  assert.equal(result.state, 'caught');
+  assert.equal(result.falseMarks, 0);
+  assert.equal(result.uncertainMarks, 1);
+  assert.equal(result.unexpected.length, 1);
+});
+
 test('final, metered and ear are scored independently against said', async () => {
   const run = await score(row('shabbos', 'shi-bos', 'shi-bos', { metered: '?-bos', ear: 'sha-bos' }));
   assert.equal(run.rows[0].columns.final.state, 'caught');
@@ -236,6 +299,19 @@ function cli(...args) {
 
 const passing = [row('gal_clean', 'gal'), row('tal_kamatz-for-patach', 'tol')].join('\n');
 const failing = [row('gal_clean', 'gal', 'gol'), row('tal_kamatz-for-patach', 'tol', 'tal')].join('\n');
+
+for (const [name, source] of emptyRuns) {
+  for (const flags of [[], ['--round', 'Round 1f']]) {
+    test(`CLI exits 2 for ${name} ${flags.length ? 'with' : 'without'} --round and pass flags`, t => {
+      const [file] = savedRuns(t, [source]);
+      const result = cli(file, ...flags, '--max-uncertain', '0', '--runs-needed', '1');
+      assert.equal(result.status, 2, result.stdout);
+      assert.ok(result.stderr.includes(file));
+      assert.match(result.stderr, /No rows/);
+      assert.equal(result.stdout, '');
+    });
+  }
+}
 
 test('the scorer defaults to loadClips(adult) for Hebrew and round metadata', async () => {
   const run = await scoreRun(passing);

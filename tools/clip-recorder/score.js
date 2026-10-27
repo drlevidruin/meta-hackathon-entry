@@ -55,13 +55,18 @@ export function marksFromGrade(result) {
 
 /** Compare one column's marks with the planted reading, without changing either. */
 export function scoreMarks(ideal, marks) {
-  const idealKeys = new Set(ideal.map(mark => mark.key));
+  const remaining = new Map();
+  for (const mark of ideal) remaining.set(mark.key, (remaining.get(mark.key) ?? 0) + 1);
   const idealLocations = new Set(ideal.map(mark => mark.location));
-  const keys = new Set(marks.map(mark => mark.key));
-  const unexpected = marks.filter(mark => !idealKeys.has(mark.key));
+  const unexpected = marks.filter(mark => {
+    const count = remaining.get(mark.key) ?? 0;
+    if (count === 0) return true;
+    remaining.set(mark.key, count - 1);
+    return false;
+  });
   let state = 'clean';
   if (ideal.length) {
-    if (ideal.every(mark => keys.has(mark.key))) state = 'caught';
+    if ([...remaining.values()].every(count => count === 0)) state = 'caught';
     else if (marks.some(mark => mark.verdict === 'uncertain' && idealLocations.has(mark.location))) state = 'unsure';
     else if (!marks.some(mark => idealLocations.has(mark.location))) state = 'hidden';
     else state = 'other';
@@ -109,7 +114,9 @@ export async function scoreRun(source, {
   }
   const parsed = await parseRun(source, { file, clips });
   const selected = parsed.filter(row => round === undefined || row.round === round);
-  if (round !== undefined && !selected.length) throw new Error(`${file}: No rows for round: ${round}.`);
+  if (!selected.length) {
+    throw new Error(`${file}: No rows${round === undefined ? '' : ` for round: ${round}`}.`);
+  }
   const rows = selected.map(row => {
     if (row.heard === 'ERROR') return { ...row, earError: true, ideal: [], columns: {} };
     try {
@@ -185,7 +192,7 @@ export function checkPass(run, maxUncertain) {
   return {
     clips, earErrors, plants: final.plants, caught: final.caught,
     falseMarks: final.falseMarks, uncertainMarks: final.uncertainMarks,
-    pass: earErrors === 0 && final.caught === final.plants
+    pass: clips > 0 && earErrors === 0 && final.caught === final.plants
       && final.falseMarks === 0 && final.uncertainMarks <= maxUncertain,
   };
 }
