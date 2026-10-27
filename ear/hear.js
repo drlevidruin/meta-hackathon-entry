@@ -5,6 +5,7 @@ import './env.js';
 import { looksLikeProse, parseEarOutput } from './parse.js';
 
 const prompt = readFileSync(new URL('./prompt.md', import.meta.url), 'utf8');
+const cardPrompt = readFileSync(new URL('./prompt-card.md', import.meta.url), 'utf8');
 const MAX_BYTES = 25 * 1024 * 1024;
 const MIME_TYPES = Object.freeze({
   wav: 'audio/wav',
@@ -81,7 +82,7 @@ async function readAudio(audio) {
 // response body or header, since those can echo credentials.
 class EarFailure extends Error {}
 
-async function request(provider, audio, fetcher) {
+async function request(provider, audio, fetcher, reference) {
   if (provider.model.endsWith('-contributor')) throw new EarFailure('contributor models are disabled');
   const key = process.env[provider.key];
   if (!key?.trim()) throw new EarFailure('no key');
@@ -99,7 +100,13 @@ async function request(provider, audio, fetcher) {
         model: provider.model,
         messages: [{
           role: 'user',
-          content: [
+          content: reference ? [
+            { type: 'text', text: cardPrompt },
+            { type: 'text', text: 'First recording: the practice card.' },
+            provider.audioPart(reference),
+            { type: 'text', text: 'Second recording: the reading.' },
+            provider.audioPart(audio),
+          ] : [
             { type: 'text', text: prompt },
             provider.audioPart(audio),
           ],
@@ -122,6 +129,7 @@ async function request(provider, audio, fetcher) {
       model: provider.model,
       raw,
       usage: payload.usage ?? null,
+      card: Boolean(reference),
     };
   } catch (error) {
     if (error instanceof EarFailure) throw error;
@@ -139,6 +147,7 @@ export async function listen(audio, options = {}) {
   const fetcher = options.fetch ?? globalThis.fetch;
   if (typeof fetcher !== 'function') throw new Error('A fetch function is required.');
   const audioData = await readAudio(audio);
+  const reference = options.reference === undefined ? undefined : await readAudio(options.reference);
   const models = options.model ? [options.model] : ['primary', 'fallback'];
 
   const failures = [];
@@ -146,7 +155,7 @@ export async function listen(audio, options = {}) {
   for (const name of models) {
     for (let attempt = 1; attempt <= tries; attempt += 1) {
       try {
-        return await request(PROVIDERS[name], audioData, fetcher);
+        return await request(PROVIDERS[name], audioData, fetcher, name === 'primary' ? reference : undefined);
       } catch (error) {
         failures.push(`${name}: ${error instanceof EarFailure ? error.message : 'failed'}`);
         // Only a prose answer is worth a second try; anything else goes to the next model.

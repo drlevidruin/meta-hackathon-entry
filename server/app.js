@@ -5,6 +5,7 @@ import { SKILLS } from '../rulebook/index.js';
 import { cardLabels, voiceCardFor } from '../rulebook/voice-card.js';
 import { itemsForVowels, normalizeVowels, VOWEL_IDS } from '../rulebook/vowels.js';
 import { applyMeter, buildVoiceProfile, VoiceCheckError } from '../ear/meter.js';
+import { voiceCardToEar } from '../ear/card-gate.js';
 import { createStore, durable } from './store.js';
 import { buildMap, recordPairs, summaryOnly, totalSummary } from './progress.js';
 import { parentLine } from './hints.js';
@@ -117,10 +118,11 @@ async function staticFile(req, res, staticDir) {
   }
 }
 
-function childView({ id, name, avatar, preset, level, stars, best, voice, vowels, voiceSkipped }) {
+function childView({ id, name, avatar, preset, level, stars, best, voice, vowels, voiceSkipped }, hasCard) {
   const learned = normalizeVowels(vowels) || [...VOWEL_IDS];
   const voiceStatus = !voiceCardFor(learned, preset).length ? 'none'
-    : voice ? 'done' : voiceSkipped ? 'skipped' : 'needed';
+    : voice ? (hasCard || !voiceCardToEar(voice, learned, preset) ? 'done' : 'needed')
+      : voiceSkipped ? 'skipped' : 'needed';
   return { id, name, avatar, preset, level, stars, best, vowels: learned, voiceStatus,
     voiceCheck: voiceStatus !== 'needed' };
 }
@@ -166,8 +168,12 @@ export function createApp({
   const store = createStore(dataDir);
   const turns = new Map();
   const starts = new Map();
+  const voiceChanges = new Map();
+  const voiceCards = new Map();
+  const voiceVersions = new Map();
   const traceEnabled = trace === true || trace === '1';
   const itemsFor = child => itemsForVowels(items, child.vowels);
+  const viewChild = child => childView(child, voiceCards.has(child.id));
 
   function snapChildLevel(child) {
     const levels = [...new Set(itemsFor(child).filter(item => !item.source?.challenge).map(item => item.level))]
@@ -195,6 +201,23 @@ export function createApp({
 
   function getChild(id) {
     return childIn(store.read(), id);
+  }
+
+  // Keep each child's profile and in-memory card changes in order.
+  async function voiceOperation(id, operation) {
+    const pending = (voiceChanges.get(id) || Promise.resolve()).catch(() => {}).then(operation);
+    voiceChanges.set(id, pending);
+    try {
+      return await pending;
+    } finally {
+      if (voiceChanges.get(id) === pending) voiceChanges.delete(id);
+    }
+  }
+
+  function invalidateVoiceCard(id) {
+    voiceCards.delete(id);
+    // Reject an upload that was still open when this change committed.
+    voiceVersions.set(id, Symbol());
   }
 
   function selected(selection, eligible) {
@@ -267,56 +290,73 @@ export function createApp({
       } else if (req.method === 'POST' && pathname === '/api/teacher/check') {
         json(res, 200, { ok: true });
       } else if (req.method === 'GET' && pathname === '/api/children') {
-        json(res, 200, Object.values(store.read().children).map(childView));
+        json(res, 200, Object.values(store.read().children).map(viewChild));
       } else if (req.method === 'POST' && pathname === '/api/children') {
         const fields = childFields(await jsonBody(req));
         const child = { id: randomUUID(), ...fields, level: 1, stars: 0, best: 0, profile: null, pairs: {} };
         snapChildLevel(child);
         await store.update(state => { state.children[child.id] = child; state.turns[child.id] = []; });
-        json(res, 200, childView(child));
+        json(res, 200, viewChild(child));
       } else if (req.method === 'PATCH' && childRoute && !childRoute[2]) {
         const id = childRoute[1];
         getChild(id);
         const fields = childFields(await jsonBody(req), true);
-        const { child, turnChanged } = await store.update(state => {
-          const current = childIn(state, id);
-          const previousLevel = current.level;
-          const levelChanged = Object.hasOwn(fields, 'level') && fields.level !== current.level;
-          const vowelsChanged = Object.hasOwn(fields, 'vowels')
-            && JSON.stringify(fields.vowels) !== JSON.stringify(current.vowels || VOWEL_IDS);
-          if (vowelsChanged || (Object.hasOwn(fields, 'preset') && fields.preset !== current.preset)) current.voice = null;
-          Object.assign(current, fields);
-          snapChildLevel(current);
-          if (levelChanged) current.profile = startProfile({ level: current.level });
-          return { child: current, turnChanged: levelChanged || vowelsChanged || current.level !== previousLevel };
+        const { child } = await voiceOperation(id, async () => {
+          const result = await store.update(state => {
+            const current = childIn(state, id);
+            const previousLevel = current.level;
+            const levelChanged = Object.hasOwn(fields, 'level') && fields.level !== current.level;
+            const vowelsChanged = Object.hasOwn(fields, 'vowels')
+              && JSON.stringify(fields.vowels) !== JSON.stringify(current.vowels || VOWEL_IDS);
+            const voiceChanged = vowelsChanged || (Object.hasOwn(fields, 'preset') && fields.preset !== current.preset);
+            if (voiceChanged) current.voice = null;
+            Object.assign(current, fields);
+            snapChildLevel(current);
+            if (levelChanged) current.profile = startProfile({ level: current.level });
+            return { child: current, turnChanged: levelChanged || vowelsChanged || current.level !== previousLevel, voiceChanged };
+          });
+          if (result.turnChanged) invalidateLiveTurns(id);
+          if (result.voiceChanged) invalidateVoiceCard(id);
+          return result;
         });
-        if (turnChanged) invalidateLiveTurns(id);
-        json(res, 200, childView(child));
+        json(res, 200, viewChild(child));
       } else if (req.method === 'PUT' && childRoute?.[2] === '/voice') {
         getChild(childRoute[1]);
         const fields = await jsonBody(req);
         if (Object.keys(fields).length !== 1 || fields.skipped !== true) throw new RequestError(400, 'Invalid voice fields');
-        const child = await store.update(state => {
-          const current = childIn(state, childRoute[1]);
-          current.voiceSkipped = true;
-          current.voice = null;
-          return current;
+        const child = await voiceOperation(childRoute[1], async () => {
+          const child = await store.update(state => {
+            const current = childIn(state, childRoute[1]);
+            current.voiceSkipped = true;
+            current.voice = null;
+            return current;
+          });
+          invalidateVoiceCard(childRoute[1]);
+          return child;
         });
-        json(res, 200, childView(child));
+        json(res, 200, viewChild(child));
       } else if (req.method === 'DELETE' && childRoute?.[2] === '/voice') {
-        const child = await store.update(state => {
-          const current = childIn(state, childRoute[1]);
-          current.voice = null;
-          delete current.voiceSkipped;
-          return current;
+        const child = await voiceOperation(childRoute[1], async () => {
+          const child = await store.update(state => {
+            const current = childIn(state, childRoute[1]);
+            current.voice = null;
+            delete current.voiceSkipped;
+            return current;
+          });
+          invalidateVoiceCard(childRoute[1]);
+          return child;
         });
-        json(res, 200, childView(child));
+        json(res, 200, viewChild(child));
       } else if (req.method === 'DELETE' && childRoute && !childRoute[2]) {
         const id = childRoute[1];
-        await store.update(state => {
-          childIn(state, id);
-          delete state.children[id];
-          delete state.turns[id];
+        await voiceOperation(id, async () => {
+          await store.update(state => {
+            childIn(state, id);
+            delete state.children[id];
+            delete state.turns[id];
+          });
+          voiceCards.delete(id);
+          voiceVersions.delete(id);
         });
         invalidateLiveTurns(id);
         starts.delete(id);
@@ -329,20 +369,28 @@ export function createApp({
         const labels = cardLabels(child.preset, card);
         if (!card.length) throw new RequestError(409, 'No voice check');
         if (contentType(req) !== 'audio/wav') throw new RequestError(415, 'Use audio/wav');
+        const version = voiceVersions.get(id);
         let data = await body(req, AUDIO_LIMIT);
         if (!data.length) throw new RequestError(400, 'Empty audio');
         try {
-          await store.update(state => {
-            const child = childIn(state, id);
-            const currentCard = voiceCardFor(child.vowels, child.preset);
-            const currentLabels = cardLabels(child.preset, currentCard);
-            if (!currentCard.length) throw new RequestError(409, 'No voice check');
-            if (currentCard.length !== card.length
-              || currentCard.some((syllable, index) => syllable !== card[index] || currentLabels[index] !== labels[index])) {
-              throw new RequestError(409, 'Voice card changed');
-            }
-            child.voice = buildVoiceProfile(data, labels);
-            delete child.voiceSkipped;
+          await voiceOperation(id, async () => {
+            const child = await store.update(state => {
+              const child = childIn(state, id);
+              const currentCard = voiceCardFor(child.vowels, child.preset);
+              const currentLabels = cardLabels(child.preset, currentCard);
+              if (!currentCard.length) throw new RequestError(409, 'No voice check');
+              if (voiceVersions.get(id) !== version
+                || currentCard.length !== card.length
+                || currentCard.some((syllable, index) => syllable !== card[index] || currentLabels[index] !== labels[index])) {
+                throw new RequestError(409, 'Voice card changed');
+              }
+              child.voice = buildVoiceProfile(data, labels);
+              delete child.voiceSkipped;
+              return child;
+            });
+            if (voiceCardToEar(child.voice, child.vowels, child.preset)) voiceCards.set(id, data);
+            else voiceCards.delete(id);
+            voiceVersions.set(id, Symbol());
           });
           json(res, 200, { voiceCheck: true });
         } catch (error) {
@@ -358,6 +406,8 @@ export function createApp({
         const { childId } = await jsonBody(req);
         // A teacher edit or finish may still be committing its new profile.
         await store.ready();
+        // Wait for a voice change to settle; its failure belongs to that request.
+        await voiceChanges.get(childId)?.catch(() => {});
         const child = getChild(childId);
         const token = invalidateLiveTurns(childId);
         const profile = startTurn(child.profile || startProfile({ level: child.level }));
@@ -384,8 +434,13 @@ export function createApp({
           if (!data.length) throw new RequestError(400, 'Empty audio');
           let words;
           try {
-            // The ear receives audio alone, with no text, child, or preset.
-            const heard = await listen({ data, format: 'wav' });
+            const child = getChild(turn.childId);
+            const card = voiceCardToEar(child.voice, child.vowels, child.preset) ? voiceCards.get(turn.childId) : undefined;
+            // The ear hears this reading and, when kept, the child's own voice card,
+            // both held in memory, with no text, child or preset.
+            const heard = card
+              ? await listen({ data, format: 'wav' }, { reference: { data: card, format: 'wav' } })
+              : await listen({ data, format: 'wav' });
             words = heard.words;
             try {
               words = applyMeter(words, data, getChild(turn.childId).voice).words;
@@ -477,7 +532,7 @@ export function createApp({
           turn.finished = true;
           turn.results.clear();
           turn.completed = [];
-          turn.receipt = { child: childView(child) };
+          turn.receipt = { child: viewChild(child) };
           json(res, 200, turn.receipt);
         }, true);
       } else if (req.method === 'GET' && pathname === '/api/class') {
@@ -503,7 +558,7 @@ export function createApp({
         const lastSummary = history[0] ? totalSummary(history[0].summaries) : totalSummary([]);
         const historyView = history.slice(0, 20).map(({ id, date, startLevel, endLevel, ok, pairs, stars, log }) =>
           ({ id, date, startLevel, endLevel, ok, pairs, stars, log }));
-        json(res, 200, { child: childView(child), map: buildMap(itemsFor(child), child), turns: historyView,
+        json(res, 200, { child: viewChild(child), map: buildMap(itemsFor(child), child), turns: historyView,
           parentLine: parentLine(child.name, lastSummary, child.preset, factsFor(child).next) });
       } else if (req.method === 'GET' && pathname === '/api/packet') {
         const childId = url.searchParams.get('child');

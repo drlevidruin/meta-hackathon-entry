@@ -153,6 +153,6 @@ This is simulated history, not evidence from children.
 
 **Screen:** At 1440 wide, show the Round 0 results in [ear-test.md](ear-test.md#round-0-synthetic-voices), then the results and limits in [live-run.md](live-run.md). End on the real station. Keep this card readable: “Synthetic clips: 5/7 plants in each of two runs; no prose reported. Synthetic server run: 25/25 lines; 3.8 s average including speech-file creation; coach 7/7. Real-voice accuracy not established.”
 
-**Voiceover:** “Synthetic clips: five of seven planted mistakes in each of two runs. No prose was reported. A separate synthetic server run graded all twenty-five lines, averaging 3.8 seconds including speech creation. The planned adult and child test rounds are next. Audio is graded in memory and dropped; standard tier only.”
+**Voiceover:** “Synthetic clips: five of seven planted mistakes in each of two runs. No prose was reported. A separate synthetic server run graded all twenty-five lines, averaging 3.8 seconds including speech creation. The planned adult and child test rounds are next. Audio stays in memory and is never written to disk; standard tier only.”
 
 These are recorded observations. Completed grades do not measure correct verdicts. The saved notes do not establish a grader accuracy rate. The child round requires a passing adult round, written parent consent and a paid Meta plan with free credits off. Make no claim of classroom use or real-voice accuracy.

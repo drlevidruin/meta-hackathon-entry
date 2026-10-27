@@ -1,4 +1,4 @@
-import { hasUsablePair } from './pairs.js';
+import { hasUsablePair, USABLE_PAIRS } from './pairs.js';
 
 export class VoiceCheckError extends Error {
   constructor(code, heard) {
@@ -177,6 +177,33 @@ export function buildVoiceProfile(data, labels) {
   return { version: 2, vowels, spread };
 }
 
+function validProfile(profile) {
+  return profile?.version === 2 && profile.vowels && typeof profile.vowels === 'object'
+    && !Array.isArray(profile.vowels) && Object.keys(profile.vowels).length > 0
+    && Number.isFinite(profile.spread) && profile.spread >= 0;
+}
+
+function centroidsApart(first, second, spread, minGap, gapFactor) {
+  const gap = Math.hypot(first.f1 - second.f1, first.f2 - second.f2);
+  const requiredGap = Math.max(minGap, gapFactor * spread * Math.sqrt(1 / first.n + 1 / second.n));
+  return !(gap < requiredGap);
+}
+
+export function pairsApart(profile, options = {}) {
+  try {
+    const { minGap = 0.8, gapFactor = 3 } = options;
+    if (!validProfile(profile)) return false;
+    const pairs = USABLE_PAIRS.filter(pair => pair.every(v => Object.hasOwn(profile.vowels, v)));
+    // A damaged class counts as merged, so a bad profile never sends the card.
+    const measured = c => Number.isFinite(c?.f1) && Number.isFinite(c?.f2) && Number.isInteger(c?.n) && c.n > 0;
+    return pairs.length > 0 && pairs.every(([first, second]) => measured(profile.vowels[first])
+      && measured(profile.vowels[second])
+      && centroidsApart(profile.vowels[first], profile.vowels[second], profile.spread, minGap, gapFactor));
+  } catch {
+    return false;
+  }
+}
+
 export function meterDecision(earVowel, point, profile, { margin = 0.75, minGap = 0.8, gapFactor = 3 } = {}) {
   if (!Object.hasOwn(profile.vowels, earVowel)) return null;
   const candidates = earVowel === 'a' ? ['a', 'o', 'e'] : earVowel === 'e' ? ['e', 'i'] : [];
@@ -192,9 +219,7 @@ export function meterDecision(earVowel, point, profile, { margin = 0.75, minGap 
   const cb = profile.vowels[best.v];
   for (const { v } of distances.slice(1)) {
     const cy = profile.vowels[v];
-    const gap = Math.hypot(cb.f1 - cy.f1, cb.f2 - cy.f2);
-    const requiredGap = Math.max(minGap, gapFactor * profile.spread * Math.sqrt(1 / cb.n + 1 / cy.n));
-    if (gap < requiredGap) return null;
+    if (!centroidsApart(cb, cy, profile.spread, minGap, gapFactor)) return null;
   }
   return best.v;
 }
@@ -202,9 +227,7 @@ export function meterDecision(earVowel, point, profile, { margin = 0.75, minGap 
 export function applyMeter(words, data, profile, options = {}) {
   const newWords = words.map((word) => [...word]);
   const unchanged = (reason) => ({ words: newWords, changes: [], applied: false, reason });
-  if (profile?.version !== 2 || !profile.vowels || typeof profile.vowels !== 'object'
-    || Array.isArray(profile.vowels) || Object.keys(profile.vowels).length === 0
-    || !Number.isFinite(profile.spread) || profile.spread < 0) return unchanged('profile');
+  if (!validProfile(profile)) return unchanged('profile');
   let audio;
   try {
     audio = decodeWav(data);

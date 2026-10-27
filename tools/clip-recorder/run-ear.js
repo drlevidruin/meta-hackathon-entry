@@ -1,6 +1,7 @@
 import '../../ear/env.js';
 import { hear } from '../../ear/hear.js';
-import { applyMeter, buildVoiceProfile, VoiceCheckError } from '../../ear/meter.js';
+import { applyMeter, buildVoiceProfile, pairsApart, VoiceCheckError } from '../../ear/meter.js';
+import { voiceCardToEar } from '../../ear/card-gate.js';
 import { cardLabels } from '../../rulebook/voice-card.js';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -18,7 +19,7 @@ export function matchesSay(heard, say) {
 }
 
 export async function runEar({ set = 'adult', model = defaultEarModel(), keep = false, directory,
-  preset = 'ashkenazi', meter = true, ear = hear, log = console.log } = {}) {
+  preset = 'ashkenazi', meter = true, card = true, ear = hear, log = console.log } = {}) {
   const store = recordingStore(await loadClips(set), directory);
   let failed = false;
   const rows = [];
@@ -30,22 +31,32 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), keep = 
       ? process.env.EAR_PRIMARY_MODEL || 'muse-wonder-1.0'
       : process.env.EAR_FALLBACK_MODEL || 'meta-models/muse-spark-open-1026';
     log(`Ear model: ${model} (${modelId})`);
+    const voiceAudio = voice && (meter || card) ? await store.read(voice.name) : undefined;
     let profile;
-    let meterStatus;
-    if (!meter) meterStatus = 'off (--no-meter)';
-    else if (!voice) meterStatus = 'off (no voice check recorded)';
-    else {
+    let voiceStatus;
+    if (voice && (meter || card)) {
       try {
-        profile = buildVoiceProfile(await store.read(voice.name), cardLabels(preset));
-        meterStatus = `on (${preset} voice check)`;
+        profile = buildVoiceProfile(voiceAudio, cardLabels(preset));
+        voiceStatus = `on (${preset} voice check)`;
       } catch (error) {
         if (!(error instanceof VoiceCheckError)) throw error;
-        meterStatus = error.code === 'count'
+        voiceStatus = error.code === 'count'
           ? `off (voice check unusable: heard ${error.heard} sounds for 15)`
           : 'off (voice check unusable)';
       }
     }
+    const meterStatus = !meter ? 'off (--no-meter)'
+      : !voice ? 'off (no voice check recorded)' : voiceStatus;
+    const cardStatus = !card ? 'off (--no-card)'
+      : !voice ? 'off (no voice check recorded)'
+      : !profile ? 'off (voice check unusable)'
+      : !pairsApart(profile) ? 'off (vowels merged on the card)'
+      : !voiceCardToEar(profile, null, preset) ? 'off (kamatz not checked on the card)'
+      // listen() never sends the card to the fallback ear.
+      : model === 'fallback' ? 'off (fallback ear)' : 'on';
+    const reference = cardStatus === 'on' ? { data: voiceAudio, format: 'wav' } : undefined;
     log(`Vowel meter: ${meterStatus}`);
+    log(`Voice card to the ear: ${cardStatus}`);
     log('clip\tsaid\theard\tresult\tear');
     for (const clip of readings) {
       let heard = 'ERROR';
@@ -54,9 +65,11 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), keep = 
       try {
         // Only the audio reaches the ear, never the Hebrew, Say, or planted mistake.
         const audio = await store.read(clip.name);
-        const earWords = await ear({ data: audio, format: 'wav' }, { model });
+        const earWords = await ear({ data: audio, format: 'wav' }, {
+          model, ...(reference ? { reference } : {}),
+        });
         earSounds = earWords.map((word) => word.join('-')).join(' ');
-        const words = profile ? applyMeter(earWords, audio, profile).words : earWords;
+        const words = meter && profile ? applyMeter(earWords, audio, profile).words : earWords;
         heard = words.map((word) => word.join('-')).join(' ');
         result = matchesSay(words, clip.say) ? 'PASS' : 'MISS';
       } catch {

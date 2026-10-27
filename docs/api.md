@@ -38,9 +38,11 @@ public field.
 `voiceStatus` is `none` when the child's learned vowels and preset give the meter
 no pair to compare, for example kamatz alone without patach in the Ashkenazi
 preset. The usable pairs are `a` and `o`, `a` and `e`, and `e` and `i`. Otherwise
-it is `done` when a voice profile is saved, otherwise `skipped` when the teacher
-skipped the check, otherwise `needed`. `voiceCheck` is `voiceStatus !== 'needed'`,
-so only `needed` routes to the check.
+it is `done` when a voice profile is saved and either its recording is in memory
+or the card would not go to the ear under the rule below. It is `skipped` when
+the teacher skipped the check, otherwise `needed`, including when a saved
+profile needs a recording that is no longer in memory.
+`voiceCheck` is `voiceStatus !== 'needed'`, so only `needed` routes to the check.
 
 An Item is an unchanged bank item:
 
@@ -95,19 +97,39 @@ No shown columns, or labels with no usable pair for the preset, gives no card.
 For example, kamatz alone has no card for Ashkenazi. `POST /api/voice` then returns
 409 `{ error: "No voice check" }` before consuming audio, or if the card is
 removed during upload. If the card's syllables or preset labels change during
-upload, it returns 409 `{ error: "Voice card changed" }` without saving a profile
-or changing `voiceSkipped`. Otherwise it builds the profile using the captured
+upload, or the voice check is cleared, skipped or replaced, it returns 409
+`{ error: "Voice card changed" }` without saving a profile, changing
+`voiceSkipped` or changing the recording. Otherwise it builds the profile using the captured
 card and labels. A count mismatch returns 422 `{ error: "count", heard, expected }`,
 where `expected` is the captured card's length.
 Measured classes with at least two tokens each must also hold a usable pair,
 otherwise the audio returns 422 `{ error: "quiet" }`. Malformed WAV or a WAV
 outside 16 kHz mono returns 415 `{ error: "Use 16 kHz mono WAV" }`. Success
-clears `voiceSkipped`. Audio is never saved. Grading uses the saved profile
-when present and the ear alone when there is none, including after a skip.
+clears `voiceSkipped`. When the card would go to the ear under the rule below,
+the recording stays in the server's memory only. It is never written to disk,
+logged or returned. It is dropped when the voice check is cleared, skipped
+or made stale by a learned-vowel or preset change, when the child is removed,
+and when the server stops. After a restart, a child whose card would go to the
+ear reports `voiceStatus` `needed` and reads the card again at their next turn.
+Each reading goes to the ear together with the recording only when it is in
+memory and the saved profile keeps each usable vowel pair apart by the meter's
+separation rule. When the card shows kamatz and the preset gives it any sound
+other than `a`, the profile must also
+have the reader's kamatz and patach measured apart as `o` and `a`. This excludes
+Chassidish, where kamatz can be `o` or `u` and is not measured, and a card with
+kamatz but no patach. Otherwise the ear hears only the reading.
+Grading also uses the saved profile for the vowel meter when present and the ear
+alone when there is none, including after a skip. A failed voice check leaves
+any earlier profile and recording unchanged.
 
 Grade accepts an item only from the turn's current set. An unknown or expired
 turn, a finished turn, or an item outside the current set returns 404. The ear
-receives only `{ data, format: 'wav' }`, never the item text, name or preset.
+receives audio alone, never the item text, name or preset. With a card recording
+in memory and a saved voice profile that keeps each usable vowel pair apart by
+the meter's separation rule and passes the kamatz check above, it receives
+`{ data, format: 'wav' }` with
+`{ reference: { data: card, format: 'wav' } }`. Otherwise it receives only the
+reading. The primary ear uses the card; the fallback receives only the reading.
 The grader receives `{ heard: ear.words, text: item.text, preset: turn.preset }`.
 The response omits the top-level `verdicts` and ear model. `words` is the grader's
 word output. Summary is:
@@ -119,8 +141,9 @@ word output. Summary is:
 
 Every successful grade immediately saves per-cell read history. Regrading a
 line replaces its result for the current checkpoint but still records every
-pair read. Failed grades do not contribute results. Audio is never saved or
-logged. Verdict `heard` strings exist only during the live turn and in the
+pair read. Failed grades do not contribute results. Reading audio is never
+saved or logged. Card audio is never saved to disk, logged or returned. Verdict
+`heard` strings exist only during the live turn and in the
 grader's word response, never on disk.
 
 Next uses the server-held results, in current-set order, and calls:

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { applyMeter, buildVoiceProfile, decodeWav, measureVowel, meterDecision, soundIslands, VoiceCheckError } from './meter.js';
+import { applyMeter, buildVoiceProfile, decodeWav, measureVowel, meterDecision, pairsApart, soundIslands, VoiceCheckError } from './meter.js';
 import { hasUsablePair, USABLE_PAIRS } from './pairs.js';
 import { cardLabels } from '../rulebook/voice-card.js';
 
@@ -237,6 +237,78 @@ test('buildVoiceProfile pools spread from kept classes around unrounded Bark cen
   }
   assert.ok(result.spread > 0);
   assert.equal(result.spread, Math.round(Math.sqrt(squaredDeviations / degreesOfFreedom) * 1000) / 1000);
+});
+
+test('pairsApart accepts a separated four-class profile and checks every usable pair', () => {
+  const voice = { version: 2, vowels: {
+    a: { f1: 7, f2: 10, n: 3 }, o: { f1: 6, f2: 9, n: 3 },
+    e: { f1: 6, f2: 12, n: 3 }, i: { f1: 2, f2: 14, n: 3 },
+  }, spread: 0.3 };
+  assert.equal(pairsApart(voice), true);
+  for (const [first, second] of USABLE_PAIRS) {
+    const merged = { ...voice, vowels: { ...voice.vowels, [second]: { ...voice.vowels[first] } } };
+    assert.equal(pairsApart(merged), false, `${first}, ${second}`);
+  }
+  // The o/e pair is not usable, so its centroids need not be apart.
+  assert.equal(pairsApart({ ...voice, vowels: { ...voice.vowels, e: voice.vowels.o } }), true);
+});
+
+test('pairsApart rejects the card with a and o only 0.08 Bark apart', () => {
+  const voice = { version: 2, vowels: {
+    a: { f1: 6, f2: 9, n: 3 }, o: { f1: 6.08, f2: 9, n: 3 },
+  }, spread: 0.135 };
+  assert.equal(pairsApart(voice), false);
+});
+
+test('pairsApart requires a usable pair and accepts any single usable pair that is apart', () => {
+  const first = { f1: 4, f2: 8, n: 3 };
+  const second = { f1: 7, f2: 10, n: 3 };
+  assert.equal(pairsApart({ version: 2, vowels: { o: first, i: second }, spread: 0.3 }), false);
+  for (const [left, right] of USABLE_PAIRS) {
+    assert.equal(pairsApart({ version: 2, vowels: { [left]: first, [right]: second }, spread: 0.3 }), true);
+  }
+});
+
+test('pairsApart rejects invalid profiles without throwing', () => {
+  const voice = voiceProfile();
+  for (const invalid of [
+    null, undefined, { ...voice, version: 1 }, { version: 2, vowels: voice.vowels },
+    ...[null, [], {}, 'vowels'].map(vowels => ({ ...voice, vowels })),
+    ...[-0.1, NaN, Infinity, '0.3'].map(spread => ({ ...voice, spread })),
+    { ...voice, vowels: { a: null, o: voice.vowels.o } },
+  ]) assert.equal(pairsApart(invalid), false);
+  assert.equal(pairsApart(voice, null), false);
+});
+
+test('pairsApart matches the meter separation guard across a grid of two-class centroid gaps', () => {
+  for (const [first, second] of USABLE_PAIRS) {
+    for (const [n1, n2] of [[2, 2], [3, 3], [2, 15], [15, 15]]) {
+      for (const spread of [0, 0.135, 0.336, 0.6]) {
+        for (const options of [{}, { minGap: 0.4 }, { gapFactor: 1 }, { minGap: 1.2, gapFactor: 4 }]) {
+          const { minGap = 0.8, gapFactor = 3 } = options;
+          const requiredGap = Math.max(minGap, gapFactor * spread * Math.sqrt(1 / n1 + 1 / n2));
+          for (let f1 = 0; f1 <= 20; f1++) {
+            for (let f2 = 0; f2 <= 20; f2++) {
+              const voice = { version: 2, vowels: {
+                [first]: { f1: f1 / 10, f2: f2 / 10, n: n1 },
+                [second]: { f1: 0, f2: 0, n: n2 },
+              }, spread };
+              const expected = Math.hypot(f1 / 10, f2 / 10) >= requiredGap;
+              assert.equal(pairsApart(voice, options), expected);
+              // At the other centroid, only the separation guard can block correction.
+              if (f1 || f2) assert.equal(meterDecision(first, voice.vowels[second], voice, options),
+                expected ? second : null);
+            }
+          }
+          const boundary = { version: 2, vowels: {
+            [first]: { f1: requiredGap, f2: 0, n: n1 }, [second]: { f1: 0, f2: 0, n: n2 },
+          }, spread };
+          assert.equal(pairsApart(boundary, options), true);
+          assert.equal(meterDecision(first, boundary.vowels[second], boundary, options), second);
+        }
+      }
+    }
+  }
 });
 
 test('meterDecision equals the old rule across the full Bark grid for a well-separated four-vowel card', () => {
@@ -535,4 +607,12 @@ test('applyMeter honors the margin and replaces only the first vowel occurrence 
     { index: 0, from: 'baba', to: 'boba' }, { index: 1, from: 'be', to: 'bi' },
   ]);
   assert.deepEqual(applyMeter([['ba']], wav(utterance(['o'])), voiceProfile(), { margin: 0 }).changes, []);
+});
+
+test('pairsApart counts a damaged class as merged', () => {
+  const apart = { version: 2, spread: 0.1, vowels: { a: { f1: 7, f2: 11, n: 3 }, o: { f1: 5, f2: 9, n: 3 } } };
+  assert.equal(pairsApart(apart), true);
+  for (const damage of [{ f1: Number.NaN }, { f2: undefined }, { n: 0 }, { n: 1.5 }]) {
+    assert.equal(pairsApart({ ...apart, vowels: { ...apart.vowels, o: { ...apart.vowels.o, ...damage } } }), false);
+  }
 });
