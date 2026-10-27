@@ -6,6 +6,8 @@
   "type": "module",
   "engines": { "node": ">=20" },
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "build:bank": "node bank/build.js",
+    "check:page": "node bank/check-page.js"
   }
 }
