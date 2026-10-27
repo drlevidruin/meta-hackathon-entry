@@ -51,3 +51,25 @@ Second results, October 26, with the made-up prompt examples, two runs per model
 Muse Wonder 1.0 is now the default fallback ear (`EAR_FALLBACK_MODEL` still overrides it). It also turned the English voice's "modeh" into mo-der, an r the voice put there.
 
 End to end, Wonder's answers through the real grader, 10 clips: 7 graded exactly as planted. Two words with two wrong sounds each (va-ruk for בָּרוּךְ, ya-chid for אֶחָד) came back as not decoded, because the grader stops blaming single letters once most of a word is off. One false wrong letter came from the English voice's r in mo-der.
+
+### Speed: reasoning effort
+
+The ear has to answer before the child finishes the next line. The same 13 clips through Muse Wonder 1.0 at three `reasoning_effort` settings, one run each:
+
+| Setting | Seconds per clip, average | Plants caught (of 7) |
+| --- | --- | --- |
+| Not set (default) | about 15 | 5 |
+| `low` | 7.8 | 5 |
+| `minimal` | 2.4 | 5 |
+
+The answers barely moved, so the ear now asks for `minimal` (`EAR_REASONING_EFFORT` overrides it). One difference to watch in the real-voice rounds: at `minimal` the Hebrew voice's שְׁמַע came back as shma, where the slower settings wrote she-ma.
+
+### Muse Voice Transcribe 1.0
+
+Meta's speech-to-text model (`POST /v1/asr/transcribe`) answered every clip in under a second, so it was tried as the ear, with and without a Hebrew language hint. It does not fit:
+
+- It writes words, not sounds, and pulls toward real words: the English voice's planted "vah rook" came back as Baruch without the hint, and a clean "shah boss" as Shabbat with it.
+- When it writes Hebrew it drops the vowels (ברוך, שלום), and the vowels are half of what a kriah teacher checks.
+- It invented words on two clips (Hey!, Shallot) and answered one in Arabic script.
+
+An ear for kriah has to report the sounds a child made, mistakes included, so the station uses an audio model that follows a sound alphabet instead.

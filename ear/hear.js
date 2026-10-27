@@ -28,6 +28,8 @@ const PROVIDERS = {
     model: process.env.EAR_FALLBACK_MODEL || 'muse-wonder-1.0',
     // Wonder heard planted mistakes best on the synthetic round (docs/ear-test.md).
     url: 'https://api.meta.ai/v1/chat/completions',
+    // Minimal reasoning answered in about 2 seconds instead of 15, with the same plants caught.
+    reasoningEffort: () => process.env.EAR_REASONING_EFFORT || 'minimal',
     key: 'META_API_KEY',
     // The Meta Model API rejects audio_url and takes input_audio (tested 2026-10-26).
     audioPart: ({ format, base64 }) => ({
@@ -103,6 +105,7 @@ async function request(provider, audio, fetcher) {
         }],
         max_tokens: 8192,
         temperature: 0,
+        ...(provider.reasoningEffort ? { reasoning_effort: provider.reasoningEffort() } : {}),
       }),
       signal: controller.signal,
     });

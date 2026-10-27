@@ -470,3 +470,26 @@ test('looksLikeProse leaves real sound lines alone', async () => {
   assert.equal(looksLikeProse("I'm sorry,\nbut I can't\nlisten to\nthis file\nright now\nfriend"), true);
   assert.equal(looksLikeProse('please\nupload\nthe\naudio\nfile\nagain\nnow'), true);
 });
+
+test('the fallback asks Wonder for minimal reasoning, and EAR_REASONING_EFFORT overrides it', async (t) => {
+  setKeys(t, '');
+  const previous = process.env.EAR_REASONING_EFFORT;
+  t.after(() => {
+    if (previous === undefined) delete process.env.EAR_REASONING_EFFORT;
+    else process.env.EAR_REASONING_EFFORT = previous;
+  });
+  const efforts = [];
+  const fetch = async (_url, init) => { efforts.push(JSON.parse(init.body).reasoning_effort); return answer(); };
+  delete process.env.EAR_REASONING_EFFORT;
+  await listen(audio, { fetch });
+  process.env.EAR_REASONING_EFFORT = 'low';
+  await listen(audio, { fetch });
+  assert.deepEqual(efforts, ['minimal', 'low']);
+});
+
+test('the primary request carries no reasoning_effort', async (t) => {
+  setKeys(t);
+  const bodies = [];
+  await listen(audio, { model: 'primary', fetch: async (_url, init) => { bodies.push(JSON.parse(init.body)); return answer(); } });
+  assert.equal('reasoning_effort' in bodies[0], false);
+});
