@@ -3,7 +3,7 @@ import { hear } from '../../ear/hear.js';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { loadClips } from './clips.js';
-import { parseOptions } from './options.js';
+import { defaultEarModel, parseOptions } from './options.js';
 import { recordingStore } from './recordings.js';
 
 export function matchesSay(heard, say) {
@@ -15,13 +15,17 @@ export function matchesSay(heard, say) {
     && heard.every((word, index) => normalize(word.join('-')) === expected[index]);
 }
 
-export async function runEar({ set = 'adult', model = 'primary', keep = false, directory,
+export async function runEar({ set = 'adult', model = defaultEarModel(), keep = false, directory,
   ear = hear, log = console.log } = {}) {
   const store = recordingStore(await loadClips(set), directory);
   let failed = false;
   const rows = [];
   try {
     const recorded = (await store.list()).filter((clip) => clip.done);
+    const modelId = model === 'primary'
+      ? process.env.EAR_PRIMARY_MODEL || 'meta-models/muse-spark-open-1026'
+      : process.env.EAR_FALLBACK_MODEL || 'muse-wonder-1.0';
+    log(`Ear model: ${model} (${modelId})`);
     log('clip\tsaid\theard\tresult');
     for (const clip of recorded) {
       let heard = 'ERROR';

@@ -5,7 +5,7 @@ import { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import { isClipName, loadClips, parseClips } from './clips.js';
-import { parseOptions } from './options.js';
+import { defaultEarModel, parseOptions } from './options.js';
 import { MAX_BYTES, recordingStore } from './recordings.js';
 import { matchesSay, runEar } from './run-ear.js';
 import { createRecorderServer } from './server.js';
@@ -253,7 +253,8 @@ test('ear runner sends only audio, respects the model, and prints PASS and MISS 
     } });
   assert.equal(calls, 2);
   assert.equal(result.code, 1);
-  assert.deepEqual(output, ['clip\tsaid\theard\tresult',
+  assert.match(output[0], /^Ear model: fallback \(.+\)$/);
+  assert.deepEqual(output.slice(1), ['clip\tsaid\theard\tresult',
     'shabbos_va-for-ba\tsha-vos\tSHA-VOS\tPASS', 'baruch_clean\tbo-ruch\tba-ruch\tMISS']);
   assert.ok((await store.list()).slice(0, 2).every((clip) => clip.done));
 });
@@ -277,13 +278,13 @@ test('child runner prints then deletes each clip before the next call, including
     calls += 1;
     if (calls === 1) return [['sha', 'vos']];
     await assert.rejects(access(join(directory, `${clips[0].name}.wav`)));
-    assert.equal(output.length, 2);
+    assert.equal(output.length, 3);
     throw new Error('Provider error that must not be printed');
   } });
   assert.equal(result.code, 1);
   assert.equal(calls, 2);
   assert.deepEqual(await readdir(directory), ['baruch_clean.wav']);
-  assert.equal(output[2], 'child_baruch_clean\tbo-ruch\tERROR\tMISS');
+  assert.equal(output[3], 'child_baruch_clean\tbo-ruch\tERROR\tMISS');
   assert.ok(output.every((line) => !line.includes('Provider error')));
 });
 
@@ -292,7 +293,7 @@ test('--keep retains child audio and an all-PASS run succeeds', async (t) => {
   const clips = await loadClips('child');
   await recordingStore(clips, directory).save(clips[0].name, wav);
   const result = await runEar({ set: 'child', keep: true, directory, log: () => {}, ear: async (_audio, options) => {
-    assert.deepEqual(options, { model: 'primary' });
+    assert.deepEqual(options, { model: defaultEarModel() });
     return [['sha', 'vos']];
   } });
   assert.equal(result.code, 0);
@@ -313,7 +314,7 @@ test('child audio is still deleted when printing fails; empty sets make no ear c
 test('CLI flags have safe defaults and reject invalid sets, models, ports and unknown flags', () => {
   assert.deepEqual(parseOptions([], 'server'), { set: 'adult', port: 8790 });
   assert.deepEqual(parseOptions(['--set', 'child', '--port', '9123'], 'server'), { set: 'child', port: 9123 });
-  assert.deepEqual(parseOptions([], 'ear'), { set: 'adult', model: 'primary', keep: false });
+  assert.deepEqual(parseOptions([], 'ear'), { set: 'adult', model: defaultEarModel(), keep: false });
   assert.deepEqual(parseOptions(['--set', 'child', '--model', 'fallback', '--keep'], 'ear'), {
     set: 'child', model: 'fallback', keep: true,
   });
@@ -324,6 +325,56 @@ test('CLI flags have safe defaults and reject invalid sets, models, ports and un
   for (const args of [['--set', 'x'], ['--model'], ['--model', 'other'], ['--port', '9000']]) {
     assert.throws(() => parseOptions(args, 'ear'));
   }
+});
+
+test('ear model default uses the fallback unless a nonempty Baseten key is set', () => {
+  assert.equal(defaultEarModel({}), 'fallback');
+  assert.equal(defaultEarModel({ META_API_KEY: 'test-meta-key' }), 'fallback');
+  assert.equal(defaultEarModel({ BASETEN_API_KEY: '  ' }), 'fallback');
+  assert.equal(defaultEarModel({ BASETEN_API_KEY: 'test-baseten-key' }), 'primary');
+});
+
+test('ear runner and CLI select and print the default model and honor explicit overrides', async (t) => {
+  const names = ['BASETEN_API_KEY', 'META_API_KEY', 'EAR_PRIMARY_MODEL', 'EAR_FALLBACK_MODEL'];
+  const previous = Object.fromEntries(names.map(name => [name, process.env[name]]));
+  t.after(() => {
+    for (const name of names) {
+      if (previous[name] === undefined) delete process.env[name];
+      else process.env[name] = previous[name];
+    }
+  });
+  process.env.META_API_KEY = 'test-meta-key';
+  delete process.env.BASETEN_API_KEY;
+  delete process.env.EAR_PRIMARY_MODEL;
+  delete process.env.EAR_FALLBACK_MODEL;
+  const directory = await fixtureDirectory(t);
+  const clips = await loadClips();
+  await recordingStore(clips, directory).save(clips[0].name, wav);
+  for (const [key, model, id] of [
+    [undefined, 'fallback', 'muse-wonder-1.0'],
+    ['test-baseten-key', 'primary', 'meta-models/muse-spark-open-1026'],
+  ]) {
+    if (key === undefined) delete process.env.BASETEN_API_KEY;
+    else process.env.BASETEN_API_KEY = key;
+    assert.equal(parseOptions([], 'ear').model, model);
+    const output = [];
+    const result = await runEar({ directory, log: line => output.push(line), ear: async (_audio, options) => {
+      assert.equal(options.model, model);
+      return [['sha', 'vos']];
+    } });
+    assert.equal(result.code, 0);
+    assert.equal(output[0], `Ear model: ${model} (${id})`);
+  }
+  delete process.env.BASETEN_API_KEY;
+  process.env.EAR_PRIMARY_MODEL = 'test-primary-model';
+  const explicit = parseOptions(['--model', 'primary'], 'ear');
+  assert.equal(explicit.model, 'primary');
+  const output = [];
+  await runEar({ ...explicit, directory, log: line => output.push(line), ear: async (_audio, options) => {
+    assert.equal(options.model, 'primary');
+    return [['sha', 'vos']];
+  } });
+  assert.equal(output[0], 'Ear model: primary (test-primary-model)');
 });
 
 test('WAV encoder writes mono 16 kHz PCM headers, sample count, signed samples and clipping', () => {

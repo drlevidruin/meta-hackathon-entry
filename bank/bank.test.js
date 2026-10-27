@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { cleanWord, expectedSounds, formatReading, PRESETS, SKILLS, tagSkills } from '../rulebook/index.js';
 import { buildBank, cutLines } from './build.js';
 import { acceptedReadings, allowedGeneratedWord, foldedSkeleton, matchesBlocklist } from './blocking.js';
@@ -13,6 +15,15 @@ import { mulberry32 } from './random.js';
 const items = buildBank();
 const presets = Object.keys(PRESETS);
 const unique = (values) => [...new Set(values)].sort();
+
+test('check-page CLI without a section prints usage and exits without a stack trace', () => {
+  const result = spawnSync(process.execPath, [fileURLToPath(new URL('./check-page.js', import.meta.url))], {
+    encoding: 'utf8',
+  });
+  assert.equal(result.status, 1);
+  assert.equal(result.stdout, '');
+  assert.equal(result.stderr, 'Usage: npm run check:page -- <section>\n');
+});
 
 test('levels, item schema, stable SHA-1 ids and skills', () => {
   assert.deepEqual(unique(items.map((item) => item.level)), [1, 2, 3, 4, 5, 6]);
