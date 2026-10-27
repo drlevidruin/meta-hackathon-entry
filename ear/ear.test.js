@@ -171,6 +171,15 @@ test('parse replaces an English word outside the sound alphabet with a question 
   ]);
 });
 
+test('aw becomes o before syllable validation and the prose check', () => {
+  assert.deepEqual(parseEarOutput('baw-ruch'), [['bo', 'ruch']]);
+  assert.deepEqual(parseEarOutput('Baw-ruch\nBAW-RAW'), [['bo', 'ruch'], ['bo', 'ro']]);
+  assert.equal(looksLikeProse('Baw-ruch'), false);
+  assert.equal(looksLikeProse('BAW-RAW'), false);
+  assert.deepEqual(parseEarOutput('bawx\nsha-wos\nw'), [['?'], ['sha', '?'], ['?']]);
+  assert.equal(looksLikeProse('Bawx'), true);
+});
+
 test('parse splits words on spaces and preserves uncertain syllables', () => {
   assert.deepEqual(parseEarOutput('sha-? ba-ruch\n?\n?-?\n'), [
     ['sha', '?'], ['ba', 'ruch'], ['?'], ['?', '?'],
@@ -216,7 +225,130 @@ test('listen sends the exact primary request and returns only content as the ans
     model: PRIMARY,
     raw: 'sha-bos\nba-ruch',
     usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 },
+    card: false,
   });
+});
+
+test('listen sends the card prompt and both recordings in order to primary only', async t => {
+  setKeys(t);
+  const reference = { data: Buffer.from('practice card fixture'), format: 'mp3' };
+  const cardPrompt = await readFile(new URL('./prompt-card.md', import.meta.url), 'utf8');
+  const calls = [];
+  const result = await listen(audio, { reference, fetch: async (_url, init) => {
+    calls.push(JSON.parse(init.body));
+    return answer('Baw-ruch');
+  } });
+  assert.deepEqual(calls, [{
+    model: PRIMARY,
+    messages: [{ role: 'user', content: [
+      { type: 'text', text: cardPrompt },
+      { type: 'text', text: 'First recording: the practice card.' },
+      { type: 'input_audio', input_audio: { data: reference.data.toString('base64'), format: 'mp3' } },
+      { type: 'text', text: 'Second recording: the reading.' },
+      { type: 'input_audio', input_audio: { data: audio.data.toString('base64'), format: 'wav' } },
+    ] }],
+    max_tokens: 8192,
+    temperature: 0,
+    reasoning_effort: 'minimal',
+  }]);
+  assert.equal(result.card, true);
+  assert.deepEqual(result.words, [['bo', 'ruch']]);
+  assert.deepEqual(await hear(audio, { reference, fetch: async () => answer('baw-ruch') }), [['bo', 'ruch']]);
+});
+
+test('listen reads reference paths with the same format detection as reading paths', async t => {
+  setKeys(t);
+  const directory = await fixtureDirectory(t);
+  const path = join(directory, 'card.FLAC');
+  await writeFile(path, audio.data);
+  const result = await listen(audio, { reference: { path }, fetch: async (_url, init) => {
+    assert.deepEqual(JSON.parse(init.body).messages[0].content[2], {
+      type: 'input_audio', input_audio: { data: audio.data.toString('base64'), format: 'flac' },
+    });
+    return answer();
+  } });
+  assert.equal(result.card, true);
+});
+
+test('reference inputs report the same validation and file errors as reading inputs before fetch', async t => {
+  const directory = await fixtureDirectory(t);
+  const large = join(directory, 'large.wav');
+  const file = await open(large, 'w');
+  await file.truncate(25 * 1024 * 1024 + 1);
+  await file.close();
+  const folder = join(directory, 'folder.wav');
+  await mkdir(folder);
+  let calls = 0;
+  const fetch = async () => { calls += 1; return answer(); };
+  for (const invalid of [
+    null, 'clip.wav', {}, { path: '' }, { path: 'clip.txt' },
+    { data: new Uint8Array(2), format: 'wav' }, { data: audio.data },
+    { data: audio.data, format: 'aac' }, { data: audio.data, format: 'toString' },
+    { path: 'clip.wav', data: audio.data, format: 'wav' },
+    { path: join(directory, 'missing.wav') }, { path: folder }, { path: large },
+    { data: Buffer.alloc(25 * 1024 * 1024 + 1), format: 'wav' },
+  ]) {
+    let message;
+    await assert.rejects(listen(invalid, { fetch }), error => { message = error.message; return safeError(error); });
+    await assert.rejects(listen(audio, { reference: invalid, fetch }), error => {
+      assert.equal(error.message, message);
+      return safeError(error);
+    });
+  }
+  assert.equal(calls, 0);
+});
+
+test('fallback always keeps the plain request and reports card false even with a reference', async t => {
+  setKeys(t);
+  const reference = { data: Buffer.from('practice card fixture'), format: 'wav' };
+  const prompt = await readFile(new URL('./prompt.md', import.meta.url), 'utf8');
+  const expected = {
+    model: FALLBACK,
+    messages: [{ role: 'user', content: [
+      { type: 'text', text: prompt },
+      { type: 'audio_url', audio_url: { url: `data:audio/wav;base64,${audio.data.toString('base64')}` } },
+    ] }],
+    max_tokens: 8192,
+    temperature: 0,
+  };
+  for (const mode of ['plain', 'forced', 'missing key', 'HTTP', 'network', 'empty', 'prose']) {
+    if (mode === 'missing key') delete process.env.META_API_KEY;
+    else process.env.META_API_KEY = primaryKey;
+    let primaryCalls = 0, fallbackCalls = 0;
+    const result = await listen(audio, {
+      ...(mode === 'plain' ? {} : { reference }),
+      ...(['plain', 'forced'].includes(mode) ? { model: 'fallback' } : {}),
+      fetch: async (_url, init) => {
+        const body = JSON.parse(init.body);
+        if (body.model === PRIMARY) {
+          primaryCalls += 1;
+          assert.equal(body.messages[0].content.length, 5);
+          if (mode === 'network') throw new Error('offline failure');
+          if (mode === 'empty') return answer('');
+          if (mode === 'prose') return answer('I cannot hear audio.');
+          return new Response('', { status: 500 });
+        }
+        fallbackCalls += 1;
+        assert.deepEqual(body, expected);
+        return answer();
+      },
+    });
+    assert.equal(result.card, false);
+    assert.equal(result.model, FALLBACK);
+    assert.equal(fallbackCalls, 1);
+    assert.equal(primaryCalls, ['plain', 'forced', 'missing key'].includes(mode) ? 0 : mode === 'prose' ? 2 : 1);
+  }
+});
+
+test('a successful primary retry still reports that it used the card', async t => {
+  setKeys(t);
+  let calls = 0;
+  const result = await listen(audio, { reference: audio, fetch: async (_url, init) => {
+    assert.equal(JSON.parse(init.body).messages[0].content.length, 5);
+    return ++calls === 1 ? answer('I cannot hear audio.') : answer('baw-ruch');
+  } });
+  assert.equal(calls, 2);
+  assert.equal(result.card, true);
 });
 
 test('listen uses the MIME type for each supported buffer format', async (t) => {

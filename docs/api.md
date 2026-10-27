@@ -99,12 +99,21 @@ the profile using the child's card and preset. A count mismatch returns 422
 Measured classes with at least two tokens each must also hold a usable pair,
 otherwise the audio returns 422 `{ error: "quiet" }`. Malformed WAV or a WAV
 outside 16 kHz mono returns 415 `{ error: "Use 16 kHz mono WAV" }`. Success
-clears `voiceSkipped`. Audio is never saved. Grading uses the saved profile
-when present and the ear alone when there is none, including after a skip.
+clears `voiceSkipped` and keeps the card recording on the server at
+`<DATA_DIR>/voice/<childId>.wav`, in the data folder (default `<repo>/data`).
+The recording stays until the voice check is cleared, skipped, made stale by
+a learned-vowel or preset change, or the child is removed. Each reading then
+goes to the ear together with that recording. Grading also uses the saved
+profile for the vowel meter when present and the ear alone when there is none,
+including after a skip. A failed voice check leaves any earlier profile and
+recording unchanged.
 
 Grade accepts an item only from the turn's current set. An unknown or expired
 turn, a finished turn, or an item outside the current set returns 404. The ear
-receives only `{ data, format: 'wav' }`, never the item text, name or preset.
+receives audio alone, never the item text, name or preset. With a saved voice
+profile and a readable card file, it receives `{ data, format: 'wav' }` with
+`{ reference: { data: card, format: 'wav' } }`. Otherwise it receives only the
+reading. The primary ear uses the card; the fallback receives only the reading.
 The grader receives `{ heard: ear.words, text: item.text, preset: turn.preset }`.
 The response omits the top-level `verdicts` and ear model. `words` is the grader's
 word output. Summary is:
@@ -116,8 +125,9 @@ word output. Summary is:
 
 Every successful grade immediately saves per-cell read history. Regrading a
 line replaces its result for the current checkpoint but still records every
-pair read. Failed grades do not contribute results. Audio is never saved or
-logged. Verdict `heard` strings exist only during the live turn and in the
+pair read. Failed grades do not contribute results. Reading audio is never
+saved or logged. Card audio is never logged or returned. Verdict `heard`
+strings exist only during the live turn and in the
 grader's word response, never on disk.
 
 Next uses the server-held results, in current-set order, and calls:

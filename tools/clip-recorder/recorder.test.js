@@ -385,7 +385,8 @@ test('ear runner sends only audio, respects the model, and prints PASS and MISS 
   assert.equal(calls, 2);
   assert.equal(result.code, 1);
   assert.match(output[0], /^Ear model: fallback \(.+\)$/);
-  assert.deepEqual(output.slice(1), ['Vowel meter: off (no voice check recorded)', 'clip\tsaid\theard\tresult\tear',
+  assert.deepEqual(output.slice(1), ['Vowel meter: off (no voice check recorded)',
+    'Voice card to the ear: off (no voice check recorded)', 'clip\tsaid\theard\tresult\tear',
     'omein_clean\to-meyn\tO-MEYN\tPASS\tO-MEYN', 'brocho_clean\tbe-ro-cho\tba-ra-cha\tMISS\tba-ra-cha']);
   assert.ok((await store.list()).slice(0, 2).every((clip) => clip.done));
 });
@@ -405,15 +406,16 @@ test('voice check calibrates metered heard sounds while preserving ear sounds an
     ear: async (audio, options) => {
       calls += 1;
       assert.deepEqual(audio, { data: reading, format: 'wav' });
-      assert.deepEqual(options, { model: 'fallback' });
+      assert.deepEqual(options, { model: 'fallback', reference: { data: voice, format: 'wav' } });
       return earWords;
     } });
   assert.equal(calls, 1);
   assert.equal(result.code, 0);
   assert.equal(output[1], 'Vowel meter: on (ashkenazi voice check)');
-  assert.equal(output[2], 'clip\tsaid\theard\tresult\tear');
-  assert.equal(output[3], 'baruch_clean\tbo-ruch\tbo-ruch\tPASS\tba-ruch');
-  assert.equal(output.length, 4);
+  assert.equal(output[2], 'Voice card to the ear: on');
+  assert.equal(output[3], 'clip\tsaid\theard\tresult\tear');
+  assert.equal(output[4], 'baruch_clean\tbo-ruch\tbo-ruch\tPASS\tba-ruch');
+  assert.equal(output.length, 5);
   assert.deepEqual(result.rows, [{ clip: 'baruch_clean', said: 'bo-ruch', heard: 'bo-ruch', result: 'PASS', ear: 'ba-ruch' }]);
   assert.deepEqual(earWords, [['ba', 'ruch']]);
 });
@@ -435,7 +437,8 @@ test('--no-meter skips calibration and leaves heard and ear columns equal', asyn
   assert.equal(calls, 1);
   assert.equal(result.code, 1);
   assert.equal(output[1], 'Vowel meter: off (--no-meter)');
-  assert.equal(output[3], 'baruch_clean\tbo-ruch\tba-ruch\tMISS\tba-ruch');
+  assert.equal(output[2], 'Voice card to the ear: on');
+  assert.equal(output[4], 'baruch_clean\tbo-ruch\tba-ruch\tMISS\tba-ruch');
   assert.equal(result.rows[0].heard, result.rows[0].ear);
 });
 
@@ -469,9 +472,57 @@ test('missing and unusable voice checks log meter status and fall back to the ea
     } });
     assert.equal(calls, 1);
     assert.equal(output[1], `Vowel meter: ${status}`);
-    assert.equal(output[3], 'baruch_clean\tbo-ruch\tba-ruch\tMISS\tba-ruch');
+    assert.equal(output[2], `Voice card to the ear: ${voice ? 'on' : 'off (no voice check recorded)'}`);
+    assert.equal(output[4], 'baruch_clean\tbo-ruch\tba-ruch\tMISS\tba-ruch');
     assert.equal(result.rows[0].heard, result.rows[0].ear);
   }
+});
+
+test('voice check is a reference for every reading even when the meter is disabled', async t => {
+  const directory = await fixtureDirectory(t);
+  const clips = await loadClips();
+  const store = recordingStore(clips, directory);
+  const voice = Buffer.from('voice fixture with meter disabled');
+  await store.save('voice-check', voice);
+  const readings = clips.filter(clip => clip.kind === 'reading').slice(0, 2);
+  for (const clip of readings) await store.save(clip.name, wav);
+  let calls = 0;
+  const output = [];
+  await runEar({ directory, meter: false, model: 'primary', log: line => output.push(line),
+    ear: async (audio, options) => {
+      assert.deepEqual(audio, { data: wav, format: 'wav' });
+      assert.deepEqual(options, { model: 'primary', reference: { data: voice, format: 'wav' } });
+      calls += 1;
+      return [['ba']];
+    } });
+  assert.equal(calls, 2);
+  assert.deepEqual(output.slice(1, 3), ['Vowel meter: off (--no-meter)', 'Voice card to the ear: on']);
+});
+
+test('--no-card omits the reference while leaving the vowel meter enabled', async t => {
+  const directory = await fixtureDirectory(t);
+  const store = recordingStore(await loadClips(), directory);
+  await store.save('voice-check', syntheticWav(cardLabels('ashkenazi')));
+  await store.save('baruch_clean', syntheticWav(['o', 'u']));
+  let calls = 0;
+  const output = [];
+  const result = await runEar({ ...parseOptions(['--no-card', '--model', 'primary'], 'ear'), directory,
+    log: line => output.push(line), ear: async (_audio, options) => {
+      assert.deepEqual(options, { model: 'primary' });
+      calls += 1;
+      return [['ba', 'ruch']];
+    } });
+  assert.equal(calls, 1);
+  assert.equal(result.code, 0);
+  assert.equal(result.rows[0].heard, 'bo-ruch');
+  assert.equal(result.rows[0].ear, 'ba-ruch');
+  assert.deepEqual(output.slice(1, 3), [
+    'Vowel meter: on (ashkenazi voice check)', 'Voice card to the ear: off (--no-card)',
+  ]);
+  await store.remove('voice-check');
+  output.length = 0;
+  await runEar({ directory, meter: false, card: false, log: line => output.push(line), ear: async () => [['ba']] });
+  assert.equal(output[2], 'Voice card to the ear: off (--no-card)');
 });
 
 test('ear runner uses the selected preset for voice card labels', async (t) => {
@@ -484,7 +535,7 @@ test('ear runner uses the selected preset for voice card labels', async (t) => {
     log: line => output.push(line), ear: async () => [['a', 'ne']] });
   assert.equal(result.code, 0);
   assert.equal(output[1], 'Vowel meter: on (sephardi voice check)');
-  assert.equal(output[3], 'ani_clean\ta-ni\ta-ni\tPASS\ta-ne');
+  assert.equal(output[4], 'ani_clean\ta-ni\ta-ni\tPASS\ta-ne');
 });
 
 test('child runner deletes voice checks after success, ear failure and voice-only runs, unless kept', async (t) => {
@@ -529,13 +580,13 @@ test('child runner prints then deletes each clip before the next call, including
     calls += 1;
     if (calls === 1) return [['o', 'meyn']];
     await assert.rejects(access(join(directory, `${clips[0].name}.wav`)));
-    assert.equal(output.length, 4);
+    assert.equal(output.length, 5);
     throw new Error('Provider error that must not be printed');
   } });
   assert.equal(result.code, 1);
   assert.equal(calls, 2);
   assert.deepEqual(await readdir(directory), ['baruch_clean.wav']);
-  assert.equal(output[4], 'child_brocho_clean\tbe-ro-cho\tERROR\tMISS\tERROR');
+  assert.equal(output[5], 'child_brocho_clean\tbe-ro-cho\tERROR\tMISS\tERROR');
   assert.ok(output.every((line) => !line.includes('Provider error')));
 });
 
@@ -565,12 +616,12 @@ test('child audio is still deleted when printing fails; empty sets make no ear c
 test('CLI flags have safe defaults and reject invalid sets, models, presets, ports and unknown flags', () => {
   assert.deepEqual(parseOptions([], 'server'), { set: 'adult', port: 8790 });
   assert.deepEqual(parseOptions(['--set', 'child', '--port', '9123'], 'server'), { set: 'child', port: 9123 });
-  assert.deepEqual(parseOptions([], 'ear'), { set: 'adult', model: defaultEarModel(), keep: false, preset: 'ashkenazi', meter: true });
+  assert.deepEqual(parseOptions([], 'ear'), { set: 'adult', model: defaultEarModel(), keep: false, preset: 'ashkenazi', meter: true, card: true });
   assert.deepEqual(parseOptions(['--set', 'child', '--model', 'fallback', '--keep'], 'ear'), {
-    set: 'child', model: 'fallback', keep: true, preset: 'ashkenazi', meter: true,
+    set: 'child', model: 'fallback', keep: true, preset: 'ashkenazi', meter: true, card: true,
   });
   assert.deepEqual(parseOptions(['--preset', 'sephardi', '--no-meter'], 'ear'), {
-    set: 'adult', model: defaultEarModel(), keep: false, preset: 'sephardi', meter: false,
+    set: 'adult', model: defaultEarModel(), keep: false, preset: 'sephardi', meter: false, card: true,
   });
   assert.equal(parseOptions(['--preset', 'chassidish'], 'ear').preset, 'chassidish');
   for (const args of [['--set'], ['--set', 'x'], ['--port'], ['--port', '0'], ['--port', '65536'],
@@ -583,6 +634,16 @@ test('CLI flags have safe defaults and reject invalid sets, models, presets, por
   for (const args of [['--preset'], ['--preset', 'unknown'], ['--preset', 'toString']]) {
     assert.throws(() => parseOptions(args, 'ear'), /^Error: Preset must be one of: sephardi, ashkenazi, chassidish$/);
   }
+});
+
+test('--no-card parses independently of --no-meter and is only an ear option', () => {
+  assert.deepEqual(parseOptions(['--no-card'], 'ear'), {
+    set: 'adult', model: defaultEarModel(), keep: false, preset: 'ashkenazi', meter: true, card: false,
+  });
+  assert.deepEqual(parseOptions(['--no-card', '--no-meter'], 'ear'), {
+    set: 'adult', model: defaultEarModel(), keep: false, preset: 'ashkenazi', meter: false, card: false,
+  });
+  assert.throws(() => parseOptions(['--no-card'], 'server'), /Unknown option: --no-card/);
 });
 
 test('ear model default prefers Meta, then Baseten, and otherwise primary', () => {

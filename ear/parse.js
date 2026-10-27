@@ -20,6 +20,7 @@ function unwrap(text) {
 }
 
 const preamble = /^(?:sounds?|syllables|transcription|what i heard|here(?: is|'s) what i heard|here are the sounds(?: i heard)?|here is the transcription)\s*[:.!]?$/;
+const normalizeSyllable = syllable => syllable.toLowerCase().replaceAll('aw', 'o');
 
 // The formatting the models add around sounds: outer quotes, list markers and
 // a heading line such as "Sounds:".
@@ -35,6 +36,7 @@ function soundLines(text) {
 export function parseEarOutput(text) {
   return soundWords(text).map((word) => (
     word.toLowerCase().split(/-+/).filter(Boolean)
+      .map(normalizeSyllable)
       .map((syllable) => (tokenize(syllable) ? syllable : '?'))
   )).filter((word) => word.length);
 }
@@ -62,7 +64,7 @@ function sentenceShaped(raw) {
   if (words.some((word) => !/^[a-z/?-]*$/.test(word.toLowerCase()))) return true;
   return words.some((word) => word !== word.toLowerCase())
     && words.some((word) => word.toLowerCase().split(/[-/]+/).filter(Boolean)
-      .some((syllable) => syllable !== '?' && !tokenize(syllable)));
+      .some((syllable) => syllable !== '?' && !tokenize(normalizeSyllable(syllable))));
 }
 
 export function looksLikeProse(raw) {

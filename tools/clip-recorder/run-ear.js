@@ -18,7 +18,7 @@ export function matchesSay(heard, say) {
 }
 
 export async function runEar({ set = 'adult', model = defaultEarModel(), keep = false, directory,
-  preset = 'ashkenazi', meter = true, ear = hear, log = console.log } = {}) {
+  preset = 'ashkenazi', meter = true, card = true, ear = hear, log = console.log } = {}) {
   const store = recordingStore(await loadClips(set), directory);
   let failed = false;
   const rows = [];
@@ -30,13 +30,14 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), keep = 
       ? process.env.EAR_PRIMARY_MODEL || 'muse-wonder-1.0'
       : process.env.EAR_FALLBACK_MODEL || 'meta-models/muse-spark-open-1026';
     log(`Ear model: ${model} (${modelId})`);
+    const voiceAudio = voice && (meter || card) ? await store.read(voice.name) : undefined;
     let profile;
     let meterStatus;
     if (!meter) meterStatus = 'off (--no-meter)';
     else if (!voice) meterStatus = 'off (no voice check recorded)';
     else {
       try {
-        profile = buildVoiceProfile(await store.read(voice.name), cardLabels(preset));
+        profile = buildVoiceProfile(voiceAudio, cardLabels(preset));
         meterStatus = `on (${preset} voice check)`;
       } catch (error) {
         if (!(error instanceof VoiceCheckError)) throw error;
@@ -46,6 +47,7 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), keep = 
       }
     }
     log(`Vowel meter: ${meterStatus}`);
+    log(`Voice card to the ear: ${!card ? 'off (--no-card)' : voice ? 'on' : 'off (no voice check recorded)'}`);
     log('clip\tsaid\theard\tresult\tear');
     for (const clip of readings) {
       let heard = 'ERROR';
@@ -54,7 +56,9 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), keep = 
       try {
         // Only the audio reaches the ear, never the Hebrew, Say, or planted mistake.
         const audio = await store.read(clip.name);
-        const earWords = await ear({ data: audio, format: 'wav' }, { model });
+        const earWords = await ear({ data: audio, format: 'wav' }, {
+          model, ...(card && voice ? { reference: { data: voiceAudio, format: 'wav' } } : {}),
+        });
         earSounds = earWords.map((word) => word.join('-')).join(' ');
         const words = profile ? applyMeter(earWords, audio, profile).words : earWords;
         heard = words.map((word) => word.join('-')).join(' ');

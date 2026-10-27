@@ -395,7 +395,9 @@ test('voice check saves only version, numeric vowels and spread, with a public b
     assert.ok(value.n >= 2 && value.n <= 15);
   }
   assert.doesNotMatch(JSON.stringify(saved), /audio|RIFF|transcript|heard|base64/i);
-  assert.deepEqual(fs.readdirSync(dataDir), ['store.json']);
+  assert.deepEqual(fs.readdirSync(dataDir).sort(), ['store.json', 'voice']);
+  assert.deepEqual(fs.readdirSync(path.join(dataDir, 'voice')), [`${child.id}.wav`]);
+  assert.deepEqual(fs.readFileSync(path.join(dataDir, 'voice', `${child.id}.wav`)), voiceAudio(child.preset));
   assert.deepEqual((await get(app, '/api/children')).json, [{ ...child, voiceCheck: true, voiceStatus: 'done' }]);
   assert.deepEqual((await teacherGet(app, `/api/children/${child.id}/detail`)).json.child,
     { ...child, voiceCheck: true, voiceStatus: 'done' });
@@ -418,6 +420,153 @@ test('voice count mismatch returns heard and expected without saving audio or a 
   assert.equal(response.status, 422);
   assert.deepEqual(response.json, { error: 'count', heard: 2, expected: 15 });
   assert.equal(disk(dataDir).children[child.id].voice, null);
+});
+
+test('a failed voice check creates no card and preserves an earlier card and profile', async () => {
+  const { app, dataDir } = setup();
+  const child = await add(app);
+  const file = path.join(dataDir, 'voice', `${child.id}.wav`);
+  const invalid = wav(utterance(['a', 'o']));
+  assert.equal((await voice(app, child, { data: invalid })).status, 422);
+  assert.deepEqual(fs.readdirSync(dataDir), ['store.json']);
+  assert.equal(fs.existsSync(file), false);
+  assert.equal((await voice(app, child)).status, 200);
+  const saved = fs.readFileSync(path.join(dataDir, 'store.json'));
+  const card = fs.readFileSync(file);
+  for (const data of [invalid, Buffer.from('invalid WAV'), Buffer.alloc(0)]) {
+    assert.notEqual((await voice(app, child, { data })).status, 200);
+    assert.deepEqual(fs.readFileSync(path.join(dataDir, 'store.json')), saved);
+    assert.deepEqual(fs.readFileSync(file), card);
+    assert.deepEqual(fs.readdirSync(path.dirname(file)), [`${child.id}.wav`]);
+  }
+});
+
+test('voice card writes use a private temporary file and atomic rename after saving the profile', async t => {
+  const { app, dataDir } = setup();
+  const child = await add(app);
+  const file = path.join(dataDir, 'voice', `${child.id}.wav`);
+  const renames = [];
+  const rename = fs.promises.rename;
+  t.mock.method(fs.promises, 'rename', async (from, to) => {
+    if (to === file) {
+      assert.ok(disk(dataDir).children[child.id].voice);
+      assert.equal(fs.existsSync(file), false);
+      assert.equal(path.dirname(from), path.dirname(file));
+      assert.match(from, /\.wav\.[a-f0-9-]+\.tmp$/);
+      assert.equal(fs.statSync(from).mode & 0o777, 0o600);
+      assert.deepEqual(fs.readFileSync(from), voiceAudio(child.preset));
+      renames.push([from, to]);
+    }
+    return rename(from, to);
+  });
+  assert.equal((await voice(app, child)).status, 200);
+  assert.equal(renames.length, 1);
+  assert.deepEqual(fs.readdirSync(path.dirname(file)), [`${child.id}.wav`]);
+});
+
+test('grading sends a card only with a saved profile and readable file, including after restart', async t => {
+  const { app, dataDir, listen } = setup();
+  const child = await add(app);
+  const file = path.join(dataDir, 'voice', `${child.id}.wav`);
+  const turn = await start(app, child.id);
+  const data = Buffer.from('reading fixture');
+  const plain = [{ data, format: 'wav' }];
+  fs.mkdirSync(path.dirname(file));
+  fs.writeFileSync(file, 'orphan card fixture');
+  assert.equal((await grade(app, turn.turnId, 'kamatz-0', { data })).status, 200);
+  assert.deepEqual(listen.mock.calls.at(-1).arguments, plain);
+  assert.equal((await voice(app, child)).status, 200);
+  const reference = { data: voiceAudio(child.preset), format: 'wav' };
+  assert.equal((await grade(app, turn.turnId, 'kamatz-0', { data })).status, 200);
+  assert.deepEqual(listen.mock.calls.at(-1).arguments, [...plain, { reference }]);
+  const reloaded = setup({ dataDir });
+  const restarted = await start(reloaded.app, child.id);
+  assert.equal((await grade(reloaded.app, restarted.turnId, 'kamatz-0', { data })).status, 200);
+  assert.deepEqual(reloaded.listen.mock.calls.at(-1).arguments, [...plain, { reference }]);
+  fs.unlinkSync(file);
+  assert.equal((await grade(app, turn.turnId, 'kamatz-0', { data })).status, 200);
+  assert.deepEqual(listen.mock.calls.at(-1).arguments, plain);
+  fs.writeFileSync(file, reference.data);
+  const read = t.mock.method(fs.promises, 'readFile', async () => {
+    throw Object.assign(new Error('unreadable card fixture'), { code: 'EACCES' });
+  });
+  assert.equal((await grade(app, turn.turnId, 'kamatz-0', { data })).status, 200);
+  assert.deepEqual(listen.mock.calls.at(-1).arguments, plain);
+  assert.equal(read.mock.callCount(), 1);
+});
+
+for (const removal of ['clear', 'skip', 'vowels', 'preset', 'child']) {
+  test(`${removal} removes the saved voice card and tolerates a missing file`, async () => {
+    const { app, dataDir } = setup();
+    const child = await add(app);
+    assert.equal((await voice(app, child)).status, 200);
+    const file = path.join(dataDir, 'voice', `${child.id}.wav`);
+    assert.equal(fs.existsSync(file), true);
+    const remove = () => removal === 'vowels' ? patch(app, child.id, { vowels: ['kamatz'] })
+      : removal === 'preset' ? patch(app, child.id, { preset: 'ashkenazi' })
+        : request(app, `/api/children/${child.id}${removal === 'child' ? '' : '/voice'}`, {
+          method: removal === 'skip' ? 'PUT' : 'DELETE', headers: auth,
+          ...(removal === 'skip' ? { data: { skipped: true } } : {}),
+        });
+    assert.equal((await remove()).status, 200);
+    assert.equal(fs.existsSync(file), false);
+    assert.deepEqual(fs.readdirSync(path.dirname(file)), []);
+    if (removal === 'child') assert.equal((await remove()).status, 404);
+    else assert.equal((await remove()).status, 200);
+  });
+}
+
+test('same vowels, same preset and unrelated edits keep the voice card', async () => {
+  const { app, dataDir } = setup();
+  const child = await add(app);
+  await voice(app, child);
+  const file = path.join(dataDir, 'voice', `${child.id}.wav`);
+  const card = fs.readFileSync(file);
+  assert.equal((await patch(app, child.id, {
+    vowels: [...VOWEL_IDS].reverse(), preset: child.preset, name: 'Pebble', avatar: 'fox', level: 2,
+  })).status, 200);
+  assert.deepEqual(fs.readFileSync(file), card);
+});
+
+test('clearing a voice check during its card write leaves no recording behind', async t => {
+  const { app, dataDir } = setup();
+  const child = await add(app);
+  const file = path.join(dataDir, 'voice', `${child.id}.wav`);
+  const entered = deferred(), release = deferred();
+  const rename = fs.promises.rename;
+  t.mock.method(fs.promises, 'rename', async (from, to) => {
+    if (to === file) { entered.resolve(); await release.promise; }
+    return rename(from, to);
+  });
+  const saving = voice(app, child);
+  await entered.promise;
+  const clearing = request(app, `/api/children/${child.id}/voice`, { method: 'DELETE', headers: auth });
+  await new Promise(resolve => setImmediate(resolve));
+  release.resolve();
+  assert.equal((await saving).status, 200);
+  assert.equal((await clearing).status, 200);
+  assert.equal(disk(dataDir).children[child.id].voice, null);
+  assert.deepEqual(fs.readdirSync(path.dirname(file)), []);
+});
+
+test('invalid child ids and unknown children never reach any file operation', async t => {
+  const { app } = setup();
+  await add(app);
+  const operations = ['readFile', 'writeFile', 'rename', 'rm', 'mkdir'].map(name =>
+    t.mock.method(fs.promises, name, async () => { throw new Error('Unexpected file operation'); }));
+  for (const id of ['bad_id', 'bad.wav', 'bad%2Fid', randomUUID()]) {
+    const status = id.includes('-') ? 404 : 400;
+    assert.equal((await voice(app, { id, preset: 'sephardi' })).status, status);
+    for (const method of ['PUT', 'DELETE']) {
+      assert.equal((await request(app, `/api/children/${id}/voice`, {
+        method, headers: auth, data: { skipped: true },
+      })).status, status);
+    }
+    assert.equal((await patch(app, id, { preset: 'ashkenazi' })).status, status);
+    assert.equal((await request(app, `/api/children/${id}`, { method: 'DELETE', headers: auth })).status, status);
+    assert.equal((await request(app, '/api/start', { data: { childId: id } })).status, status);
+  }
+  for (const operation of operations) assert.equal(operation.mock.callCount(), 0);
 });
 
 test('voice check rejects quiet and malformed WAV, wrong content type, empty and oversized audio', async () => {
