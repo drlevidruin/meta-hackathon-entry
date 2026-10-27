@@ -2,6 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { startProfile, updateProfile, ruleNextSet, chooseNextSet, explain, turnFacts } from './index.js';
+import { expectedSounds } from '../rulebook/index.js';
+import { gradeLine } from '../grader/index.js';
 
 const K = 'vowel:kamatz';
 const T = 'vowel:tzere';
@@ -54,6 +56,95 @@ const answer = content => ({ ok: true, json: async () => ({ choices: [{ message:
 const idsAnswer = ids => answer(`ids: ${ids.join(', ')}\nreason: Revisit the vowel contrast in shorter lines.`);
 const modelChoose = (profile, results, fetcher, bank = items) =>
   chooseNextSet(profile, results, bank, { fetch: fetcher });
+
+for (const summaryPresent of [true, false]) {
+  test(`blame: two sha-vos lines target bet without crediting kamatz, summary ${summaryPresent}`, async () => {
+    const word = expectedSounds('שַׁבָּת', 'ashkenazi');
+    const bank = [...items, { ...item('read', 3, B, word.skills), text: word.word }];
+    const graded = gradeLine({ text: word.word, preset: 'ashkenazi', heard: [['sha', 'vos']] });
+    if (!summaryPresent) graded.summary.missedSkills = [];
+    const results = [1, 2].map(() => ({ itemId: 'read', ...graded }));
+    const picked = await choose(startProfile({ level: 3 }), results, bank);
+    assert.equal(picked.level, 2);
+    assert.equal(picked.decision.target, B);
+    assert.equal(picked.profile.skills[B].tries, 2);
+    assert.equal(picked.profile.skills[B].misses, 2);
+    assert.deepEqual(picked.profile.skills[B].recent, [1, 1]);
+    assert.equal(picked.profile.skills[K], undefined);
+    assert.equal(turnFacts(picked.profile).next, B);
+  });
+}
+
+test('review 2: demotion consumes evidence across empty calls and needs two fresh misses', async () => {
+  let picked = await choose(startProfile({ level: 4 }), checkpoint(4, [K]));
+  assert.equal(picked.level, 3);
+  const evidence = structuredClone(picked.profile.skills[K]);
+  for (let call = 0; call < 2; call++) {
+    picked = await choose(roundTrip(picked.profile));
+    assert.equal(picked.level, 3);
+    assert.deepEqual(picked.profile.skills[K], evidence);
+    assert.equal(turnFacts(picked.profile).next, K);
+  }
+  picked = await choose(roundTrip(picked.profile), [result('L3-a', [K])]);
+  assert.equal(picked.level, 3);
+  picked = await choose(roundTrip(picked.profile), [result('L3-b', [K])]);
+  assert.equal(picked.level, 2);
+});
+
+test('review 2: one demotion consumes simultaneous miss evidence for other skills', async () => {
+  const picked = await choose(startProfile({ level: 4 }), [
+    ...checkpoint(4, [K]), result('L4-d', [T]), result('L4-d', [T]),
+  ]);
+  assert.equal(picked.level, 3);
+  assert.equal((await choose(roundTrip(picked.profile))).level, 3);
+});
+
+test('review 6: challenge-only checkpoints do not append holds or stop the turn early', async () => {
+  let profile = startProfile({ level: 2 });
+  profile.skills[K] = skill(3, 0, [0, 0, 0]);
+  profile.cleanAtLevel.held = [[K], [K]];
+  for (let count = 0; count < 3; count++) {
+    const picked = await choose(roundTrip(profile), [result('challenge-k')], challengeBank);
+    assert.equal(picked.done, false);
+    assert.equal(picked.level, 2);
+    assert.deepEqual(picked.profile.cleanAtLevel.held, [[K], [K]]);
+    profile = picked.profile;
+  }
+});
+
+test('review 7: clean turns and skills with no recent misses have no next skill', () => {
+  const clean = updateProfile(startProfile({ level: 2 }), checkpoint(2), items);
+  assert.equal(turnFacts(clean).next, null);
+  clean.skills[T] = skill(10, 4, [0, 0, 0, 0, 0, 0]);
+  assert.equal(turnFacts(clean).next, null);
+});
+
+for (const [shape, raw] of [
+  ['reversed labels', 'reason: Practice the contrast.\nids: L2-a, L2-b'],
+  ['mixed case labels', 'IdS: L2-a, L2-b\nReAsOn: Practice the contrast.'],
+  ['extra spaces', '  ids  :   L2-a ,  L2-b   \n  reason  :  Practice the contrast.  '],
+  ['surrounding blank lines', '\n\nids: L2-a, L2-b\nreason: Practice the contrast.\n\n'],
+  ['wrapping code fence', '```text\nids: L2-a, L2-b\nreason: Practice the contrast.\n```'],
+  ['surrounding commentary', 'Here is my choice.\nids: L2-a, L2-b\nreason: Practice the contrast.\nThat is all.'],
+  ['space-separated ids', 'ids: L2-a L2-b\nreason: Practice the contrast.'],
+  ['mixed separators and CRLF', 'ids: L2-a, L2-b L2-c\r\nreason: Practice the contrast.'],
+]) {
+  test(`model parse: accepts ${shape}`, async t => {
+    keyFor(t);
+    const picked = await modelChoose(startProfile({ level: 2 }), [], async () => answer(raw));
+    assert.equal(picked.source, 'model');
+    assert.deepEqual(picked.itemIds, shape === 'mixed separators and CRLF'
+      ? ['L2-a', 'L2-b', 'L2-c'] : ['L2-a', 'L2-b']);
+    assert.equal(picked.reason, 'Practice the contrast.');
+  });
+}
+
+test('model parse: no ids line falls back to the rule plan', async t => {
+  keyFor(t);
+  const profile = startProfile({ level: 2 });
+  assert.deepEqual(await modelChoose(profile, [], async () => answer('reason: Practice the contrast.')),
+    await choose(profile));
+});
 
 test('startProfile returns independent versioned profiles and clamps levels', () => {
   const a = startProfile();
@@ -121,15 +212,15 @@ test('extras, uncertain, skipped and undecoded lines cannot be clean checkpoints
   assert.equal(empty.cleanAtLevel.clean, false);
 });
 
-test('unplaced failures do not establish clean skills, and verdict skills fill missing summary skills', () => {
+test('unplaced failures do not establish clean skills, and blame fills missing summary skills', () => {
   const failed = result('L2-e', [], { pairs: 2, ok: 0, not_decoded: 2 });
   let updated = updateProfile(startProfile({ level: 2 }), [failed], items);
   assert.deepEqual(updated.skills[B], skill(1, 1, [1]));
   assert.deepEqual(updated.skills[K], skill(1, 1, [1]));
-  failed.verdicts = [{ verdict: 'wrong_letter', skills: [B] }];
+  failed.verdicts = [{ verdict: 'wrong_letter', skills: [B, K], blame: [B] }];
   updated = updateProfile(startProfile({ level: 2 }), [failed], items);
   assert.deepEqual(updated.skills[B], skill(1, 1, [1]));
-  assert.deepEqual(updated.skills[K], skill(1, 0, [0]));
+  assert.equal(updated.skills[K], undefined);
 });
 
 test('clean checkpoints step up once and returned decisions describe the chosen set', async () => {
@@ -451,8 +542,6 @@ test('unknown ids, wrong levels, mixed levels, duplicate ids and malformed answe
     'ids: L2-a\nreason: Try this.',
     'ids: L2-a, L2-b, L2-c, L2-d\nreason: Try these.',
     'ids: L2-a, L2-b\nreason:',
-    'ids: L2-a, L2-b\nreason: Try these.\nExtra text.',
-    '```\nids: L2-a, L2-b\nreason: Try these.\n```',
     '{"ids":["L2-a","L2-b"]}',
     '',
   ]) {

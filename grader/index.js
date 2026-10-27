@@ -1,5 +1,5 @@
 import { expectedSounds, PRESETS, splitWords } from '../rulebook/index.js';
-import { alignPairs, sounded } from './pairs.js';
+import { alignPairs, blameFor, sounded } from './pairs.js';
 import { phonemes, substitution } from './phonemes.js';
 
 function readingsOf(result) {
@@ -31,6 +31,7 @@ function prepare(result) {
       }
       const traditions = others.map(({ name, reading: other }) => {
         const counterpart = other.pairs[index];
+        if (!counterpart) return { name, alternatives: [] };
         const sounds = [...counterpart.sounds];
         // Rebuilding a cleaned word loses a trailing maqaf. Preserve an already
         // flagged kamatz-katan alternative from the supplied expected result.
@@ -84,6 +85,7 @@ function skippedWord(result, models) {
   const pairs = models.map(({ pair }) => ({
     text: pair.text, verdict: sounded(pair) ? 'skipped' : 'ok', heard: '',
     expected: [...pair.sounds], skills: [...pair.skills],
+    blame: blameFor(sounded(pair) ? 'skipped' : 'ok', pair.skills),
   }));
   return {
     word: { text: result.word, verdict: 'skipped', pairs },
@@ -101,7 +103,14 @@ function matchedWord(result, alignment) {
   const traditionReading = pairs.every((pair) => pair.verdict === 'ok'
     || pair.verdict === 'uncertain' || pair.otherTradition);
   const notDecoded = !traditionReading && known > 0 && alignment.ok / known < 0.4;
-  if (notDecoded) for (const pair of pairs) pair.verdict = 'not_decoded';
+  if (notDecoded) {
+    for (const [index, pair] of pairs.entries()) {
+      if (sounded(alignment.models[index].pair) && pair.verdict !== 'uncertain') {
+        pair.verdict = 'not_decoded';
+        pair.blame = [];
+      }
+    }
+  }
   const entries = alignment.entries.map((entry) => entry.verdict === 'extra' ? { ...entry }
     : { pair: entry.pair, ...pairs[entry.pair] });
   return {
@@ -124,7 +133,7 @@ function collect(actions) {
     if (action.type === 'extra') {
       words.push({ text: action.text, verdict: 'extra', pairs: [] });
       verdicts.push({ word, pair: -1, text: action.text, verdict: 'extra',
-        heard: action.heard, expected: [], skills: [] });
+        heard: action.heard, expected: [], skills: [], blame: [] });
       summary.extra += 1;
       continue;
     }
@@ -136,9 +145,7 @@ function collect(actions) {
       if (verdict.verdict === 'extra' || sounded(entry.models[verdict.pair].pair)) {
         summary[verdict.verdict] += 1;
       }
-      if (['wrong_letter', 'wrong_vowel', 'skipped'].includes(verdict.verdict)) {
-        for (const skill of verdict.skills) missed.add(skill);
-      }
+      for (const skill of verdict.blame) missed.add(skill);
     }
   }
   summary.missedSkills = [...missed].sort();
@@ -157,7 +164,9 @@ export function align(heard, expected, options = {}) {
     return word.flatMap(phonemes);
   });
   const prepared = expected.map(prepare);
-  const attempts = prepared.map((readings) => heardTokens.map((tokens) => isAttempt(tokens, readings)));
+  const attempts = prepared.map(readings => heardTokens.map((_, start) =>
+    [1, 2, 3].map(count => start + count <= heard.length
+      && isAttempt(heardTokens.slice(start, start + count).flat(), readings))));
   const cache = new Map();
   function match(i, j, count) {
     const key = `${i}:${j}:${count}`;
@@ -201,19 +210,25 @@ export function align(heard, expected, options = {}) {
       ), 0)));
       update(i, j + 1, cell, { type: 'word', result: skippedWord(expected[j], readings[0] ?? []) }, skipCost);
       if (i === heard.length) continue;
+      let restarted = false;
+      let continuesText = false;
+      for (let count = 1; count <= 3 && i + count < heard.length; count += 1) {
+        const later = attempts[j][i + count];
+        if (attempts[j][i][count - 1] && later.some(Boolean)) {
+          restarted = true;
+          continuesText ||= later.some((attempt, span) => attempt && attempts[j + 1]?.[i + count][span]);
+          update(i + count, j, cell, { type: 'restart' }, 0.05);
+        }
+      }
+      // A detected restart must grade the final attempt, even if it is shorter.
+      // A later attempt that can begin the next printed word may instead be a
+      // separate read, including when the printed word repeats.
+      if (restarted && !continuesText) continue;
       for (let count = 1; count <= 3 && i + count <= heard.length; count += 1) {
         const alignment = match(i, j, count);
         if (!alignment) continue;
         update(i + count, j + 1, cell, { type: 'word', result: matchedWord(expected[j], alignment) },
           alignment.cost + 0.1 * (count - 1), alignment.ok, 1);
-      }
-      for (let count = 1; count <= 3 && i + count < heard.length; count += 1) {
-        const attempted = count === 1 ? attempts[j][i]
-          : isAttempt(heardTokens.slice(i, i + count).flat(), readings);
-        if (attempted && attempts[j][i + count]) {
-          // A small tie cost preserves genuinely repeated printed words.
-          update(i + count, j, cell, { type: 'restart' }, 0.05);
-        }
       }
     }
   }

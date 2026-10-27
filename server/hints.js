@@ -52,8 +52,8 @@ export function hint(skill, preset) {
     || `practice ${SKILLS[skill] || skill}`;
 }
 
-export function parentLine(name, summary, preset) {
+export function parentLine(name, summary, preset, next) {
   const first = `${name} read ${summary.ok} of ${summary.pairs} sounds right today.`;
-  if (summary.missedSkills?.length) return `${first} One to practice: ${hint(summary.missedSkills[0], preset)}.`;
-  return summary.ok === summary.pairs ? `${first} Every sound was right!` : `${first} One to practice: read each sound slowly.`;
+  if (next) return `${first} One to practice: ${hint(next, preset)}.`;
+  return `${first} Every sound was right!`;
 }

@@ -60,15 +60,17 @@ export async function modelPick(profile, results, rule, levels, candidates, fetc
       const payload = await response.json();
       const raw = payload?.choices?.[0]?.message?.content;
       if (typeof raw !== 'string') return null;
-      const match = /^ids: ([^\r\n]+)\r?\nreason: ([^\r\n]+)$/.exec(raw.trim());
-      if (!match || !match[2].trim()) return null;
-      const itemIds = match[1].split(',').map(id => id.trim());
+      const lines = raw.split(/\r?\n/).map(line => line.trim());
+      const ids = lines.find(line => /^ids\s*:/i.test(line))?.replace(/^ids\s*:\s*/i, '').trim();
+      const reason = lines.find(line => /^reason\s*:/i.test(line))?.replace(/^reason\s*:\s*/i, '').trim();
+      if (!ids || !reason) return null;
+      const itemIds = ids.split(/[,\s]+/);
       if (itemIds.length < 2 || itemIds.length > 3 || new Set(itemIds).size !== itemIds.length) return null;
       const selected = itemIds.map(id => candidates.find(item => item.id === id));
       if (selected.some(item => !item)) return null;
       const level = selected[0].level;
       if (!levels.includes(level) || selected.some(item => item.level !== level)) return null;
-      return { itemIds, level, reason: match[2].trim() };
+      return { itemIds, level, reason };
     };
     return await Promise.race([request(), timeout]);
   } catch {

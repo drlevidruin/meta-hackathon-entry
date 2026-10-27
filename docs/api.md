@@ -158,17 +158,18 @@ No new Hebrew text is generated for samples.
 Each graded pair with exactly one letter skill and exactly one vowel skill adds
 1 for `ok` or 0 for every other verdict to that cell's last six reads. A cell is
 solid when its last three reads are all 1, shaky when any of its last three reads
-is 0, and untested otherwise. This treats one or two correct reads as untested
-until there is enough evidence for solid.
+is 0. A cell is untested when it has fewer than three reads and none missed.
+This treats one or two correct reads as untested until there is enough evidence
+for solid.
 
 Parent lines are templates in `server/hints.js`, based on the latest saved turn:
 
 `<name> read <ok> of <pairs> sounds right today.`
 
-This is followed by ` One to practice: <hint>.` using the first missed skill,
-or ` Every sound was right!` for a perfect turn. A miss without a skill uses
-`read each sound slowly`. Before any saved turn, counts are zero. Hints cover
-every letter, vowel and pattern in rulebook `SKILLS`, with `practice <label>`
+This is followed by ` One to practice: <hint>.` using `turnFacts(profile).next`
+for the child, the same skill used by the end-of-turn sentence. When there is
+no next skill, it says ` Every sound was right!`. Before any saved turn, counts
+are zero. Hints cover every letter, vowel and pattern in rulebook `SKILLS`, with `practice <label>`
 as a fallback. Kamatz says a for Sephardi and o for Ashkenazi and Chassidish;
 a tav without a dot says t for Sephardi and s for the other presets.
 
@@ -252,6 +253,6 @@ blocked. Unknown API routes do not fall back to station HTML.
 
 ## Offline checks
 
-Run `node --test server/` and `node --test` from the repo root. Server route
-tests inject fakes for all grader, ear and coach contracts and use temporary
+Run `node --test server/app.test.js` and `node --test` from the repo root.
+Server route tests inject fakes for all grader, ear and coach contracts and use temporary
 DATA_DIR directories. They need no model modules, packages or network.
