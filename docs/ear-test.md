@@ -313,6 +313,10 @@ Two other tries failed:
 
 Levi also read the card wrong on purpose, with every kamatz as a patach, and the ear heard the 34 clips twice with that card first. With the meter it caught 14 and 16 of 18 plants, about what the live ear catches with no card. But plant by plant it hid two mistakes the live ear never missed. Once in two runs it wrote cho-lov for the planted cha-lov. In both runs it wrote ha-mo-kom for ha-ma-kom, so the wrong word still got marks, but not on the syllable the plant needs. A wrong card teaches the ear that this reader's kamatz sounds like a patach.
 
+So the card reaches the ear only when the voice check shows it was read right. The server already measures the card's vowels for the meter. The card goes to the ear only when every vowel pair the meter uses was kept apart on it, by the meter's own separation rule. Levi's right card passes: his a and o sit 1.14 Bark apart, where 0.82 is needed. His wrong card fails at 0.08 apart, where 0.80 is needed. The rule follows the child's tradition: under Sephardi, where kamatz is an a, his right card fails and the wrong one passes. A card that shows kamatz must also show it apart from a patach. That leaves out Chassidish, where kamatz can be o or u and the voice check does not measure it, and a beginner who has learned kamatz but not patach. Their readings go to the ear without the card.
+
+The card recording stays in the server's memory and is never written to disk. It is dropped when a teacher clears or skips the voice check, changes the child's vowels or tradition, or removes the child, and when the server stops. After a restart the child reads the card again at their next turn.
+
 ## Round 1d: sealed test
 
 Read each clip once, after the sheva tests, in Ashkenazi pronunciation. Round 1c has been read, so these twelve words take its place as the sealed test. Nobody reads the ear's answers on them until the next ear change is final.
