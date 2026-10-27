@@ -26,7 +26,9 @@ export const grade = ({ turnId, itemId, audio }) => isMockMode() ? mock.grade({ 
   request(`grade?turn=${encodeURIComponent(turnId)}&item=${encodeURIComponent(itemId)}`, {
     method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: audio,
   });
-export const next = data => isMockMode() ? mock.next(data) : post('next', { turnId: data.turnId, elapsedMs: data.elapsedMs });
+export const next = data => isMockMode() ? mock.next(data) : post('next', {
+  turnId: data.turnId, elapsedMs: data.elapsedMs, checkpoint: data.checkpoint,
+});
 export const finish = data => isMockMode() ? mock.finish(data) : post('finish', { turnId: data.turnId, stars: data.stars });
 export const checkPin = pin => isMockMode() ? mock.checkPin(pin) : post('teacher/check', undefined, { teacher: true, pin });
 export const classView = () => isMockMode() ? mock.classView() : request('class', { teacher: true });

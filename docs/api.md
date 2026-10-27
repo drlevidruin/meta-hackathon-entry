@@ -42,7 +42,7 @@ Only bank items can be returned by the coach. Challenge items have
 | `GET /api/children` | None | `[Child]` |
 | `POST /api/start` | `{ childId }` | `{ turnId, level, set: [Item] }` |
 | `POST /api/grade?turn=<turnId>&item=<itemId>` | Raw `audio/wav` bytes | `{ itemId, words, summary }` |
-| `POST /api/next` | `{ turnId, elapsedMs }` | `{ done: false, level, levelUp, set: [Item] }` or `{ done: true, level, levelUp, facts: { best, next, proven } }` |
+| `POST /api/next` | `{ turnId, elapsedMs, checkpoint }` | `{ done: false, level, levelUp, set: [Item] }` or `{ done: true, level, levelUp, facts: { best, next, proven } }` |
 | `POST /api/finish` | `{ turnId, stars }` | `{ child: Child }` |
 | `GET /api/config` | None | `{ trace: boolean }` |
 
@@ -51,7 +51,12 @@ new profile, then calls `startTurn(profile)` to reset checkpoint and held-level
 counts while preserving learning history and demotion bookkeeping. It calls
 `chooseNextSet(profile, [], items, { useModel: false })` on that reset copy and
 opens a turn with a random UUID. If the coach answers done, start uses a normal
-rule selection from the reset profile. The preset is captured on the turn.
+rule selection from the reset profile. The preset is captured on the turn. Start
+waits for pending store writes before loading the profile. Starting ends any
+earlier live turn for this child. Its grade, next and finish calls then return
+404, so it cannot overwrite newer progress. Finished receipts
+remain available until expiry. A start still awaiting the coach is also
+superseded by a newer start or a teacher level change.
 
 Grade accepts an item only from the turn's current set. An unknown or expired
 turn, a finished turn, or an item outside the current set returns 404. The ear
@@ -78,27 +83,54 @@ chooseNextSet(profile, [{ itemId, summary, verdicts }], items,
   { useModel: COACH_MODEL !== 'off', elapsedMs })
 ```
 
+`checkpoint` is the count of sets the station has completed in this turn,
+starting at 1 for the first next request. It must be a positive safe integer.
+The server keeps the last answered checkpoint and its exact response in memory.
+Sending that checkpoint again returns the saved response without consuming
+grades, calling the coach or advancing the turn, including when it answered
+done. Only the next number advances the turn. A missing or invalid checkpoint,
+a skipped number or an older checkpoint returns 409 `{ error: "Invalid checkpoint" }`.
+Concurrent retries are serialized. A failed request does not consume the number.
+
 `elapsedMs` must be a finite, nonnegative number. The server stores the new
 profile, level, decision and `explain(decision)` line on the in-memory turn.
 `levelUp` compares the new level with the level before that checkpoint. A done
-response uses `turnFacts(profile)`; further next calls return 400. The server
-accepts finishing before a done checkpoint, including uncheckpointed grades.
+response uses `turnFacts(profile)`; a new checkpoint after done returns 400.
+After awaiting the coach, next rechecks that the turn is live and unexpired and
+that the child exists. Deletion, a replacement turn or a changed teacher level
+during that wait returns 404 without changing the turn or saving progress.
+The server accepts finishing before a done checkpoint, including
+uncheckpointed grades.
 
-Finish requires a nonnegative safe integer `stars`. It saves the profile and
-level, adds stars to the lifetime total, updates best, and saves a turn record.
-The most recent grade per item per set contributes to the saved turn summary.
-A repeated finish returns 404 and cannot add stars again. Turns expire 30
-minutes after start, including retained traces of finished turns. Expiry is
-checked on requests without a background timer. Open turns do not survive a
-restart. Pair history already saved by grading does survive an unfinished turn.
+The first finish requires a nonnegative safe integer `stars`; negative,
+fractional, unsafe or nonnumeric values return 400. The server computes earned
+stars from its own grades using the station's per-line rule: one star when a
+line has sounded pairs and at least 80 percent are ok, plus one bonus for a
+challenge when it has pairs, all word and pair verdicts are ok and there are no
+extra sounds. The award is `min(stars, earned)`. Failed and ungraded lines earn
+nothing. Only the latest successful grade per item in each set counts, including
+uncheckpointed grades; an item read in a later set counts separately.
+
+Finish saves the profile and level, adds the award to lifetime stars, updates
+best from the award, and saves one turn record. Repeated finishes return 200 with
+the original `{ child }` receipt, even after a later turn changes totals, and
+never add stars or history again. Concurrent finishes receive the same receipt.
+
+Turns expire 30 minutes after start, including saved checkpoint responses,
+finished receipts and traces. Expiry is checked on requests without a timer.
+Open turns and receipts do not survive a restart. Pair history already saved by
+grading does survive an unfinished turn. On a grade, next or finish 404, the
+station clears its saved turn from session storage and returns to Who's reading.
+Other failures retain the existing retry or gray-line behavior.
 
 ## Teacher routes
 
 All these routes require the `X-Teacher-Pin` header. The server compares
 equal-length buffers with `crypto.timingSafeEqual`. A missing or incorrect PIN
-returns 403 `{ error: "Invalid teacher PIN" }`. When `TEACHER_PIN` is unset or
-empty, teacher routes return 403 `{ error: "Teacher PIN not set" }`.
-The disabled trace route is always 404.
+returns 403 `{ error: "Invalid teacher PIN" }`. Startup requires `TEACHER_PIN`
+to match `^\d{4,12}$`, the same 4 to 12 digits accepted by the station PIN pad.
+A missing or invalid PIN prints one plain explanation without its value and
+exits with code 1 before listening. The disabled trace route is always 404.
 
 | Method and path | Request | Response |
 | --- | --- | --- |
@@ -113,8 +145,10 @@ The disabled trace route is always 404.
 | `GET /api/trace?turn=<turnId>` | None | Trace below, only with `TRACE=1` |
 
 Create and patch reject extra fields. Patch must contain at least one field.
-A teacher level edit starts a fresh coach profile at that level and preserves
-stars and read history. Delete removes the child, every saved turn and all live
+A PATCH with a different level starts a fresh coach profile at that level and
+ends the child's live turn, preserving stars and read history. Sending the same
+level, including with name, avatar or preset edits, preserves the saved coach
+profile and live turn. Delete removes the child, every saved turn and all live
 turns and traces about that child.
 
 ### Class view
@@ -171,10 +205,12 @@ Parent lines are templates in `server/hints.js`, based on the latest saved turn:
 
 This is followed by ` One to practice: <hint>.` using `turnFacts(profile).next`
 for the child, the same skill used by the end-of-turn sentence. When there is
-no next skill, it says ` Every sound was right!`. `parentLine` is `''` until the
-child has a finished turn. It is also `''` when the latest finished turn's
-summary has no sounded pairs. Hints cover every letter, vowel and pattern in rulebook `SKILLS`, with `practice <label>`
-as a fallback. Kamatz says a for Sephardi and o for Ashkenazi and Chassidish;
+no next skill, every sounded pair was ok and there were no extra sounds, it
+says ` Every sound was right!`.
+With mistakes and no next skill, the line ends after the count. `parentLine` is
+`''` until the child has a finished turn. It is also `''` when the latest
+finished turn's summary has no sounded pairs. Hints cover every letter, vowel
+and pattern in rulebook `SKILLS`, with `practice <label>` as a fallback. Kamatz says a for Sephardi and o for Ashkenazi and Chassidish;
 a tav without a dot says t for Sephardi and s for the other presets.
 
 ### Practice packets
@@ -202,9 +238,9 @@ eligible bank focus when next is null. A request must choose either child or
 skill plus level. Unknown skills and invalid levels return 400.
 
 Sections contain fewer items when the bank lacks enough eligible items; items
-are never fabricated or duplicated within a section. The current bank has no
-`source.challenge` items, so its Challenge sections are empty until those bank
-items are supplied. Warm up and Practice may overlap.
+are never fabricated or duplicated within a section. The current bank has
+150 challenge items with `source.challenge: true`, and each packet includes one
+in Challenge. Warm up and Practice may overlap.
 
 ### Developer trace
 
@@ -243,20 +279,38 @@ multi-process database.
 
 Saved turns contain their id, date, start and end levels, ok and pair totals,
 stars, per-item summaries, decisions and explain lines. They do not contain
-audio, verdicts, heard strings or model reasons. Profile fields are otherwise
-opaque to the server. Read histories keep at most six entries per cell.
+audio, verdicts, heard strings or model reasons. Child profiles are persisted
+through an allowlist: `version`, `level`,
+`checkpoints`, `cleanAtLevel` (`clean`, `held`), `skills` (known skill ids with
+`tries`, `misses`, `recent`, `demotedAt`), `proven` and `seen`. Nested records
+and arrays also keep only their expected numbers, booleans and identifiers;
+unknown fields never reach disk. The store keeps the newest 60 turns per child,
+while detail returns the newest 20. These limits and profile filtering also
+apply when loading a store. Read histories keep at most six entries per cell.
 
 `server/index.js` loads `ear/env.js`, imports the real ear, grader and coach,
-serves `station/dist` and listens on `PORT` (default 8787). Configuration:
+serves `station/dist` and listens on `HOST` (default `127.0.0.1`) and `PORT`
+(default 8787). Set `HOST=0.0.0.0` for a classroom tablet on the same network.
+After listening, startup prints one plain line for each missing `META_API_KEY`
+(the ear cannot hear and lines show gray) and missing `station/dist` (run
+`cd station && npm run build`), plus the actual address and port it listens on.
+No key or part of a key is printed. Configuration:
 
 | Variable | Meaning |
 | --- | --- |
-| `TEACHER_PIN` | Teacher header secret, required to enable teacher routes |
+| `TEACHER_PIN` | Required teacher header secret, exactly 4 to 12 digits; invalid values stop startup |
 | `TRACE` | Exactly `1` enables the protected trace endpoint |
 | `COACH_MODEL` | Exactly `off` disables model calls at next checkpoints |
 | `COACH_REASONING_EFFORT` | Coach reasoning effort, default `minimal`; requests allow 16000 tokens and time out after 30 seconds |
 | `DATA_DIR` | Store directory, default `<repo>/data` |
+| `HOST` | Listen address, default `127.0.0.1`; use `0.0.0.0` for other devices |
 | `PORT` | HTTP port, default 8787 |
+
+The ear refuses any configured `EAR_PRIMARY_MODEL` or `EAR_FALLBACK_MODEL` id
+ending in `-contributor` before sending a request. That provider counts as a
+failed call, so normal fallback may still use an allowed provider. The coach
+uses the fixed standard id `muse-spark-1.3`; environment values do not replace
+that id, and failed or invalid coach calls fall back to the rule.
 
 The server never logs request bodies, audio or names. Static GET and HEAD
 requests support the station's index fallback. Literal and encoded parent
@@ -269,3 +323,8 @@ Run `node --test server/app.test.js` and `node --test` from the repo root.
 Server route tests use temporary DATA_DIR directories and inject fake ear,
 grader and coach contracts, except the multi-turn regression, which uses the
 real grader and coach with the model off. They need no packages or network.
+
+The station checks use installed local packages: `cd station && npx vitest run
+--configLoader native`. Build with `cd station && npm run build`. When the
+workspace's linked packages prevent Vite from writing its temporary config,
+use `cd station && npm run build -- --configLoader native`.

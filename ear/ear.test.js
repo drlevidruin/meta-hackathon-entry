@@ -493,3 +493,27 @@ test('the primary request carries no reasoning_effort', async (t) => {
   await listen(audio, { model: 'primary', fetch: async (_url, init) => { bodies.push(JSON.parse(init.body)); return answer(); } });
   assert.equal('reasoning_effort' in bodies[0], false);
 });
+
+
+for (const provider of ['primary', 'fallback']) {
+  test(`ear refuses a contributor ${provider} model before fetch`, async t => {
+    setKeys(t);
+    const name = provider === 'primary' ? 'EAR_PRIMARY_MODEL' : 'EAR_FALLBACK_MODEL';
+    const previous = process.env[name];
+    t.after(() => {
+      if (previous === undefined) delete process.env[name];
+      else process.env[name] = previous;
+    });
+    process.env[name] = 'offline-model-contributor';
+    const { listen: configuredListen } = await import(`./hear.js?contributor=${provider}`);
+    let calls = 0;
+    const fetch = async () => { calls++; return answer(); };
+    await assert.rejects(configuredListen(audio, { model: provider, fetch }), /contributor/);
+    assert.equal(calls, 0);
+    if (provider === 'primary') {
+      const result = await configuredListen(audio, { fetch });
+      assert.equal(result.model, FALLBACK);
+      assert.equal(calls, 1);
+    }
+  });
+}

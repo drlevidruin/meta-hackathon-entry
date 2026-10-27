@@ -60,3 +60,22 @@ test('round 2.10: model timeout is thirty seconds and still aborts stalled reque
   assert.equal(signal.aborted, true);
   assert.deepEqual(durations, [30_000]);
 });
+
+
+test('coach model id stays on the standard tier despite contributor environment overrides', async t => {
+  for (const name of ['COACH_MODEL', 'COACH_MODEL_ID']) {
+    const previous = process.env[name];
+    process.env[name] = 'muse-spark-1.3-contributor';
+    t.after(() => {
+      if (previous === undefined) delete process.env[name];
+      else process.env[name] = previous;
+    });
+  }
+  let model;
+  await modelPick(startProfile(), [], rule, [1], candidates, async (_url, init) => {
+    model = JSON.parse(init.body).model;
+    return response;
+  });
+  assert.equal(model, 'muse-spark-1.3');
+  assert.equal(model.endsWith('-contributor'), false);
+});

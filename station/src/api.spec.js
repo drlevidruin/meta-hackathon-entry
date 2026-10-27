@@ -12,13 +12,13 @@ it('sends only the API v2 turn fields and raw WAV', async () => {
   const audio = new Blob(['wav'], { type: 'audio/wav' });
   await api.start({ childId: 'c1', preset: 'ignored' });
   await api.grade({ turnId: 't 1', itemId: 'i/1', audio });
-  await api.next({ turnId: 't1', elapsedMs: 200, results: ['ignored'] });
+  await api.next({ turnId: 't1', elapsedMs: 200, checkpoint: 1, results: ['ignored'] });
   await api.finish({ turnId: 't1', stars: 3 });
   const calls = fetch.mock.calls;
   expect(calls[0][0]).toBe('/api/start'); expect(JSON.parse(calls[0][1].body)).toEqual({ childId: 'c1' });
   expect(calls[1][0]).toBe('/api/grade?turn=t%201&item=i%2F1');
   expect(calls[1][1].headers['Content-Type']).toBe('audio/wav'); expect(calls[1][1].body).toBe(audio);
-  expect(JSON.parse(calls[2][1].body)).toEqual({ turnId: 't1', elapsedMs: 200 });
+  expect(JSON.parse(calls[2][1].body)).toEqual({ turnId: 't1', elapsedMs: 200, checkpoint: 1 });
   expect(JSON.parse(calls[3][1].body)).toEqual({ turnId: 't1', stars: 3 });
   calls.forEach(([, options]) => expect(options.headers['X-Teacher-Pin']).toBeUndefined());
 });
