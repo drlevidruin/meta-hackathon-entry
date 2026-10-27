@@ -1,4 +1,6 @@
 import argparse
+import ctypes
+import ctypes.util
 import json
 import os
 import sys
@@ -30,6 +32,37 @@ def deadline(headers, now):
     return now + milliseconds / 1000 if 0 < milliseconds <= 600000 else None
 
 
+# macOS swaps an idle model out under memory pressure. Locked pages stay in RAM.
+def pin(tensors, mlock=None, munlock=None):
+    locked = {}
+    try:
+        if mlock is None or munlock is None:
+            libc = ctypes.CDLL(ctypes.util.find_library('c'), use_errno=True)
+            for function in (libc.mlock, libc.munlock):
+                function.argtypes = [ctypes.c_void_p, ctypes.c_size_t]
+                function.restype = ctypes.c_int
+            mlock = mlock or libc.mlock
+            munlock = munlock or libc.munlock
+        for tensor in tensors:
+            storage = tensor.untyped_storage()
+            pointer = storage.data_ptr()
+            size = storage.nbytes()
+            if pointer in locked or size == 0:
+                continue
+            if mlock(pointer, size) != 0:
+                raise OSError('mlock failed')
+            locked[pointer] = size
+        return sum(locked.values())
+    except Exception:
+        # Part of a model locked holds RAM without keeping the model fast, so release it.
+        for pointer, size in locked.items():
+            try:
+                munlock(pointer, size)
+            except Exception:
+                pass
+        return 0
+
+
 def load_inference():
     os.environ['HF_HUB_OFFLINE'] = '1'
     os.environ['TRANSFORMERS_OFFLINE'] = '1'
@@ -41,6 +74,10 @@ def load_inference():
     extractor = Wav2Vec2FeatureExtractor.from_pretrained(MODEL, revision=REVISION, local_files_only=True)
     model = Wav2Vec2ForCTC.from_pretrained(MODEL, revision=REVISION, local_files_only=True)
     model.eval()
+    locked = pin([*model.parameters(), *model.buffers()])
+    print(f'Model pinned in memory ({locked / 1024 ** 3:.1f} GB).' if locked else
+          'Could not pin the model in memory; readings may be slow when this Mac is short of memory.',
+          file=sys.stderr)
     vocab_path = hf_hub_download(MODEL, 'vocab.json', revision=REVISION, local_files_only=True)
     with open(vocab_path, encoding='utf-8') as vocab_file:
         id_to_token = {index: token for token, index in json.load(vocab_file).items()}

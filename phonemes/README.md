@@ -9,6 +9,9 @@ From the repo root, run `npm run phonemes:setup` once to install the pinned Pyth
 packages and download the model. Setup needs a network connection. Then run
 `npm run phonemes`. Normal startup uses only the local model snapshot.
 
+The service pins the model in RAM while it runs, about 1.2 GB, so it stays fast
+when the Mac is short of memory. Stop it when not grading.
+
 It listens on `127.0.0.1` only, on port 8791 by default. `PHONEME_PORT` changes
 the port. Set the app's `PHONEME_URL` to the same local address when changing it.
 Audio stays in memory on this computer. The service writes no audio files and
