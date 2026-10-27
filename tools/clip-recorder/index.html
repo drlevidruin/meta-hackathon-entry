@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" dir="ltr">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,29 +8,31 @@
     <script type="module" src="/app.js"></script>
   </head>
   <body>
-    <nav id="chips" class="chips" aria-label="Clips"></nav>
-    <main>
-      <div class="reading">
-        <p id="hebrew" class="hebrew" dir="rtl" lang="he"></p>
-        <p id="say" class="say" dir="ltr"></p>
-        <p id="planted" class="planted"></p>
-      </div>
-      <button id="record" class="record" type="button" aria-label="Record" aria-pressed="false" disabled>
-        <svg class="microphone" viewBox="0 0 48 48" aria-hidden="true">
-          <rect x="17" y="5" width="14" height="25" rx="7"></rect>
-          <path d="M11 23v2a13 13 0 0 0 26 0v-2M24 38v6M17 44h14"></path>
-        </svg>
-        <span class="stop" aria-hidden="true"></span>
-      </button>
-      <div id="actions" class="actions" hidden>
-        <button id="play" type="button">Play</button>
-        <button id="again" type="button">Again</button>
-        <button id="next" type="button">Next</button>
-      </div>
-    </main>
-    <footer>
-      <button id="delete-child" class="delete-child" type="button" disabled>Delete child recordings</button>
-    </footer>
+    <div class="recorder-layout">
+      <nav id="chips" class="chips" aria-label="Clips" dir="ltr"></nav>
+      <main>
+        <div class="reading">
+          <p id="hebrew" class="hebrew" dir="rtl" lang="he"></p>
+          <p id="say" class="say" dir="ltr"></p>
+          <p id="planted" class="planted" dir="ltr"></p>
+        </div>
+        <button id="record" class="record" type="button" aria-label="Record" aria-pressed="false" disabled>
+          <svg class="microphone" viewBox="0 0 48 48" aria-hidden="true">
+            <rect x="17" y="5" width="14" height="25" rx="7"></rect>
+            <path d="M11 23v2a13 13 0 0 0 26 0v-2M24 38v6M17 44h14"></path>
+          </svg>
+          <span class="stop" aria-hidden="true"></span>
+        </button>
+        <div id="actions" class="actions" dir="ltr" hidden>
+          <button id="play" type="button">Play</button>
+          <button id="again" type="button">Again</button>
+          <button id="next" type="button">Next</button>
+        </div>
+      </main>
+      <footer id="child-actions" dir="ltr" hidden>
+        <button id="delete-child" class="delete-child" type="button" disabled>Delete child recordings</button>
+      </footer>
+    </div>
     <audio id="playback" hidden></audio>
   </body>
 </html>

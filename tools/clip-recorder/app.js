@@ -18,15 +18,28 @@ let recorder;
 let stream;
 let context;
 
+function setLatinText(element, text) {
+  element.dir = 'ltr';
+  element.replaceChildren(...text.split(/([\u0590-\u05ff\ufb1d-\ufb4f]+)/u).map((part, index) => {
+    if (index % 2 === 0) return document.createTextNode(part);
+    const hebrew = document.createElement('bdi');
+    hebrew.dir = 'rtl';
+    hebrew.lang = 'he';
+    hebrew.textContent = part;
+    return hebrew;
+  }));
+}
+
 function render() {
+  byId('child-actions').hidden = set !== 'child';
   const clip = clips[current];
   if (!clip) return;
   byId('hebrew').textContent = clip.hebrew;
-  byId('say').textContent = clip.say;
-  byId('planted').textContent = clip.planted;
+  setLatinText(byId('say'), clip.say);
+  setLatinText(byId('planted'), clip.planted);
   for (const [index, chip] of [...chipsElement.children].entries()) {
     chip.classList.toggle('done', clips[index].done);
-    chip.setAttribute('aria-label', `${clips[index].name}${clips[index].done ? ', done' : ''}`);
+    chip.setAttribute('aria-label', `${index + 1}. ${clips[index].name}, say ${clips[index].say}${clips[index].done ? ', done' : ''}`);
     if (index === current) chip.setAttribute('aria-current', 'step');
     else chip.removeAttribute('aria-current');
     chip.disabled = busy || recording;
@@ -151,7 +164,7 @@ playButton.addEventListener('click', async () => {
 });
 
 deleteButton.addEventListener('click', async () => {
-  if (busy || recording || !window.confirm('Delete child recordings?')) return;
+  if (set !== 'child' || busy || recording || !window.confirm('Delete child recordings?')) return;
   busy = true;
   render();
   try {
@@ -188,7 +201,26 @@ try {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'chip';
-    button.textContent = String(index + 1);
+    button.dir = 'ltr';
+    const number = document.createElement('span');
+    number.className = 'clip-number';
+    number.textContent = String(index + 1);
+    const details = document.createElement('span');
+    details.className = 'clip-details';
+    const hebrew = document.createElement('span');
+    hebrew.className = 'clip-hebrew';
+    hebrew.dir = 'rtl';
+    hebrew.lang = 'he';
+    hebrew.textContent = clip.hebrew;
+    const say = document.createElement('span');
+    say.className = 'clip-say';
+    setLatinText(say, clip.say);
+    details.append(hebrew, say);
+    const done = document.createElement('span');
+    done.className = 'clip-done';
+    done.setAttribute('aria-hidden', 'true');
+    done.textContent = '✓';
+    button.append(number, details, done);
     button.title = clip.name;
     button.addEventListener('click', () => jump(index));
     chipsElement.append(button);

@@ -32,6 +32,7 @@
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 body { margin: 0; min-height: 100svh; display: flex; flex-direction: column; }
+.recorder-layout { display: flex; flex: 1; flex-direction: column; }
 button { font: inherit; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 button:disabled { cursor: default; opacity: .45; }
 button:focus-visible { outline: 3px solid #1b2a2f; outline-offset: 5px; }
@@ -58,12 +59,13 @@ button:focus-visible { outline: 3px solid #1b2a2f; outline-offset: 5px; }
 .chip.done { background: #edf5ef; border-color: #edf5ef; color: var(--green); }
 .chip.done::after { content: ''; position: absolute; width: 7px; height: 7px; border-radius: 50%; background: var(--green); right: 5px; top: 5px; }
 .chip[aria-current="step"] { border: 2px solid var(--green); box-shadow: 0 0 0 2px #edf5ef; }
+.clip-details, .clip-done { display: none; }
 
 main { width: min(100%, 1100px); flex: 1; margin-inline: auto; padding: 22px 24px 32px; text-align: center; }
 .reading { min-height: 310px; display: flex; flex-direction: column; justify-content: center; }
 .hebrew { font: 700 clamp(56px, 6.5vw, 94px)/2 'Frank Ruhl Libre', serif; margin: 0; overflow-wrap: break-word; }
 .say { font-size: clamp(28px, 3.3vw, 44px); line-height: 1.65; font-weight: 700; margin: 12px 0 0; overflow-wrap: break-word; }
-.planted { font-size: 14px; color: #737e82; line-height: 1.7; margin: 12px 0 26px; unicode-bidi: plaintext; }
+.planted { font-size: 14px; color: #737e82; line-height: 1.7; margin: 12px 0 26px; }
 .record { display: grid; place-items: center; width: 116px; height: 116px; border-radius: 50%; border: 0; margin: 30px auto; background: var(--green); color: #fff; box-shadow: 0 0 0 12px #edf5ef; }
 .microphone { width: 49px; height: 49px; fill: currentColor; }
 .microphone path { fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; }
@@ -77,6 +79,57 @@ main { width: min(100%, 1100px); flex: 1; margin-inline: auto; padding: 22px 24p
 footer { text-align: center; padding: 24px; }
 .delete-child { min-height: 44px; color: #737e82; border: 0; background: transparent; font-size: 12px; text-decoration: underline; text-underline-offset: 4px; }
 @keyframes pulse { 50% { box-shadow: 0 0 0 19px #edf5ef; } }
+
+@media (min-width: 1024px) {
+  .recorder-layout {
+    display: grid;
+    grid-template-columns: minmax(320px, 390px) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    column-gap: 32px;
+    width: min(100%, 1440px);
+    height: 100svh;
+    margin-inline: auto;
+    padding: 32px;
+  }
+  .chips {
+    grid-row: 1 / -1;
+    flex-direction: column;
+    width: auto;
+    min-height: 0;
+    margin: 0;
+    padding: 4px 12px 4px 4px;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+  .chip {
+    display: grid;
+    grid-template-columns: 30px minmax(0, 1fr) 20px;
+    align-items: center;
+    gap: 12px;
+    flex: 0 0 auto;
+    height: auto;
+    min-height: 94px;
+    padding: 16px;
+    text-align: start;
+  }
+  .clip-details { display: grid; gap: 4px; min-width: 0; }
+  .clip-hebrew { font: 700 26px/1.6 'Frank Ruhl Libre', serif; overflow-wrap: anywhere; }
+  .clip-say { font-size: 13px; line-height: 1.6; font-weight: 400; overflow-wrap: anywhere; }
+  .clip-done { display: block; visibility: hidden; color: var(--green); }
+  .chip.done .clip-done { visibility: visible; }
+  .chip.done::after { display: none; }
+  .chip[aria-current="step"] { background: #edf5ef; }
+  main {
+    width: 100%;
+    min-height: 0;
+    margin: 0;
+    padding: 24px 20px;
+    overflow-y: auto;
+    border: 1px solid #d6dfd9;
+    border-radius: 24px;
+  }
+  footer { grid-column: 2; padding: 16px 0 0; }
+}
 
 @media (max-width: 480px) {
   .chips { padding: 18px; gap: 8px; }
