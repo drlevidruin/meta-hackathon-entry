@@ -368,6 +368,25 @@ The runs also showed what the card costs. In 3 of the 36 card readings the ear w
 
 Across all 46 clips with the meter, the card caught 60 of 66 plants against 61 and left 72 false marks against 95. No run passed. Round 1d has now been read, so it no longer counts as a sealed test. A change made from here needs new words.
 
+## Round 1e: sealed test
+
+Read each clip once, in Ashkenazi pronunciation. Round 1d has been read, so these twelve words take its place as the sealed test. They test kamatz in short words the ear knows, patach where the card made the ear write o, and both kinds of planted vowel. Nobody reads the ear's or the phoneme model's answers on them until the vote and the phoneme referee are final.
+
+| File name | Hebrew | Say | Planted | The ear should write |
+| --- | --- | --- | --- | --- |
+| shom_clean | שָׁם | shom | nothing | shom |
+| poro_clean | פָּרָה | po-ro | nothing | po-ro |
+| kosav_clean | כָּתַב | ko-sav | nothing | ko-sav |
+| nofal_clean | נָפַל | no-fal | nothing | no-fal |
+| chag_clean | חַג | chag | nothing | chag |
+| kadur_clean | כַּדּוּר | ka-dur | nothing | ka-dur |
+| sabo_clean | סַבָּא | sa-bo | nothing | sa-bo |
+| kal_clean | קַל | kal | nothing | kal |
+| ochal_patach-for-kamatz | אָכַל | a-chal | the kamatz read as patach | a-chal |
+| kom_patach-for-kamatz | קָם | kam | kamatz read as patach | kam |
+| gan_kamatz-for-patach | גַּן | gon | patach read as kamatz | gon |
+| daf_kamatz-for-patach | דַּף | dof | patach read as kamatz | dof |
+
 ## Round 2: a child's voice
 
 The adult round must pass first. Recording a child requires written parent consent. Turn Meta Model API free credits off and use a paid plan before sending children's audio. Meta's free-credit terms allow content to be used for product improvement.
