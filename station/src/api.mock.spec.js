@@ -31,7 +31,7 @@ it('seeds twelve distinct avatars, four levels, all presets and five varied prac
   expect([...new Set(roster.map(child => child.preset))].sort()).toEqual([...PRESETS].sort());
   const { children, groups } = await mock.classView();
   expect(groups.map(group => group.childIds.length)).toEqual([3, 3, 2, 2, 1]);
-  expect(groups.flatMap(group => group.childIds).sort()).toEqual(roster.map(child => child.id).sort());
+  expect(groups.flatMap(group => group.childIds).sort()).toEqual(children.filter(child => child.lastTurn).map(child => child.id).sort());
   const lastTurns = children.filter(child => child.lastTurn).map(child => child.lastTurn);
   expect(lastTurns).toHaveLength(11);
   const fresh = children.find(child => !child.lastTurn);
