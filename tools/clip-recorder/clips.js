@@ -45,6 +45,7 @@ export async function loadClips(set = 'adult') {
     ...parseClips(markdown, 'Card tests').map((clip) => ({ ...clip, kind: 'card' })),
     ...parseClips(markdown, 'Sheva tests').map((clip) => ({ ...clip, kind: 'card' })),
     ...parseClips(markdown, 'Round 1d').map((clip) => ({ ...clip, kind: 'reading' })),
+    ...parseClips(markdown, 'Round 1e').map((clip) => ({ ...clip, kind: 'reading' })),
     ...parseClips(markdown).map((clip) => ({ ...clip, kind: 'reading' })),
   ];
   if (new Set(clips.map((clip) => clip.name)).size !== clips.length) {

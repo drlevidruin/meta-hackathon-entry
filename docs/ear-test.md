@@ -368,6 +368,42 @@ The runs also showed what the card costs. In 3 of the 36 card readings the ear w
 
 Across all 46 clips with the meter, the card caught 60 of 66 plants against 61 and left 72 false marks against 95. No run passed. Round 1d has now been read, so it no longer counts as a sealed test. A change made from here needs new words.
 
+## Phoneme referee, October 27
+
+The ear knows Hebrew words, and for an Ashkenazi reading it often writes the Israeli vowel of a word it knows. Meta's open phoneme model, wav2vec2 Large LV-60 fine-tuned to write espeak phonemes (`facebook/wav2vec2-lv-60-espeak-cv-ft`, Apache-2.0, revision `ae45363`), writes what it hears in IPA and knows no words. It ran on this Mac on all 62 saved adult clips. No audio left the computer.
+
+It hears Levi's kamatz as a back vowel, `ɑ`, and his patach as a front `a`. On the card tests it was right on all twelve syllables: `bo do mo go to ko` came back as six `ɑ` and `ba da ma ga ta ka` as six `a`. On the readings it was right on 39 of 44 kamatz syllables and 13 of 14 patach syllables. It heard the kamatz as `a` in o-meyn, toy-ro, mitz-vo, bo-nim and bo-ruch, and no-chal's second patach as `ɑ`.
+
+| Judge, same syllables | Kamatz right | Patach right | All |
+| --- | --- | --- | --- |
+| Phoneme model | 39 of 44 | 13 of 14 | 90% |
+| Ear and meter, six Round 1d runs | 152 of 264 | 78 of 84 | 66% |
+| Ear alone, six Round 1d runs | 47 of 264 | 78 of 84 | 36% |
+
+The Shema line is left out of these counts, because the model dropped a vowel in it and its syllables do not line up.
+
+The referee runs after the meter and changes only an a, o or e in the ear's answer:
+
+- It pairs each syllable that has a vowel with the phoneme model's vowels in order. When the counts differ, it leaves the reading alone.
+- For a vowel the model heard as a front or back a, it takes the back share of the model's probabilities.
+- At or above the line, the syllable gets o. Below 0.15, an o becomes a. An e never becomes a.
+- The line comes from the child's own voice card: the median back share of the card's a syllables and of its o syllables. Levi's are 0.43 and 0.91. The line is 0.5, or 0.05 above the card's a when that is higher. The referee is on only when the card's o sits at least 0.1 above the line.
+
+On the wrong card, with every kamatz read as patach, the model heard 14 vowels for 15 syllables, so the card did not line up and the referee stayed off.
+
+Replayed over the saved Round 1d runs of all 46 clips, with no new ear calls, and graded with the Ashkenazi preset:
+
+| Setup | Plants caught of 66 | False marks |
+| --- | --- | --- |
+| Card and meter | 60 | 72 |
+| Card, meter and referee | 62 | 36 |
+| Meter, no card | 61 | 95 |
+| Meter and referee, no card | 61 | 44 |
+
+With the three card runs voted word by word first, 21 of 22 plants were caught with 21 false marks, and 10 with the referee.
+
+It did not fix toy-ro, where the model also heard `a`; tse for tze; so for suv; e for ey in yis-ro-eyl; or the Shema line, which the count rule left alone. It made one clip worse: no-chal came back as no-chol, which hid the planted no in the runs where the ear had it right. The rule was designed on these clips, so these numbers are not a test. Round 1e is.
+
 ## Round 1e: sealed test
 
 Read each clip once, in Ashkenazi pronunciation. Round 1d has been read, so these twelve words take its place as the sealed test. They test kamatz in short words the ear knows, patach where the card made the ear write o, and both kinds of planted vowel. Nobody reads the ear's or the phoneme model's answers on them until the vote and the phoneme referee are final.
