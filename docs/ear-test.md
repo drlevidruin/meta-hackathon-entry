@@ -590,4 +590,6 @@ Each planted mistake must come back as the sound that was said. Clean controls c
 
 `npm run ear-test` compares the returned sounds with the table's `Say` column. It ignores case and spaces within each word. Syllable boundaries, word boundaries, order and word count must match. It prints `PASS` or `MISS` for each recorded clip. It does not call the grader or check letter-level verdicts.
 
+`npm run ear-score` grades a saved run the way the results above are counted: plants caught, hidden or unsure, false marks and uncertain marks, for the final, metered and ear answers. See [Score a run](../tools/clip-recorder/README.md#score-a-run).
+
 The runner defaults to the Meta primary when `META_API_KEY` is nonempty, then the Baseten fallback when only `BASETEN_API_KEY` is nonempty, otherwise the Meta primary. It prints the selected role and model id. `--model primary` or `--model fallback` overrides that choice.
