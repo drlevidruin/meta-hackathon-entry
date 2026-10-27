@@ -1,0 +1,9 @@
+node_modules/
+.env
+.env.*
+!.env.example
+.DS_Store
+*.log
+coverage/
+# Children's voices never enter this public repo, consent or not.
+recordings/private/

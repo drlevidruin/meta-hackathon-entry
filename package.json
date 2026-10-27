@@ -1,0 +1,11 @@
+{
+  "name": "kriah-listener",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A classroom Hebrew reading station that hears a child read and marks every letter and vowel.",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "test": "node --test"
+  }
+}
