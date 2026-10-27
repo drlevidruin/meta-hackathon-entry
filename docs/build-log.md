@@ -59,3 +59,11 @@ The current offline root and station test suites pass. Their synthetic inputs an
 ## Adult round
 
 On October 27 Levi recorded the 12 adult clips. In each of three runs the grader marked 9 of the 10 planted mistakes from Muse Wonder 1.0's answers, but the ear wrote Israeli vowels for his Ashkenazi reading, so correct kamatz, tzere and sheva sounds were marked wrong. More reasoning and two prompt changes did not fix it. Muse Spark Open on Baseten, the fallback ear, ran for the first time on the same clips and did worse: 6 of 10, and it filled in a skipped word of Shema from memory. The round did not pass. [Results](ear-test.md#round-1-results-october-27).
+
+## Vowel meter
+
+Levi set the goal after the adult round: fix the Israeli vowels without letting any model see the text. `ffdd81c` added the vowel meter and the voice check card. The reader reads fifteen sounds once, and the meter compares each vowel in a reading with the reader's own vowels. `20a7629` showed the card in the recorder as three rows of five. `ec249f9` put the voice check in the station and made Muse Wonder 1.0 the primary ear, with Muse Spark Open on Baseten as the fallback.
+
+To keep the test honest, `3599591` added Round 1b, eleven new words, and `c843f8c` added Round 1c, eleven more that stay sealed until the settings are final. On Round 1b the first meter left 7 false marks. Measuring Levi's card showed his kamatz and patach nearly tied, because the meter weighed the second formant at half. `90658ef` weighs both formants equally and ignores unvoiced bursts. On the saved answers that left 4 false marks on Round 1 and 3 on Round 1b, against 16 and 11 for the ear alone, with every plant marked. Round 1b helped find that fix, so it no longer counts as a fair test. [Results](ear-test.md#vowel-meter-results-october-27).
+
+Levi then asked what happens to a child who knows only one vowel. He turned down a step where the child repeats a recorded model: if the model were wrong, the child would learn the wrong sound for good. He chose a middle ground. The voice check asks only for vowels the child has learned, and the meter steps aside rather than guess when it cannot tell two of the child's vowels apart.

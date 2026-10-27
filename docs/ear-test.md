@@ -116,7 +116,7 @@ Round 1 does not pass for Ashkenazi vowels with either ear. Sephardi readings ha
 
 ## Round 1b: new words
 
-Read each clip once, after the voice check, in Ashkenazi pronunciation. None of these words was used to choose the vowel meter's settings.
+Read each clip once, after the voice check, in Ashkenazi pronunciation. None of these words was used to choose the vowel meter's first settings. Their results then led to a fix, so Round 1b is no longer a fair test (see the next section).
 
 | File name | Hebrew | Say | Planted | The ear should write |
 | --- | --- | --- | --- | --- |
@@ -131,6 +131,36 @@ Read each clip once, after the voice check, in Ashkenazi pronunciation. None of 
 | kovod_patach-for-kamatz | כָּבוֹד | ka-voyd | kamatz read as patach | ka-voyd |
 | sheym_chirik-for-tzere | שֵׁם | shim | tzere read as chirik | shim |
 | ato_kamatz-for-patach | אַתָּה | o-to | patach read as kamatz | o-to |
+
+## Vowel meter results, October 27
+
+The ear's Israeli vowels led to the vowel meter ([README](../README.md), step 2). The meter measures each vowel in the audio and compares it with the reader's own vowels from the voice check card. It changes the ear's a or e only when another of the reader's vowels fits clearly better. Like the ear, it never sees the text.
+
+Levi read the voice check card and Round 1b at 9:49 AM, after the Round 1 clips from 8:15 AM. Muse Wonder 1.0 then heard all 23 clips once. The first meter weighed the second formant at half. It helped, but not enough:
+
+| Round | Clips | With the meter | Ear alone |
+| --- | --- | --- | --- |
+| Round 1 | 12 | 9 of 10 plants marked, 9 false marks | 8 of 10 plants marked, 16 false marks |
+| Round 1b | 11 | 3 of 4 plants marked, 7 false marks | 3 of 4 plants marked, 11 false marks |
+
+Measuring Levi's card showed why. His kamatz and patach differ by about the same amount in both formants, so the half weight left them nearly tied. Short unvoiced bursts also counted as syllables and broke the syllable count. Commit `90658ef` weighs both formants equally and drops sound islands that are mostly unvoiced. Applied to the same saved answers:
+
+| Round | Clips | With the meter | Ear alone |
+| --- | --- | --- | --- |
+| Round 1 | 12 | 10 of 10 plants marked, 4 false marks | 8 of 10 plants marked, 16 false marks |
+| Round 1b | 11 | 4 of 4 plants marked, 3 false marks | 3 of 4 plants marked, 11 false marks |
+
+These numbers are not a fair test. Round 1 runs were used to choose the settings, and Round 1b was used to find the fix. That is why Round 1c exists: its answers stay unread until the settings are final.
+
+The false marks that remain:
+
+- Yisroel, in its own clip: the ear wrote yesh and el. Its chirik and tzere both came back as e, and the meter does not handle ey.
+- Yisroel, in the Shema line: the kamatz stayed ra and the tzere came back as e.
+- Shomayim: the first kamatz came back as she. After sh, Levi's unstressed o sits close to his e.
+- Dovor: the first kamatz stayed da.
+- Toyro: the kamatz stayed ra.
+
+In ato the plant was marked, but the meter wrote e where Levi said o.
 
 ## Round 1c: sealed test
 
