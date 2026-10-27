@@ -456,7 +456,8 @@ test('missing and unusable voice checks log meter status and fall back to the ea
     [syntheticWav(['a', 'o']), 'ashkenazi', 'off (voice check unusable: heard 2 sounds for 15)'],
     [wav, 'ashkenazi', 'off (voice check unusable: heard 0 sounds for 15)'],
     [Buffer.alloc(0), 'ashkenazi', 'off (voice check unusable)'],
-    [quietCard, 'chassidish', 'off (voice check unusable)'],
+    // Its six noise syllables are unvoiced, so they do not count as sounds.
+    [quietCard, 'chassidish', 'off (voice check unusable: heard 9 sounds for 15)'],
   ]) {
     if (voice) await store.save('voice-check', voice);
     const output = [];

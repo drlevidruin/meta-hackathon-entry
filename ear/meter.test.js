@@ -10,6 +10,14 @@ function near(actual, expected, tolerance) {
   assert.ok(Math.abs(actual - expected) <= tolerance, `${actual} should be within ${tolerance} of ${expected}`);
 }
 
+function whiteNoise(seconds) {
+  let seed = 1;
+  return silence(seconds).map(() => {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    return seed / 2 ** 32 - 0.5;
+  });
+}
+
 let profile;
 function voiceProfile() {
   const labels = ['a', 'o', 'e', 'i', 'a', 'o', 'e', 'i'];
@@ -81,6 +89,28 @@ test('soundIslands drops a 50 ms blip and silence, and merges bursts 40 ms apart
   assert.equal(soundIslands(new Float64Array(), rate).length, 0);
 });
 
+test('soundIslands drops a separate 150 ms white-noise burst between voiced syllables', () => {
+  const data = wav(join([
+    silence(0.25), tone(vowels.o), silence(0.25), whiteNoise(0.15),
+    silence(0.25), tone(vowels.i), silence(0.25),
+  ]));
+  const { samples } = decodeWav(data);
+  assert.equal(soundIslands(samples, rate).length, 2);
+  assert.deepEqual(applyMeter([['ba', 'be']], data, voiceProfile()), {
+    words: [['bo', 'bi']],
+    changes: [{ index: 0, from: 'ba', to: 'bo' }, { index: 1, from: 'be', to: 'bi' }],
+    applied: true,
+  });
+});
+
+test('soundIslands keeps islands with at least 30 percent voiced frames', () => {
+  // Ten frames: 640 samples gives two voiced frames; 720 gives three.
+  for (const [voicedSamples, expected] of [[640, 0], [720, 1]]) {
+    const samples = silence(0.12).map((_, i) => i < voicedSamples || i % 2 ? 0.5 : -0.5);
+    assert.equal(soundIslands(samples, rate).length, expected);
+  }
+});
+
 for (const label of ['a', 'o', 'e', 'i']) {
   test(`measureVowel recovers synthetic ${label} formants within 10 percent`, () => {
     const samples = tone(vowels[label]);
@@ -124,13 +154,22 @@ test('buildVoiceProfile keeps numeric Bark means and counts, skipping null label
   assert.deepEqual(Object.keys(singleton.vowels), ['a', 'o']);
 });
 
-test('buildVoiceProfile reports island counts and rejects one usable class or unmeasurable audio', () => {
+test('buildVoiceProfile ignores separate white-noise islands when matching labels', () => {
+  const samples = join([utterance(['a', 'o']), whiteNoise(0.15), utterance(['a', 'o'])]);
+  const result = buildVoiceProfile(wav(samples), ['a', 'o', 'a', 'o']);
+  assert.deepEqual(Object.keys(result.vowels), ['a', 'o']);
+  assert.equal(result.vowels.a.n, 2);
+  assert.equal(result.vowels.o.n, 2);
+});
+
+test('buildVoiceProfile reports island counts and rejects one usable class or unvoiced audio', () => {
   const data = wav(utterance(['a', 'a']));
   assert.throws(() => buildVoiceProfile(data, ['a']), (error) => error instanceof VoiceCheckError
     && error.code === 'count' && error.heard === 2);
   assert.throws(() => buildVoiceProfile(data, ['a', 'a']), (error) => error instanceof VoiceCheckError && error.code === 'quiet');
   const noisy = new Float64Array(4000).map((_, i) => i % 2 ? 0.5 : -0.5);
-  assert.throws(() => buildVoiceProfile(wav(noisy), ['a']), (error) => error.code === 'quiet');
+  assert.throws(() => buildVoiceProfile(wav(noisy), ['a']), (error) => error instanceof VoiceCheckError
+    && error.code === 'count' && error.heard === 0);
 });
 
 test('applyMeter corrects o heard as a, preserves u and never mutates its inputs', () => {
@@ -183,8 +222,21 @@ test('applyMeter skips missing candidate classes and unmeasurable islands', () =
   assert.deepEqual(applyMeter([['ba']], wav(utterance(['o'])), { version: 1, vowels: { o: voiceProfile().vowels.o } }), {
     words: [['ba']], changes: [], applied: true,
   });
-  const noise = new Float64Array(4000).map((_, i) => i % 2 ? 0.5 : -0.5);
-  assert.deepEqual(applyMeter([['ba']], wav(noise), voiceProfile()), { words: [['ba']], changes: [], applied: true });
+  // Three voiced frames keep this island, but four are needed to measure it.
+  const unmeasurable = silence(0.12).map((_, i) => i < 720 || i % 2 ? 0.5 : -0.5);
+  assert.equal(measureVowel(unmeasurable, rate, 0, unmeasurable.length), null);
+  assert.deepEqual(applyMeter([['ba']], wav(unmeasurable), voiceProfile()), { words: [['ba']], changes: [], applied: true });
+});
+
+test('applyMeter corrects a to o when F2 is closer under Euclidean Bark distance', () => {
+  const voice = { version: 1, vowels: {
+    a: { f1: bark(750), f2: bark(1250), n: 2 },
+    o: { f1: bark(650), f2: bark(1050), n: 2 },
+  } };
+  const data = wav(join([silence(0.25), tone([700, 1060]), silence(0.25)]));
+  assert.deepEqual(applyMeter([['ba']], data, voice), {
+    words: [['bo']], changes: [{ index: 0, from: 'ba', to: 'bo' }], applied: true,
+  });
 });
 
 test('applyMeter leaves an ambiguous vowel halfway between a and o unchanged', () => {

@@ -58,8 +58,23 @@ export function soundIslands(samples, rate) {
     if (previous && first - previous.end < 6) previous.end = i + 1;
     else islands.push({ start: first, end: i + 1 });
   }
+  const length = Math.round(0.025 * rate);
+  const frameHop = Math.round(0.01 * rate);
   return islands.filter(({ start, end }) => end - start >= 10)
-    .map(({ start, end }) => ({ start: start * hop, end: end * hop }));
+    .map(({ start, end }) => ({ start: start * hop, end: end * hop }))
+    .filter(({ start, end }) => {
+      let frames = 0;
+      let voiced = 0;
+      for (let s = start; s + length < end; s += frameHop) {
+        let crossings = 0;
+        for (let i = s; i < s + length; i += 1) {
+          if (i > s && (samples[i] >= 0) !== (samples[i - 1] >= 0)) crossings += 1;
+        }
+        frames += 1;
+        if (crossings < 60) voiced += 1;
+      }
+      return frames > 0 && voiced / frames >= 0.3;
+    });
 }
 
 function formants(samples, rate, start, length) {
@@ -182,7 +197,7 @@ export function applyMeter(words, data, profile, { margin = 0.75 } = {}) {
       if (!value) continue;
       const distances = usable.map((v) => {
         const c = profile.vowels[v];
-        return { v, d: Math.hypot(bark(value.f1) - c.f1, 0.5 * (bark(value.f2) - c.f2)) };
+        return { v, d: Math.hypot(bark(value.f1) - c.f1, bark(value.f2) - c.f2) };
       }).sort((a, b) => a.d - b.d);
       const [best, second] = distances;
       if (best.v !== earVowel && best.d / second.d < margin) {

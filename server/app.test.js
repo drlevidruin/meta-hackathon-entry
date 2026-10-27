@@ -13,6 +13,7 @@ import * as realCoach from '../coach/index.js';
 import { gradeLine as realGradeLine } from '../grader/index.js';
 import { cardLabels } from '../rulebook/voice-card.js';
 import { join, silence, utterance, wav } from '../ear/synth-for-tests.js';
+import { measureVowel, soundIslands } from '../ear/meter.js';
 
 const PIN = '2468';
 const auth = { 'x-teacher-pin': PIN };
@@ -173,8 +174,19 @@ test('voice count mismatch returns heard and expected without saving audio or a 
 test('voice check rejects quiet and malformed WAV, wrong content type, empty and oversized audio', async () => {
   const { app } = setup();
   const child = await add(app);
+  // A steady 100 Hz hum is voiced, so each one counts as a sound, but it has no vowel to measure.
+  const hum = new Float64Array(4000).map((_, i) => 0.5 * Math.sin(2 * Math.PI * 100 * i / 16000));
+  const quietSamples = join([silence(0.25), ...Array.from({ length: 15 }, () => [hum, silence(0.25)]).flat()]);
+  const humIslands = soundIslands(quietSamples, 16000);
+  assert.equal(humIslands.length, 15);
+  assert.ok(humIslands.every(({ start, end }) => measureVowel(quietSamples, 16000, start, end) === null));
+  const quiet = wav(quietSamples);
+  // Unvoiced noise is not a sound at all, so a card of it hears nothing.
   const noise = new Float64Array(4000).map((_, i) => i % 2 ? 0.5 : -0.5);
-  const quiet = wav(join([silence(0.25), ...Array.from({ length: 15 }, () => [noise, silence(0.25)]).flat()]));
+  const noisy = wav(join([silence(0.25), ...Array.from({ length: 15 }, () => [noise, silence(0.25)]).flat()]));
+  const heardNothing = await voice(app, child, { data: noisy });
+  assert.equal(heardNothing.status, 422);
+  assert.deepEqual(heardNothing.json, { error: 'count', heard: 0, expected: 15 });
   const wrongRate = voiceAudio(child.preset);
   wrongRate.writeUInt32LE(44100, 24);
   for (const [options, status, error] of [
