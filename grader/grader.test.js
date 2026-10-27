@@ -75,6 +75,45 @@ test('printed repeated words remain separate words', () => {
   assert.equal(result.summary.extra, 0);
 });
 
+for (const [heard, finalVerdict] of [
+  ['sha-vos sha-bos e-chod sha-bos', 'ok'],
+  ['sha-bos sha-vos e-chod sha-bos', 'wrong_letter'],
+]) {
+  test(`restart ${heard} keeps the final attempt before the word repeats two words later`, () => {
+    const result = grade('שַׁבָּת אֶחָד שַׁבָּת', 'ashkenazi', heard);
+    assert.equal(result.words.length, 3);
+    assert.deepEqual(verdicts(result.words[0]), ['ok', finalVerdict, 'ok']);
+    assert.equal(result.words[0].pairs[1].heard, finalVerdict === 'ok' ? 'bo' : 'vo');
+    assert.ok(result.words.slice(1).every((word) => verdicts(word).every((v) => v === 'ok')));
+    assert.equal(result.summary.extra, 0);
+    assert.equal(result.summary.skipped, 0);
+  });
+}
+
+test('a repeated printed phrase after a skipped word remains a separate read', () => {
+  const result = grade('מוֹדֶה אֲנִי אֶחָד מוֹדֶה אֲנִי', 'sephardi', 'mo-de a-ni mo-de a-ni');
+  assert.deepEqual(result.words.map((word) => word.verdict), [null, null, 'skipped', null, null]);
+  assert.deepEqual(verdicts(result.words[2]), Array(3).fill('skipped'));
+  assert.ok(result.words.filter((_, index) => index !== 2).every((word) => verdicts(word).every((v) => v === 'ok')));
+  assert.equal(result.summary.skipped, 3);
+  assert.equal(result.summary.ok, 8);
+  assert.equal(result.summary.extra, 0);
+});
+
+for (const [earlier, final, wrong] of [['a-na', 'a-ni', 0], ['a-ni', 'a-na', 1]]) {
+  test(`a line restart from ${earlier} to ${final} keeps the final attempt before a later repeated phrase`, () => {
+    const result = grade('מוֹדֶה אֲנִי אֶחָד מוֹדֶה אֲנִי', 'sephardi',
+      `mo-de ${earlier} mo-de ${final} e-chad mo-de a-ni`);
+    assert.equal(result.words.length, 5);
+    assert.deepEqual(verdicts(result.words[1]), ['ok', wrong ? 'wrong_vowel' : 'ok']);
+    assert.equal(result.words[1].pairs[1].heard, wrong ? 'na' : 'ni');
+    assert.equal(result.summary.wrong_vowel, wrong);
+    assert.equal(result.summary.ok, result.summary.pairs - wrong);
+    assert.equal(result.summary.extra, 0);
+    assert.equal(result.summary.skipped, 0);
+  });
+}
+
 for (const [heard, after, sound] of [['e-cho-de', 2, 'e'], ['ba-e-chod', -1, 'ba'], ['e-ba-chod', 0, 'ba']]) {
   test(`extra phonemes in ${heard} are anchored after pair ${after}`, () => {
     const result = grade('אֶחָד', 'ashkenazi', heard);
@@ -102,6 +141,25 @@ test('a skipped word does not shift the divine name and echad', () => {
   assert.equal(result.summary.skipped, 5);
   assert.equal(result.summary.extra, 0);
 });
+
+for (const [name, heard, skipped] of [
+  ['skipping eloheinu between identical divine names', 'she-ma yis-ro-eyl a-do-noy a-do-noy e-chod', 3],
+  ['skipping the second divine name', 'she-ma yis-ro-eyl a-do-noy e-loy-key-nu e-chod', 4],
+  ['without skipping a word', 'she-ma yis-ro-eyl a-do-noy e-loy-key-nu a-do-noy e-chod', -1],
+]) {
+  test(`Shema ${name} aligns every other pair correctly`, () => {
+    const result = grade('שְׁמַע יִשְׂרָאֵל יְהֹוָה אֱלֹהֵינוּ יְהֹוָה אֶחָד', 'ashkenazi', heard);
+    assert.deepEqual(result.words.map((word) => word.verdict),
+      Array.from({ length: 6 }, (_, index) => index === skipped ? 'skipped' : null));
+    if (skipped !== -1) assert.deepEqual(verdicts(result.words[skipped]), Array(4).fill('skipped'));
+    assert.ok(result.words.filter((_, index) => index !== skipped).every((word) => verdicts(word).every((v) => v === 'ok')));
+    assert.equal(result.summary.pairs, 22);
+    assert.equal(result.summary.skipped, skipped === -1 ? 0 : 4);
+    assert.equal(result.summary.ok, skipped === -1 ? 22 : 18);
+    assert.equal(result.summary.not_decoded, 0);
+    assert.equal(result.summary.extra, 0);
+  });
+}
 
 test('an extra heard word stays between its neighboring expected words', () => {
   const result = grade('שְׁמַע יִשְׂרָאֵל', 'ashkenazi', 'she-ma ba yis-ro-eyl');

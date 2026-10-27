@@ -259,9 +259,11 @@ export function align(heard, expected, options = {}) {
         if (!later?.some(Boolean)) continue;
         lineRestarted = true;
         lineContinuesText ||= later.some((attempt, count) => attempt
-          && attempts[j + span.words]?.[span.end]?.[count]);
+          && (attempts[j + span.words]?.[span.end]?.[count]
+            || attempts[j + span.words + 1]?.[span.end]?.[count]));
         update(span.end, j, cell, { type: 'restart' }, 0.05 * span.words);
       }
+      // A repeated span may follow one skipped printed word.
       if (lineRestarted && !lineContinuesText) continue;
       let restarted = false;
       // A span that already follows multiple printed words must remain
@@ -271,13 +273,14 @@ export function align(heard, expected, options = {}) {
         const later = attempts[j][i + count];
         if (attempts[j][i][count - 1] && later.some(Boolean)) {
           restarted = true;
-          continuesText ||= later.some((attempt, span) => attempt && attempts[j + 1]?.[i + count][span]);
+          continuesText ||= later.some((attempt, span) => attempt
+            && (attempts[j + 1]?.[i + count][span] || attempts[j + 2]?.[i + count][span]));
           update(i + count, j, cell, { type: 'restart' }, 0.05);
         }
       }
       // A detected restart must grade the final attempt, even if it is shorter.
-      // A later attempt that can begin the next printed word may instead be a
-      // separate read, including when the printed word repeats.
+      // A later attempt that can begin the next printed word, or the word after
+      // one skipped word, may instead be a separate read of repeated text.
       if (restarted && !continuesText) continue;
       for (let count = 1; count <= 3 && i + count <= heard.length; count += 1) {
         const alignment = match(i, j, count);
