@@ -87,10 +87,23 @@ npm run ear-test -- --card voice-check
 
 A round whose card is not recorded stops before any call to the ear. With `--set child`, `--round` needs `--keep`, because the run deletes the child's recordings when it ends, including rounds it did not grade. A child run without `--keep` also stops before any call when a reading's card is not recorded, since it would grade without the card and then delete the audio.
 
+## Score a run
+
+The runner checks sounds. The scorer checks what the grader marks. Save a run, then score it:
+
+```bash
+npm run -s ear-test -- --round "Round 1g" > run-1.tsv
+npm run -s ear-score -- --round "Round 1g" run-1.tsv
+```
+
+For each reading it grades the said sounds and each answer with the Ashkenazi preset; `--preset` changes it. A planted mistake is caught when the answer gets every mark the said sounds get. Any other mark is a false mark, or an uncertain mark when the grader marks a syllable uncertain. The final, metered and ear answers are counted separately, and `--detail` lists each clip. The scorer reads only the saved file and the clip tables. It never calls the ear.
+
+`--max-uncertain N --runs-needed K` applies a pass rule to the final answers. A run passes when every clip of each round it scores appears once, with no ear error, every plant caught, no false mark and at most N uncertain marks. The rule passes when K runs pass, and the exit status is 1 when it fails. A row cut short is an error and a missing clip fails the run, so an interrupted run cannot pass.
+
 ## Offline checks
 
 ```bash
 node --test tools/clip-recorder/recorder.test.js
 ```
 
-The tests use generated WAV bytes and fake ear and phoneme calls. They cover saves, playback, deletion, filename validation, model selection, printed status lines, sound comparison and the order of the meter and referee.
+The tests use generated WAV bytes and fake ear and phoneme calls. They cover saves, playback, deletion, filename validation, model selection, printed status lines, sound comparison and the order of the meter and referee. `node --test tools/clip-recorder/score.test.js` checks the scorer.
