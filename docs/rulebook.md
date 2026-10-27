@@ -1,6 +1,8 @@
 # Rulebook
 
-The rulebook knows what every letter and vowel in a pointed Hebrew word should sound like. It is pure code: no network, no model. The grader compares what the ear heard against it, pair by pair.
+The rulebook encodes expected sounds for pointed Hebrew words. It is plain code with no network calls or model. The grader compares what the ear heard against it, pair by pair.
+
+AI reviewers checked every distinct siddur word in all three traditions. A second AI review confirmed each finding. Fixes have regression tests and a before and after comparison of every word. No human kriah teacher has reviewed the rulebook yet. The [Shema page](check/shema.md) is the page for that hand check. See the [review record](check/rulebook-review.md).
 
 ## Sound alphabet
 

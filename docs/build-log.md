@@ -1,0 +1,53 @@
+# Build history
+
+Rabbi Dr. Levi Druin built Kriah Listener with Claude Code and Codex as coding assistants. The history below follows `git log --reverse --format='%h %ad %s' --date=iso` and the merge commits. Every commit in the available history is dated October 26, 2026, the first day of the event.
+
+Work ran on several branches side by side that day. The merge order is not a strict build order. The grader, coach, station and server were built against synthetic voices so the go or no-go test can run when real clips exist. The real-voice test has not run.
+
+## Rulebook and bank
+
+`3fbef66` added the working brief. `aa6f18d` added the Metsudah Siddur source text. The rulebook and bank specifications followed in `b4f2ee3`.
+
+`05972be` implemented expected sounds, pronunciation presets and skill tags. `f9c5e48` added the item bank. `c6f1b7f` added challenge words, generated spelling restrictions and merged cholam handling. Later fixes covered final kaf, word endings, silent-ending sheva, prefixed divine names, kamatz before final sheva and unpointed short words. The bank branch merged in `144b826`.
+
+AI reviewers checked every distinct siddur word in all three traditions. A second AI review confirmed each finding. Fixes gained regression tests, and every word was compared before and after. No human kriah teacher has reviewed the rulebook yet. [Review record](check/rulebook-review.md), [bank report](check/build-report.md), and [Shema page for the hand check](check/shema.md).
+
+## Ear and synthetic test
+
+`010d6ff` added the prompt. `5304391` added provider calls, parsing, a CLI and offline tests. Subsequent commits fixed the Meta audio payload and the prose heuristic. The ear branch merged in `eb670e7`.
+
+`489c17d` added the synthetic clip script. `660e482` recorded the first test notes. `dd3e3cd` corrected the recorded counts. `ca9b59b` set minimal reasoning effort for the fallback ear.
+
+The script defines 13 clips: 7 planted mistakes and 6 clean controls. The notes report that Muse Wonder 1.0 wrote the plant on 5 of the 7 plants in each of two runs. Complete per-run output is not in the repository. Only Muse Wonder 1.0 through the Meta Model API has run as the ear. Muse Spark Open through Baseten is wired and has never run. [Ear test](ear-test.md).
+
+## Grader
+
+`c513d2c` added word and pair alignment, verdicts, restart handling, other-tradition readings and divine-name substitutions. It merged in `d7371e2`. `ac52d9a` required a complete substitute reading after a prefixed divine name.
+
+The grader was tested with synthetic sound strings and reported synthetic ear outputs. Its behavior on real voices remains untested.
+
+## Coach
+
+`4358515` added the adapting rule, validated Muse Spark picks, challenges, stop conditions and template explanations. The coach branch merged in `283c18f`.
+
+The rule fallback has run. The model call is wired, but no live answer has been recorded. An earlier call exhausted its token limit on reasoning and always fell back to the rule. A fix is in progress. The model parser and selection checks have offline tests.
+
+## Server
+
+`2f7af7c` included the first server and station loop. `3c5b278` added the roster, saved progress, class groups, maps, packets, parent lines and developer trace. That server branch merged in `6f648b7`.
+
+The server keeps model keys outside the browser. Station audio is processed in memory. The saved store holds roster and progress data without audio, transcripts or coach reasons.
+
+## Station and local recorder
+
+`385cd8a` added the React and Vite dependencies. The first station merged in `8f36dd6`. `11a4a0e` added roster management, teacher screens and the game display; it merged in `6529429`.
+
+`3d67ced` added a separate local recorder for the ear test. `4254f92` improved its layout and mixed Hebrew text display. The recorder branch merged in `1650500`. It deliberately saves local test WAVs, unlike the station.
+
+## Review and fix rounds
+
+`118fba9`, merged in `163ca41`, fixed skill attribution, restart behavior, silent-pair handling, repeated demotions and coach answer parsing. It also fixed parent-line skill selection and server test discovery. [Regression record](reviews/2026-10-26-core-fix-round.md).
+
+`68fe0e2`, merged in `4df3600`, improved the station's mock roster and completion display. `0bf6b09` hid extra heard syllables in the display and removed parent feedback before a first turn. `ca2bf91` tested the mock grouping behavior.
+
+The current offline root and station test suites pass. Their synthetic inputs and model substitutes support implementation checks. They do not replace an adult round, a consented child round or a human kriah teacher's review.

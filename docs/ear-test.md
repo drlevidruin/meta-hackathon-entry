@@ -1,6 +1,8 @@
 # Ear test
 
-The go or no-go. The ear passes when it writes the sound that was said, mistakes included. If it writes the word as it should be, it is correcting, and nothing else gets built on it until that is fixed.
+The ear must report the sounds that were spoken, including mistakes. It receives audio and a sound alphabet. It never sees the printed line. It can still mishear or replace a mistake with a familiar word.
+
+Only Muse Wonder 1.0 through the Meta Model API has run as the ear. Muse Spark Open through Baseten is wired and has never run. Neither the adult nor child round has run. The real-voice test is still the go or no-go.
 
 ## Round 1: an adult voice
 
@@ -23,53 +25,40 @@ Read each clip once, at a normal pace, in Ashkenazi pronunciation. One clip per 
 
 ## Round 2: a child's voice
 
-Only with a parent's consent. The child reads a line and plants one mistake on purpose, chosen from the table above. These recordings stay in recordings/private/, which never enters the public repo, and are deleted once the test is done.
+The adult round must pass first. Recording a child requires written parent consent. Turn Meta Model API free credits off and use a paid plan before sending children's audio. Meta's free-credit terms allow content to be used for product improvement.
+
+The child reads a line and plants a mistake from the adult table. The local recorder saves these clips in gitignored `recordings/private/`. The child runner deletes each clip after printing its result, including failed calls, unless `--keep` is set. Closing the recorder does not delete files. The recorder's delete button removes saved child WAVs. See the [recorder instructions](../tools/clip-recorder/README.md).
 
 ## Passing
 
-Each planted mistake must come back as the sound that was said. A pass on the adult round is not enough: the gate is a child's voice.
+Each planted mistake must come back as the sound that was said. Clean controls check whether the ear invents mistakes. A pass on the adult round does not establish accuracy on a child's voice.
+
+`npm run ear-test` compares the returned sounds with the table's `Say` column. It ignores case and spaces within each word. Syllable boundaries, word boundaries, order and word count must match. It prints `PASS` or `MISS` for each recorded clip. It does not call the grader or check letter-level verdicts.
+
+The runner defaults to the Baseten primary when `BASETEN_API_KEY` is nonempty. Otherwise it uses the Meta fallback. It prints the selected role and model id. `--model primary` or `--model fallback` overrides that choice.
 
 ## Round 0: synthetic voices
 
-`recordings/make-synthetic.sh` builds 13 clips with the macOS voices: a Hebrew voice reading pointed text with the mistake written in, and an English voice reading spelled-out sounds ("shah voss") so nothing can be corrected toward a Hebrew word. Run them with `node ear/cli.js recordings/synthetic/<clip>.wav`.
+`recordings/make-synthetic.sh` defines 13 clips from macOS Hebrew and English voices. Seven contain a planted mistake and six are clean controls. The Hebrew voice reads text with the mistake written in. The English voice reads spelled-out sounds.
 
-First results, October 26, three runs per model:
-
-- The English-voice plants came back as said from Muse Spark 1.2 and Muse Wonder 1.0: "shah voss" as sha-vas, "vah rook" as va-ruk.
-- Muse Spark 1.3 corrected "shah voss" to sha-bos and added "ba-ruch ru-ach", the three example words that were in the prompt. The prompt now uses made-up sounds for its examples.
-- Muse Spark 1.2 answered in English prose ("I can't hear audio") on about a third of the clips, the same clips every run. The ear retries once, then fails the line cleanly rather than grading a refusal.
-- The Hebrew voice read וָרוּךְ as ba-ruch in every model, so that clip cannot tell a correcting ear from a voice that ignored the planted vav. Recorded voices settle it.
-
-Second results, October 26, with the made-up prompt examples, two runs per model. A plant counts as caught when the ear wrote the mistake the voice said.
-
-| Model | Plants caught (of 7), run 1 and run 2 | Answered in prose, empty, or error | Clips returned as "?" |
-| --- | --- | --- | --- |
-| Muse Wonder 1.0 | 5 and 5: va-ruk, mu-der, sha-vas, sha-vat, mach or mech, ya-chid | one HTTP 500 | 1 per run |
-| Muse Spark 1.2 | 2 and 2: sha-vas, and va-ruch on the Hebrew-voice clip | 3 and 2 in prose | 4 per run |
-| Muse Spark 1.3 | 1 and 4 | 0 and 1 empty | 7 and 4 |
-
-Muse Wonder 1.0 is now the default fallback ear (`EAR_FALLBACK_MODEL` still overrides it). It also turned the English voice's "modeh" into mo-der, an r the voice put there.
-
-End to end, Wonder's answers through the real grader, 10 clips: 7 graded exactly as planted. Two words with two wrong sounds each (va-ruk for בָּרוּךְ, ya-chid for אֶחָד) came back as not decoded, because the grader stops blaming single letters once most of a word is off. One false wrong letter came from the English voice's r in mo-der.
-
-### Speed: reasoning effort
-
-The ear has to answer before the child finishes the next line. The same 13 clips through Muse Wonder 1.0 at three `reasoning_effort` settings, one run each:
-
-| Setting | Seconds per clip, average | Plants caught (of 7) |
+| Voice | Planted clips | Clean controls |
 | --- | --- | --- |
-| Not set (default) | about 15 | 5 |
-| `low` | 7.8 | 5 |
-| `minimal` | 2.4 | 5 |
+| Hebrew, Carmit | `baruch_va-for-ba`, `shabbat_va-for-ba`, `melech_skipped-le`, `echad_i-for-a` | `shalom_clean`, `shema-line_clean`, `babav_nonsense-clean` |
+| English, Samantha | `en_shabbos_va-for-ba`, `en_baruch_va-for-ba`, `en_modeh_u-for-o` | `en_shabbos_clean`, `en_baruch_clean`, `en_modeh_clean` |
 
-The answers barely moved, so the ear now asks for `minimal` (`EAR_REASONING_EFFORT` overrides it). One difference to watch in the real-voice rounds: at `minimal` the Hebrew voice's שְׁמַע came back as shma, where the slower settings wrote she-ma.
+The October 26 notes record these results for Muse Wonder 1.0:
 
-### Muse Voice Transcribe 1.0
+| Run | Plants reported as spoken | Plants in the set |
+| --- | --- | --- |
+| First | 5 | 7 |
+| Second | 5 | 7 |
 
-Meta's speech-to-text model (`POST /v1/asr/transcribe`) answered every clip in under a second, so it was tried as the ear, with and without a Hebrew language hint. It does not fit:
+The notes report no prose answers from Wonder. They also mention an HTTP error and unclear answers, but do not map those outcomes to every clip and run. The original list of successful readings combined outputs without identifying their runs. It cannot establish which plants succeeded in each run.
 
-- It writes words, not sounds, and pulls toward real words: the English voice's planted "vah rook" came back as Baruch without the hint, and a clean "shah boss" as Shabbat with it.
-- When it writes Hebrew it drops the vowels (ברוך, שלום), and the vowels are half of what a kriah teacher checks.
-- It invented words on two clips (Hey!, Shallot) and answered one in Arabic script.
+The Hebrew voice's planted vav in וָרוּךְ was reported as `ba-ruch`. Without listening to the source clip, that result cannot distinguish a voice synthesis error from an ear correction. The English voice also added an r to its clean reading of Modeh, which came back as `mo-der`.
 
-An ear for kriah has to report the sounds a child made, mistakes included, so the station uses an audio model that follows a sound alphabet instead.
+A separate grader replay described `va-ruk` for בָּרוּךְ and `ya-chid` for אֶחָד as `not_decoded`. It also described a wrong-letter verdict for the r in `mo-der`. The saved notes do not list the full replay subset or its expected verdicts. They do not support an exact grader success rate, or a split between successful plants and clean controls.
+
+These are recorded observations, not a fresh replay. The repository contains the generation script but no audio or complete per-run output. The clip definitions can be counted offline. The live results cannot be reproduced without regenerating the clips and calling the API.
+
+The ear currently requests `minimal` reasoning effort from the Meta fallback. `EAR_REASONING_EFFORT` overrides it. The code uses a heuristic to detect some prose refusals and retries those answers once. It does not reject every possible prose answer.

@@ -1,11 +1,15 @@
 # Rulebook grammar review
 
-Audited every distinct cleaned word returned by `segmentWords` from every segment of `bank/data/siddur.json`, including excluded instruction segments. Maqaf context is preserved. The pre-change snapshot was captured before editing the rulebook, and compared with the rebuilt rulebook in all three presets.
+AI reviewers checked every distinct cleaned siddur word in all three pronunciation traditions. A second AI review confirmed each finding. The fixes have regression tests and a before and after comparison of every word.
+
+The comparison uses `segmentWords` on every segment of `bank/data/siddur.json`, including excluded instruction segments. It preserves maqaf context. The baseline is the parent of `9f27c9e`, before the grammar fixes.
+
+No human kriah teacher has reviewed the rulebook yet. [shema.md](shema.md) is the page for that hand check.
 
 ## Corpus audit
 
 - 749 distinct words, 2247 preset results compared before and after.
-- 11 words changed flags or accepted readings; 738 stayed identical. Every changed word also changed its flags.
+- 11 words changed flags or accepted readings. The other 738 kept those flags and readings. The bare four-letter Name also gained `substitute: true` without changing its sounds or flags. Including that metadata change, 12 complete word results changed and 737 stayed identical.
 - Four words newly gain `unpointed`: אם, אף, את and על. All four have no vowel point, sheva or shuruk. Their pairs and accepted sounds are unchanged.
 - 577 words have a vowel point, sheva or shuruk. None newly gain `unpointed`. The pre-existing mixed instruction token לאֱמֶת retains that flag in both scans.
 - 45 of 55 segments remain usable. The same ten instruction segments remain excluded.
@@ -88,9 +92,17 @@ The rebuilt Shema check page still has 252 word rows. לֵאלֹהֵיכֶם and
 
 ## Verification
 
-- `node --test`: 261 tests passed, zero failures, skips or TODOs. All golden comparisons remain unchanged. The new cases include every requested word in all three presets and boundary cases for silent endings, maqaf, two-letter prefixes, cholam male, unpointed short words and substitute-reading consumers.
-- `node bank/build.js`: exit 0, writes 675 items with counts 60 / 40 / 80 / 190 / 199 / 106.
-- `node bank/check-page.js shema`: exit 0, writes the 252-word page.
-- The full 749-word before/after audit asserts the complete changed-word list, unchanged results for all other words and no newly unpointed word with pointing.
-- `git diff --check`: exit 0. All changed files are within the allowed paths, with no added em dashes. `rulebook/golden.json` and the siddur source are unchanged.
-- Nothing remains blocked. No packages installed, agents or background workflows launched, commits, pushes or deployments.
+- `node --test` passes, including the golden comparisons and grammar regressions.
+- `npm run build:bank` writes 675 items with level counts 60 / 40 / 80 / 190 / 199 / 106.
+- `npm run check:page -- shema` writes the 252-word page.
+- A fresh comparison with the git baseline checks all 749 words in all three presets. It confirms the changed flags, readings and bank ids shown above. No pointed word newly gains `unpointed`.
+- `git diff --check` passes.
+
+Regression tests in `rulebook/rulebook.test.js` include:
+
+- `a final sheva stays nach before silent alef, ayin or hei, but not before a sounded letter`
+- `Elokim recognition requires a standard prefix, an eligible alef and a lamed with cholam`
+- `final-sheva kamatz is gadol without maqaf and existing katan triggers remain`
+- `wholly unpointed short words are flagged without mistaking sheva or shuruk for missing pointing`
+
+`bank/bank.test.js` also checks `prefixed Name readings include the prefix exactly once and never accept a prefix alone`.

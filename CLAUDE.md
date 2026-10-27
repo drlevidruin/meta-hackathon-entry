@@ -10,7 +10,7 @@ A classroom reading station. A child reads one line of Hebrew with nekudos from 
 
 - The ear never sees the text it is grading. It receives audio and a sound alphabet and returns syllables. Nothing else.
 - No model ever writes Hebrew that a child reads. Every item a child sees comes from the rulebook and the item bank.
-- Standard tier only. Never use a model ID ending in `-contributor`. Children's audio is deleted right after grading; only verdicts are stored.
+- Standard tier only. Never use a model ID ending in `-contributor`. The station and server grade children's audio in memory and drop it without writing it to disk or logs. Saved data includes first names, avatars, presets, progress profiles, per-letter and vowel read history, stars and turn summaries, but no audio, transcripts or coach reasons.
 - API keys live in `.env`, which is gitignored. This repo is public. Never log a key, never ship one in client code, never paste one in a commit or an issue.
 - No chat UI anywhere. No free-text AI feedback shown to children, teachers, or parents. Parent and child messages are templates filled from verdicts.
 - The ear is tradition-agnostic. It reports raw sounds. The grader applies the child's pronunciation preset.
@@ -20,10 +20,12 @@ A classroom reading station. A child reads one line of Hebrew with nekudos from 
 | Job | Model ID | Host |
 | --- | --- | --- |
 | The ear | `meta-models/muse-spark-open-1026` | Baseten, OpenAI-compatible, base URL `https://inference.baseten.co/v1` |
-| The ear, fallback | `muse-wonder-1.0` (was `muse-spark-1.2`; Wonder heard planted mistakes best, docs/ear-test.md) | Meta Model API |
+| The ear, fallback | `muse-wonder-1.0` | Meta Model API |
 | The coach | `muse-spark-1.3` | Meta Model API |
 
-Notes on Spark Open: it always reasons. The reasoning comes back in `reasoning_content`, the answer in `content`. `max_tokens` caps both together, so keep it high. There is no JSON mode; ask for one line per word and parse. Audio goes in as an `audio_url` content part, as a `data:` URL or an HTTPS URL. WAV, MP3, FLAC, OGG, or M4A, up to 5 minutes and 25 MB per file. Audio is billed as input tokens.
+Only Muse Wonder 1.0 through the Meta Model API has run as the ear, on synthetic clips. Muse Spark Open through Baseten is wired and has never run. The coach is wired; live run pending. An earlier coach call spent its token limit reasoning and always used the rule fallback. A fix is in progress; no live coach answer has been recorded.
+
+Notes on Spark Open: it always reasons. The reasoning comes back in `reasoning_content`, the answer in `content`. `max_tokens` caps both together, so keep it high. There is no JSON mode; ask for one line per word and parse. Audio goes in as an `audio_url` content part, as a `data:` URL. The client accepts WAV, MP3, FLAC, OGG, or M4A, up to 25 MiB per file. Audio is billed as input tokens.
 
 ## Layout
 
@@ -31,10 +33,10 @@ Notes on Spark Open: it always reasons. The reasoning comes back in `reasoning_c
 - `bank/` The item generator. Levels: 1 letters with vowels, 2 syllables, 3 words, 4 nonsense words, 5 phrases, 6 fluency. Real words come from siddur text. Nonsense words come from the rules. Items with flagged cases are excluded below level 5. Every item carries its level and skills.
 - `ear/` One function, `hear(audio) -> syllables[]`. The prompt lives in `ear/prompt.md`. A CLI runs it over a folder of recordings and prints the sounds next to the file names.
 - `grader/` `align(heard, expected) -> verdicts[]`, one per pair: `ok`, `wrong_letter`, `wrong_vowel`, `skipped`, `extra`, `uncertain`, `not_decoded`. Keeps the last attempt when a child restarts. Marks a word `not_decoded` when too little matches to place a letter-level verdict.
-- `coach/` `chooseNextSet(profile, verdicts, candidates) -> { itemIds, reason }`. Runs at each checkpoint, after every set of two or three lines. Code validates that every id is a real bank item at an allowed level before anything is shown. The fallback is the plain rule: hold a level cleanly, step up; miss the same skill twice, step down and target it; pass a nonsense word built from a skill, mark it proven.
-- `station/` React. One line in big type, record, light up one line behind, sets of two or three, a star fills at each checkpoint while the last line grades. Stars, streak, level badge, personal best. No leaderboard. End of turn: one templated sentence the child can understand.
-- `server/` A small Node service (or Firebase Functions) that holds the keys and calls the models. The browser never talks to Baseten or Meta directly.
-- `recordings/` Test audio with planted mistakes, named for what was planted: `shabbos_va-for-ba.wav`.
+- `coach/` `chooseNextSet(profile, verdicts, candidates) -> { itemIds, reason }`. Runs at each checkpoint, after two or three regular lines plus an eligible challenge. Code validates that every id is a real bank item at an allowed level before anything is shown. The fallback is the plain rule: hold a level cleanly, step up; miss the same skill twice, step down and target it; pass a nonsense word built from a skill, mark it proven.
+- `station/` React. One line in big type, record, light up one line behind, sets of two or three regular lines plus an eligible challenge, a star fills at each checkpoint while the last line grades. Stars, streak, level badge, personal best. No leaderboard. End of turn: one templated sentence the child can understand.
+- `server/` A small Node service that holds the keys and calls the models. The browser never talks to Baseten or Meta directly.
+- `recordings/` Instructions and the synthetic clip script. The separate local clip recorder saves mono WAV test files under gitignored `recordings/private/`, named for what was planted: `shabbos_va-for-ba.wav`. Child recording requires written parent consent. Its child runner deletes each clip after printing the result, including failures, unless `--keep` is set. Adult clips remain until manually removed. Closing the recorder does not delete saved clips.
 
 ## Sound alphabet
 
@@ -53,6 +55,8 @@ You are listening to a child read Hebrew out loud. You cannot see what they are 
 5. Coach.
 6. Game skin, teacher view, practice packet, parent line.
 7. Demo video. Script the voiceover first.
+
+2026-10-26: the grader, coach, station and server were built against synthetic voices while real clips are collected; the real-voice round is still the go or no-go.
 
 The smallest complete demo is steps 1 through 4 with the plain adapting rule and the child's end-of-turn sentence.
 

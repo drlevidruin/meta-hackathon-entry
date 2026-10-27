@@ -1,9 +1,13 @@
 import { checkSet } from './clips.js';
 
+export function defaultEarModel(env = process.env) {
+  return env.BASETEN_API_KEY?.trim() ? 'primary' : 'fallback';
+}
+
 export function parseOptions(argv, command) {
   const options = command === 'server'
     ? { set: 'adult', port: 8790 }
-    : { set: 'adult', model: 'primary', keep: false };
+    : { set: 'adult', model: defaultEarModel(), keep: false };
   for (let index = 0; index < argv.length; index += 1) {
     const flag = argv[index];
     if (flag === '--set') options.set = checkSet(argv[++index]);

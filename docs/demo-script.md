@@ -1,60 +1,47 @@
 # Demo video script
 
-Target length three minutes. Check the Official Rules for the limit before recording. Voiceover by Levi. Children shown only with written parent consent; otherwise a synthetic voice and hands on the screen.
+The demo uses synthetic audio and a station preview labeled "Mock mode". No adult or child voice round has run. The mock grades and roster are simulated. They do not show a live model decision.
 
-## 0:00 A child at the station (25 s)
+## Reading and marking
 
-Picture: a first grader at a corner table with a headset, tapping their animal tile, then Start. One line of Hebrew fills the screen.
+Picture: the mock station on a desktop, then on a phone. An animal tile opens the reading screen. After a line is submitted, the previous line shows its grade.
 
-Voice: "Every day school checks kriah by hand. A teacher sits with one child at a time for a few minutes, marks errors with a pencil, and guesses at what that child needs next. Then the next child, and the next."
+Voice: "Kriah Listener is a classroom station for reading Hebrew with nekudos. A child taps an animal and reads a line. The previous line shows green for correct sounds and amber under the letter and vowel they missed. These screens use simulated grades."
 
-## 0:25 The line lights up (30 s)
+Picture: a terminal grades the typed sounds `sha-vos` against שַׁבָּת with `npm run grade -- --preset ashkenazi --line "שַׁבָּת" --heard "sha-vos"`.
 
-Picture: the child reads שַׁבָּת and says sha-vos. The next line is already on screen. The line above lights up pair by pair: green, then a soft amber mark under the בּ.
+Voice: "Here the grader compares typed sounds with the printed word. The bet with a dot was read as vet. The rulebook and grader are plain code."
 
-Voice: "Kriah Listener listens to a child read and marks every letter and vowel as it goes. That amber mark says the child read a bet with a dot as a vet. Not the word, the exact sound. No red, no score. Just what to fix."
+## Choosing practice
 
-## 0:55 The coach decides (30 s)
+Picture: the mock checkpoint, level change and challenge card. The "Mock mode" label stays visible.
 
-Picture: a star fills at the end of the set. Caption on screen, from the teacher's log: "Two misses on the bet with a dot at word level. Dropped to syllables with three bet items." The next set is easier and full of בּ.
+Voice: "The server runs a coach and turns its bank ids into the next lines. The rule fallback moves between levels and targets missed skills. That rule is what has run. Muse Spark 1.3 is wired as the model coach, but a live answer is still pending. An earlier call used its token limit on reasoning and fell back to the rule. A fix is in progress. Code checks the model's picks before showing bank text."
 
-Voice: "After every two or three lines, a coach built on Muse Spark looks at everything this child has read and picks the next set from the item bank. It reasons like a kriah teacher: find the skill behind the mistake, then give it another try in an easier spot."
+Voice: "A challenge is a nonsense word built from sounds the child has read correctly. A clean challenge adds evidence of decoding. It does not establish mastery by itself."
 
-## 1:25 The challenge word (20 s)
+## Teacher screens
 
-Picture: a gold-framed nonsense word appears. The child reads it cleanly. Bonus star burst.
+Picture: the mock done screen, class groups, child map and packet preview. The packet includes a challenge from the bank.
 
-Voice: "Every few lines comes a challenge word, a nonsense word built only from sounds this child has already shown. Nobody has memorized it. Reading it proves the child is decoding."
+Voice: "The end-of-turn sentence uses a template. The teacher gets practice groups, a letter and vowel map, and a printable packet. No model writes Hebrew a child reads. There is no chat or free-text AI feedback in these screens."
 
-## 1:45 The end of the turn (15 s)
+## Model status and test results
 
-Picture: done screen. "You nailed the bet with a dot today! Next time we practice the sheva." The child runs off to get the next friend.
+Picture: the README diagram and model status table. Then show the synthetic clip definitions and results table.
 
-## 2:00 The teacher's view (15 s)
+Voice: "The ear gets audio and a sound alphabet. It never sees the printed line, so the line cannot steer it. It can still mishear. Only Muse Wonder 1.0 through the Meta Model API has run as the ear. Muse Spark Open through Baseten is wired and has never run."
 
-Picture: the class view. Groups: four children need sheva, three need final letters. Tap one child: the letter and vowel map, solid, shaky and untested. Print the practice packet.
+Voice: "The synthetic set has thirteen clips: seven planted mistakes and six clean controls. Wonder wrote the planted mistake on five of the seven plants in each of two recorded runs. Real voices are still the go or no-go. AI reviewers checked the siddur words in each pronunciation tradition. No human kriah teacher has reviewed the rulebook yet."
 
-Voice: "The teacher never listens to a recording. The teacher gets groups for tomorrow morning, a map for every child, and a practice sheet."
+## Data and next test
 
-## 2:15 How it works (35 s)
+Picture: the privacy section and the local recorder instructions.
 
-Picture: the three-part diagram from the README, then the developer trace for one turn.
+Voice: "The station and server grade audio in memory and drop it. They never write a child's audio to disk or a log. They save the roster, progress, per-letter and vowel read history, and turn summaries. They save no audio, transcripts or coach reasons. Keys stay on the server. Standard tier only, never contributor mode."
 
-Voice: "Three parts, and none of them guesses. Meta's model is the ear. It hears the child but never sees the line, so it cannot hear what it expects. It writes raw sounds. A rulebook we wrote is the judge: every letter and vowel in Sephardi, Ashkenazi and Chassidish pronunciation, so a child is graded in their own tradition. And the coach is an agent that chooses every set, inside guardrails in code. It picks from items the rulebook built. It never writes Hebrew a child reads. The ear runs on Muse Spark Open, open weights, through Baseten. Nothing runs in contributor mode. Children's audio is deleted the moment it is graded."
+Voice: "The separate local test recorder saves WAV files in a private, gitignored folder. Child recording requires written parent consent. Its runner deletes child clips after printing each result unless keep is enabled. Closing the recorder does not delete them. Before the child round, the adult round must pass and Meta free credits must be off with a paid plan on."
 
-## 2:50 Close (10 s)
+Picture: the station and the Shema page for a kriah teacher to check.
 
-Picture: the station, the next child sitting down.
-
-Voice: "Every teacher-confirmed reading can become consented data to fine-tune an open model on real kriah. A chatbot answers questions. Kriah Listener listens to a child read and tells the teacher which letter and vowel to fix tomorrow."
-
-## Shot list
-
-1. Station on the desktop layout, real child or synthetic voice, one clean set and one set with a planted vet.
-2. The same reading on a phone at 390 px, five seconds, to show both layouts.
-3. The level-up moment.
-4. A challenge word read clean.
-5. Class view, child detail, packet print preview.
-6. Developer trace (`TRACE=1`), one turn, for the coach's reasons.
-
-Avoid: opening on the dashboard, and any paragraph of AI text on screen.
+Voice: "The next evidence is a real-voice test and a kriah teacher's review. Those checks will determine whether the station is ready for classroom use."

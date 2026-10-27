@@ -35,6 +35,10 @@ export function checkPage(sectionId) {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const sectionId = process.argv[2];
+  if (!sectionId) {
+    console.error('Usage: npm run check:page -- <section>');
+    process.exit(1);
+  }
   const page = checkPage(sectionId);
   const directory = new URL('../docs/check/', import.meta.url);
   mkdirSync(directory, { recursive: true });

@@ -5,7 +5,11 @@
   "description": "A classroom Hebrew reading station that hears a child read and marks every letter and vowel.",
   "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": ">=22.12"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/drlevidruin/kriah-listener-entry"
   },
   "scripts": {
     "test": "node --test",
@@ -14,6 +18,6 @@
     "ear-test": "node tools/clip-recorder/run-ear.js",
     "build:bank": "node bank/build.js",
     "check:page": "node bank/check-page.js",
-    "test:station": "cd station && npx vitest run"
+    "test:station": "cd station && npx vitest run --configLoader native"
   }
 }

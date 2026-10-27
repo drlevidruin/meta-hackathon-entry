@@ -5,7 +5,14 @@ node_modules/
 .DS_Store
 *.log
 coverage/
-data/
+/data/
 # Children's voices never enter this public repo, consent or not.
+*.wav
+*.webm
+*.m4a
+*.mp3
+*.ogg
+*.flac
+*.aac
 recordings/private/
 recordings/synthetic/
