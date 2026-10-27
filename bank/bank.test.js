@@ -70,6 +70,23 @@ test('generated words pass skeleton and every accepted sound in the blocklist', 
     ['ab', 'av', 'eb', 'ev']);
 });
 
+test('prefixed Name readings include the prefix exactly once and never accept a prefix alone', () => {
+  for (const preset of presets) {
+    const result = expectedSounds('שֶׁיְהֹוָה', preset);
+    const readings = acceptedReadings(result);
+    assert.ok(readings.length);
+    assert.ok(readings.every((reading) => reading.startsWith('she')));
+    assert.ok(!readings.includes('she'));
+    assert.deepEqual([...readings].sort(), unique(expectedSounds('יְהֹוָה', preset).readings
+      .flatMap(acceptedReadings).map((reading) => 'she' + reading)));
+  }
+  const row = checkPage('ashrei').split('\n').find((line) => line.includes(cleanWord('שֶׁיְהֹוָה')));
+  assert.ok(row.includes('she-a-do-nay'));
+  assert.ok(row.includes('she-ha-shem'));
+  assert.ok(!row.includes('| she /'));
+  assert.ok(row.endsWith('divine_name |'));
+});
+
 test('level 1 has 60 lines of five or six pairs and covers letters, variants and all target vowels', () => {
   const level = items.filter((item) => item.level === 1);
   assert.equal(level.length, 60);
@@ -117,13 +134,14 @@ test('level 3 reaches 80 lines of four real words from its named source', () => 
   }
 });
 
-test('level 4 has 40 lines of four new words of two or three syllables', () => {
+test('level 4 has 40 short lines and 150 single-word challenges, all excluded from the siddur', () => {
   const corpus = new Set(siddur.sections.flatMap((section) => section.segments.flatMap(segmentWords))
     .filter((word) => pointedWord(word)).map(cleanWord));
   const level = items.filter((item) => item.level === 4);
-  assert.equal(level.length, 40);
+  assert.equal(level.filter(item => !item.source.challenge).length, 40);
+  assert.equal(level.filter(item => item.source.challenge).length, 150);
   for (const item of level) {
-    assert.equal(item.words.length, 4);
+    assert.ok(item.source.challenge ? item.words.length === 1 : [2, 3].includes(item.words.length));
     for (const word of item.words) {
       assert.ok(!corpus.has(cleanWord(word)), word);
       for (const preset of presets) assert.ok([2, 3].includes(formatReading(expectedSounds(word, preset)).split('-').length));
@@ -131,13 +149,15 @@ test('level 4 has 40 lines of four new words of two or three syllables', () => {
   }
 });
 
-test('phrase and fluency lines use every eligible phrase, preserve source order and retain maqaf', () => {
+test('phrase and fluency lines preserve source order and maqaf, with level 5 text excluded from level 6', () => {
+  const phraseTexts = new Set(items.filter(item => item.level === 5).map(item => item.text));
   for (const [level, minimum, maximum] of [[5, 3, 5], [6, 4, 9]]) {
     const expected = new Map();
     for (const section of siddur.sections) for (const segment of section.segments.filter(usableSegment)) {
       for (const phrase of punctuatedPhrases(segment)) {
         for (const words of cutLines(phrase, minimum, maximum)) {
           const text = lineText(words);
+          if (level === 6 && phraseTexts.has(text)) continue;
           if (!expected.has(text)) expected.set(text, { words, source: { section: section.id, ref: section.ref } });
         }
       }
@@ -181,8 +201,28 @@ test('Shema check page includes every usable word and its source, alternatives a
   assert.ok(page.includes('kamatz_katan'));
   assert.ok(!page.includes('יחיד'));
   assert.ok(!usableSegment('מוֹדֶה יחיד אֲנִי'));
-  assert.ok(!usableSegment('מֹשֶׁה קְדשִׁים'));
+  assert.ok(usableSegment('משֶׁה קְדשִׁים'));
+  assert.ok(!usableSegment('משֶׁה קְדשִׁים יחיד'));
   assert.ok(!usableSegment('ל'));
   assert.throws(() => checkPage('../missing'), /Unknown section/u);
   assert.equal(readFileSync(new URL('../docs/check/shema.md', import.meta.url), 'utf8'), page);
+});
+
+test('merged cholam restores exactly the two Shema paragraphs while instructions remain excluded', () => {
+  const rejected = siddur.sections.flatMap(section => section.segments
+    .map((segment, index) => ({ segment, label: `${section.id}:${index + 1}` }))
+    .filter(({ segment }) => !usableSegment(segment)).map(({ label }) => label));
+  assert.deepEqual(rejected, [
+    'torah-blessings:2', 'morning-blessings:5', 'shema:1', 'shema:4', 'shema:9', 'shema:11',
+    'ashrei:1', 'avot:1', 'avot:4', 'avot:5',
+  ]);
+  const shema = siddur.sections.find(section => section.id === 'shema');
+  for (const index of [6, 7]) {
+    assert.ok(usableSegment(shema.segments[index]));
+    const words = new Set(segmentWords(shema.segments[index]));
+    for (const level of [5, 6]) assert.ok(items.some(item => item.level === level
+      && item.source.section === 'shema' && item.words.some(word => words.has(word))));
+  }
+  const page = checkPage('shema');
+  for (const word of ['משֶׁה', 'קְדשִׁים', 'וְתִירשְׁךָ']) assert.ok(page.includes(cleanWord(word)), word);
 });

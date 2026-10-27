@@ -23,7 +23,7 @@ function pairSkills(pair, vowels, consonants) {
 export function soundPairs(groups, pairs, preset, divine) {
   return pairs.map((pair) => {
     let consonants = [pair.shuruk || pair.silent ? '' : consonant(pair, preset)];
-    if (divine.elohimAlef !== -1 && pair.index === divine.elohimAlef + 2) {
+    if (divine.elohimHei === pair.index) {
       consonants = ['h', 'k'];
       pair.flags.push('divine_name');
     }
@@ -50,13 +50,21 @@ export function soundPairs(groups, pairs, preset, divine) {
 export function divineName(word, groups) {
   const letters = groups.map((group) => group.letter).join('');
   const alef = groups.findIndex((group) => group.letter === 'א');
-  const prefixes = alef >= 0 && /^[ובכלמשה]*$/u.test(letters.slice(0, alef));
+  const prefixes = alef >= 0 && /^[ובכלמשה]{0,2}$/u.test(letters.slice(0, alef));
+  const name = letters.match(/^([ובכלמשה]{0,2})יהוה$/u);
+  const lamed = groups[alef + 1];
+  const hei = alef + (lamed?.vowel === 'cholam' ? 2 : 3);
+  const cholam = lamed?.vowel === 'cholam' || (lamed?.vowel === 'none'
+    && groups[alef + 2]?.letter === 'ו' && groups[alef + 2]?.vowel === 'cholam'
+    && !hasDagesh(groups[alef + 2]) && !groups[alef + 2].marks.includes('\u05ba'));
   return {
-    substitute: letters === 'יהוה' || letters === 'יי' || word === 'ה׳',
+    substitute: Boolean(name) || letters === 'יי' || word === 'ה׳',
+    prefixLength: name?.[1].length ?? 0,
     adonai: letters === 'אדני' && groups[0]?.vowel === 'chataf_patach'
       && groups[2]?.vowel === 'kamatz',
-    elohimAlef: prefixes && letters.slice(alef).startsWith('אלה')
-      && groups[alef].vowel === 'chataf_segol' ? alef : -1,
+    elohimHei: prefixes && (groups[alef].vowel === 'chataf_segol'
+      || (alef > 0 && groups[alef].vowel === 'none'))
+      && lamed?.letter === 'ל' && cholam && groups[hei]?.letter === 'ה' ? hei : -1,
     elAlef: prefixes && letters.slice(alef) === 'אל' && groups[alef].vowel === 'tzere' ? alef : -1,
   };
 }

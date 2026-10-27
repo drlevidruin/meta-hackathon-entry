@@ -12,8 +12,8 @@ const skeletons = new Set(blocklist.skeletons.map(foldedSkeleton));
 const blockedSounds = new Set(blocklist.sounds);
 
 export function acceptedReadings(result) {
-  let readings = result.pairs.length ? [''] : [];
-  for (const pair of result.pairs) {
+  let readings = !result.substitute && result.pairs.length ? [''] : [];
+  for (const pair of result.substitute ? [] : result.pairs) {
     readings = [...new Set(readings.flatMap((before) => pair.sounds.map((sound) => before + sound)))];
   }
   for (const alternative of result.readings ?? []) readings.push(...acceptedReadings(alternative));
