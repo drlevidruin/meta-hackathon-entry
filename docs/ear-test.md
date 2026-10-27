@@ -336,6 +336,38 @@ Read each clip once, after the sheva tests, in Ashkenazi pronunciation. Round 1c
 | abo_kamatz-for-patach | אַבָּא | o-bo | patach read as kamatz | o-bo |
 | nachal_kamatz-for-patach | נַחַל | no-chal | the first patach read as kamatz | no-chal |
 
+## Round 1d results, October 27
+
+Levi read Round 1d at 12:30 PM. The settings were final at `00fe6b5`: the card goes to the primary ear when the gate passes, then the meter runs. His card passed the gate. Muse Wonder 1.0 heard each clip three times with the card and three times without it, between 1:31 and 1:42 PM. Nobody read these answers before the runs.
+
+| Setup | Plants caught of 4 | False marks |
+| --- | --- | --- |
+| Card and meter | 3, 3, 4 | 2, 7, 5 |
+| Meter, no card | 3, 3, 3 | 7, 7, 6 |
+| Card, ear alone | 2, 2, 3 | 5, 11, 10 |
+| Ear alone, no card | 2, 2, 2 | 13, 13, 11 |
+
+| File name | Say | Card and meter, three runs | Meter, no card, three runs |
+| --- | --- | --- | --- |
+| yod_clean | yod | yad each run | yad each run |
+| gomol_clean | go-mol | clean once, ga-mol twice | ga-mol each run |
+| dogim_clean | do-gim | clean twice, da-gim once | da-gim each run |
+| koton_clean | ko-ton | ko-tan each run | ka-tan each run, 2 false marks |
+| noshim_clean | no-shim | clean twice, na-shim once | na-shim each run |
+| seyfer_clean | sey-fer | clean each run | se-fer twice, clean once |
+| chalo_clean | cha-lo | clean twice, cho-lo once | clean each run |
+| ovinu_clean | o-vi-nu | clean each run | clean each run |
+| zohov_patach-for-kamatz | za-hov | plant marked each run | plant marked each run |
+| yom_patach-for-kamatz | yam | marked twice, yom once | plant marked each run |
+| abo_kamatz-for-patach | o-bo | plant marked each run | plant marked each run |
+| nachal_kamatz-for-patach | no-chal | marked twice, no-chol once with 3 false marks | na-chal each run |
+
+On the sealed words the card helped, but it did not fix the Israeli vowels. With the meter it cut false marks from 20 to 14 over three runs and caught 10 of the 12 plants against 9. Kamatz still came out as a in yod and koton in every run, and in gomol, dogim and noshim in one or two.
+
+The runs also showed what the card costs. In 3 of the 36 card readings the ear wrote o for a patach Levi said: cho-lo for cha-lo, no-chol for no-chal, and yom for the planted yam, which hid that mistake. The older rounds in the same runs showed it too: the ear wrote ko-voyd for the planted ka-voyd in two of three runs and sho-loym for sha-loym in one, hiding both. Without the card no patach-for-kamatz plant was hidden in any run, but the planted no-chal came back as na-chal in all three. Yom, ko-voyd and sho-loym are how an Ashkenazi reader says those words. The likely reason is that the card tells the ear the reader is Ashkenazi, and for a word it knows, it sometimes writes that reading instead of the sound. Cho-lo and no-chol have an o that no reading of those words has.
+
+Across all 46 clips with the meter, the card caught 60 of 66 plants against 61 and left 72 false marks against 95. No run passed. Round 1d has now been read, so it no longer counts as a sealed test. A change made from here needs new words.
+
 ## Round 2: a child's voice
 
 The adult round must pass first. Recording a child requires written parent consent. Turn Meta Model API free credits off and use a paid plan before sending children's audio. Meta's free-credit terms allow content to be used for product improvement.
