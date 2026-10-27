@@ -40,6 +40,7 @@ export async function loadClips(set = 'adult') {
   const markdown = await readFile(tableURL, 'utf8');
   const clips = [
     ...parseClips(markdown, 'Voice check').map((clip) => ({ ...clip, kind: 'voice' })),
+    ...parseClips(markdown, 'Round 1b').map((clip) => ({ ...clip, kind: 'reading' })),
     ...parseClips(markdown).map((clip) => ({ ...clip, kind: 'reading' })),
   ];
   if (new Set(clips.map((clip) => clip.name)).size !== clips.length) {

@@ -114,6 +114,24 @@ Muse Spark Open, the fallback ear, then heard the same 12 clips once through Bas
 
 Round 1 does not pass for Ashkenazi vowels with either ear. Sephardi readings have not been tested.
 
+## Round 1b: new words
+
+Read each clip once, after the voice check, in Ashkenazi pronunciation. None of these words was used to choose the vowel meter's settings.
+
+| File name | Hebrew | Say | Planted | The ear should write |
+| --- | --- | --- | --- | --- |
+| omein_clean | אָמֵן | o-meyn | nothing | o-meyn |
+| brocho_clean | בְּרָכָה | be-ro-cho | nothing | be-ro-cho |
+| shomayim_clean | שָׁמַיִם | sho-ma-yim | nothing | sho-ma-yim |
+| dovor_clean | דָּבָר | do-vor | nothing | do-vor |
+| emes_clean | אֱמֶת | e-mes | nothing | e-mes |
+| toyro_clean | תּוֹרָה | toy-ro | nothing | toy-ro |
+| mitzvo_clean | מִצְוָה | mitz-vo | nothing | mitz-vo |
+| godol_patach-for-kamatz | גָּדוֹל | ga-doyl | kamatz read as patach | ga-doyl |
+| kovod_patach-for-kamatz | כָּבוֹד | ka-voyd | kamatz read as patach | ka-voyd |
+| sheym_chirik-for-tzere | שֵׁם | shim | tzere read as chirik | shim |
+| ato_kamatz-for-patach | אַתָּה | o-to | patach read as kamatz | o-to |
+
 ## Round 2: a child's voice
 
 The adult round must pass first. Recording a child requires written parent consent. Turn Meta Model API free credits off and use a paid plan before sending children's audio. Meta's free-credit terms allow content to be used for product improvement.

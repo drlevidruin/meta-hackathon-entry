@@ -16,6 +16,8 @@ The command starts a local server and prints its address. Open that address in a
 
 Each card shows the Hebrew, the sounds to say, and the planted mistake. Record stops when tapped again. Play replays the saved clip. Again records a replacement. Next moves to the next card. Fonts are bundled locally.
 
+The cards run in this order: the voice check, the Round 1b new words, then Round 1.
+
 For the child set:
 
 ```bash

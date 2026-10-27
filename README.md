@@ -22,6 +22,8 @@ flowchart LR
   station -- audio only --> server[Server]
   server -- audio and sound alphabet --> ear[Meta ear model]
   ear -- syllables --> server
+  server -- audio, syllables and voice profile --> meter[Vowel meter on server]
+  meter -- checked syllables --> server
   server -- syllables and printed line --> grader[Grader]
   rulebook[Rulebook] -- expected sounds --> grader
   grader -- verdicts --> server
@@ -35,8 +37,9 @@ flowchart LR
 ```
 
 1. **Ear.** A child taps an animal and reads a line. The model gets audio and a sound alphabet. It never sees the printed line, so the line cannot steer its answer. If the child says `sha-vos`, the ear writes `sha-vos`. It can still mishear. Prose, including short refusals, counts as a failed call; syllables outside the sound alphabet become `?`.
-2. **Rulebook and grader.** Plain code defines expected sounds in all three traditions. The [grader](grader/README.md) compares `sha-vos` with what שַׁבָּת should sound like in the child's tradition. In Ashkenazi pronunciation the bet should be b, so the amber mark lands under the bet. The previous line shows green and amber marks while the child reads the next line. Flagged cases accept alternative readings.
-3. **Coach.** The server runs the [coach](coach/README.md) at each checkpoint to pick the next bank ids. Code checks the ids and allowed levels, then resolves them to bank lines. A rule selects lines when the model is unavailable or its answer fails validation.
+2. **Vowel meter.** Before a child's first line, the station shows a card of fifteen sounds. The server measures how this child says a, o, e and i and keeps those averages. On each graded line it measures every vowel in the audio. Where the ear wrote a, the meter compares that vowel with the child's own a, o and e; where it wrote e, with the child's e and i. If another of the child's vowels fits clearly better, the meter writes that one. This answers the ear's habit of writing Israeli vowels for an Ashkenazi reader. It never adds or removes a syllable, and it leaves the line alone when the sounds it finds do not match the ear's syllable count.
+3. **Rulebook and grader.** Plain code defines expected sounds in all three traditions. The [grader](grader/README.md) compares `sha-vos` with what שַׁבָּת should sound like in the child's tradition. In Ashkenazi pronunciation the bet should be b, so the amber mark lands under the bet. The previous line shows green and amber marks while the child reads the next line. Flagged cases accept alternative readings.
+4. **Coach.** The server runs the [coach](coach/README.md) at each checkpoint to pick the next bank ids. Code checks the ids and allowed levels, then resolves them to bank lines. A rule selects lines when the model is unavailable or its answer fails validation.
 
 ## Meta models, and what we learned
 
@@ -46,9 +49,9 @@ The [ear test notes](docs/ear-test.md) record the synthetic trials and the adult
 | --- | --- | --- |
 | Ear | Muse Spark 1.3 | Corrected children toward real words: it heard `sha-vos` and wrote `sha-bos`. With made-up example sounds in the prompt, it wrote the planted mistake on 1 and then 4 of the 7 plants, and wrote `?` on 7 and then 4 of the 13 clips. |
 | Ear | Muse Spark 1.2 | Answered in English prose on about a third of the clips with the first prompt. With made-up example sounds, it wrote 2 of the 7 plants in each run and answered in prose on 3 and then 2 of the 13 clips. Prose counts as a failed call. |
-| Ear | Muse Wonder 1.0 (`muse-wonder-1.0`), Meta Model API | Chosen. Wrote the planted mistake on 5 of the 7 plants in each of two runs, with no prose. Minimal reasoning brought it to 2.4 seconds a clip, from about 15. Used as the ear in the full server run. On a real adult voice the grader marked 9 of 10 planted mistakes from its answers, but it wrote Israeli vowels for an Ashkenazi reading, so the adult round did not pass. |
+| Ear | Muse Wonder 1.0 (`muse-wonder-1.0`), Meta Model API | Chosen as the primary ear. Wrote the planted mistake on 5 of the 7 plants in each of two runs, with no prose. Minimal reasoning brought it to 2.4 seconds a clip, from about 15. Used as the ear in the full server run. On a real adult voice the grader marked 9 of 10 planted mistakes from its answers, but it wrote Israeli vowels for an Ashkenazi reading, so the adult round did not pass. |
 | Ear | Muse Voice Transcribe 1.0, Meta transcription API | Tried and rejected. Fast, but writes words, corrects toward real ones and drops nikud. |
-| Ear | Muse Spark Open (`meta-models/muse-spark-open-1026`), Baseten | Filled in a skipped word from memory. On the Shema line of the adult round it wrote back the word the reader skipped, without seeing the text. The grader marked 6 of 10 planted mistakes from its answers, fewer than Wonder. |
+| Ear | Muse Spark Open (`meta-models/muse-spark-open-1026`), Baseten | The fallback ear. Filled in a skipped word from memory. On the Shema line of the adult round it wrote back the word the reader skipped, without seeing the text. The grader marked 6 of 10 planted mistakes from its answers, fewer than Wonder. |
 | Coach | Muse Spark 1.3 (`muse-spark-1.3`), Meta Model API | First failed live by spending its whole 2,000 token limit on reasoning. With 16,000 tokens and minimal reasoning, answered 7 of 7 checkpoints in the live run. All picks passed validation. |
 
 Meta may train on content sent in contributor mode, so only standard tier is used. No model id ending in `-contributor` is used: the ear refuses those ids, and the coach uses a fixed standard id.
@@ -73,7 +76,7 @@ Meta may train on content sent in contributor mode, so only standard tier is use
 
 The ear never sees the text it grades. No model writes Hebrew a child reads. There is no chat or free-text AI feedback anywhere: child screens, teacher screens and the parent line all use templates. Model reasons appear only in the PIN-protected developer trace when enabled. Keys stay on the server.
 
-The station and server grade audio in memory and drop it. They never write audio to disk or a log. `data/store.json` holds first names, avatars, pronunciation presets, progress profiles, per-letter and vowel read history, stars and turn summaries with coded decisions and template logs. It holds no audio, transcripts or coach reasons. The store keeps the last 60 turns per child; the detail screen shows the last 20. The server computes earned stars from its own grades and caps the browser's requested award. Teachers must enter first names only; the server enforces a single word, not whether it is a first name.
+The station and server grade audio in memory and drop it. They never write audio to disk or a log. `data/store.json` holds first names, avatars, pronunciation presets, progress profiles, per-letter and vowel read history, stars and turn summaries with coded decisions and template logs. After the voice check it also holds the child's vowel averages: two numbers each for a, o, e and i. Teachers can clear them from the roster, and a preset change clears them. It holds no audio, transcripts or coach reasons. The store keeps the last 60 turns per child; the detail screen shows the last 20. The server computes earned stars from its own grades and caps the browser's requested award. Teachers must enter first names only; the server enforces a single word, not whether it is a first name.
 
 The separate [local clip recorder](tools/clip-recorder/README.md) saves test WAVs in gitignored `recordings/private/`. Child recording requires written parent consent. Its child test runner deletes each clip after printing the result, including failures, unless `--keep` is set. Adult clips remain until manually removed. Closing the recorder does not delete saved clips.
 
@@ -124,8 +127,8 @@ The first screen is empty until a teacher adds children: tap Teacher, enter the 
 
 | Environment variable | Purpose |
 | --- | --- |
-| `META_API_KEY` | Meta Model API key for the fallback ear and coach. |
-| `BASETEN_API_KEY` | Optional Baseten key for the primary ear. |
+| `META_API_KEY` | Meta Model API key for the primary ear and the coach. |
+| `BASETEN_API_KEY` | Optional Baseten key for the fallback ear. |
 | `TEACHER_PIN` | Required, exactly 4 to 12 digits. Missing or invalid values stop startup. |
 | `TRACE` | Set to `1` to enable the protected developer trace at `#/trace/<turnId>`. |
 | `COACH_MODEL` | Set to `off` to use the rule alone; otherwise model calls are enabled. |
@@ -135,8 +138,8 @@ The first screen is empty until a teacher adds children: tap Teacher, enter the 
 | `PORT` | Server port; defaults to `8787`. |
 | `TLS_CERT` | Optional path to a PEM certificate. Set with `TLS_KEY` for https. Leave both empty for http. An unreadable file stops startup. |
 | `TLS_KEY` | Optional path to a PEM private key. Required with `TLS_CERT`. An unreadable file stops startup. |
-| `EAR_PRIMARY_MODEL` | Baseten model id; defaults to `meta-models/muse-spark-open-1026`. |
-| `EAR_FALLBACK_MODEL` | Meta ear model id; defaults to `muse-wonder-1.0`. |
+| `EAR_PRIMARY_MODEL` | Meta ear model id; defaults to `muse-wonder-1.0`. |
+| `EAR_FALLBACK_MODEL` | Baseten model id; defaults to `meta-models/muse-spark-open-1026`. |
 | `EAR_REASONING_EFFORT` | Meta ear reasoning effort; defaults to `minimal`. |
 
 Run the offline checks from the repo root:
@@ -151,7 +154,7 @@ Other tools, also from the repo root:
 
 - `npm run rulebook -- "שַׁבָּת"` prints tab-separated readings: word, Sephardi, Ashkenazi, Chassidish, flags. Arguments are positional Hebrew text, joined with spaces; quote a whole line or supply separate words. It has no preset flag.
 - `npm run record` starts the local clip recorder and prints its address.
-- `npm run ear-test` compares recorded clips with their scripted sounds. It defaults to the fallback when no Baseten key is set and prints the selected model. `--model primary` or `--model fallback` overrides this choice. It checks transcription, not grader verdicts.
+- `npm run ear-test` compares recorded clips with their scripted sounds. It uses the Meta primary when `META_API_KEY` is set, otherwise the Baseten fallback, and prints the selected model. When a voice check clip is recorded it runs the vowel meter; `--no-meter` turns it off. `--model primary` or `--model fallback` overrides this choice. It checks transcription, not grader verdicts.
 - `npm run check:page -- shema` rebuilds the page for a kriah teacher to check.
 - `npm run grade -- --preset ashkenazi --line "שַׁבָּת" --heard "sha-vos"` grades typed sounds.
 
@@ -161,7 +164,7 @@ Other tools, also from the repo root:
 | --- | --- |
 | `rulebook/` | Expected sounds and skill tags. |
 | `bank/` | Generated and committed items, source text and blocklist. |
-| `ear/` | Audio model calls, sound parser and [the prompt](ear/prompt.md). |
+| `ear/` | Audio model calls, sound parser, vowel meter and [the prompt](ear/prompt.md). |
 | `grader/` | Sound alignment and verdicts. See [grader/README.md](grader/README.md). |
 | `coach/` | Rule selection and validated model picks. See [coach/README.md](coach/README.md). |
 | `server/` | API, roster, saved progress, groups and packets. Each packet includes a challenge from the bank's 150 challenge items. |

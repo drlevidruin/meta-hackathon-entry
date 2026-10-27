@@ -27,6 +27,19 @@ const expectedClips = [
   ['lefanecha_pei-for-fei', 'le-po-ne-cho'],
   ['shema-line_skipped-word', 'she-ma yis-ro-eyl a-do-noy a-do-noy e-chod'],
 ];
+const expectedNewClips = [
+  ['omein_clean', 'o-meyn'],
+  ['brocho_clean', 'be-ro-cho'],
+  ['shomayim_clean', 'sho-ma-yim'],
+  ['dovor_clean', 'do-vor'],
+  ['emes_clean', 'e-mes'],
+  ['toyro_clean', 'toy-ro'],
+  ['mitzvo_clean', 'mitz-vo'],
+  ['godol_patach-for-kamatz', 'ga-doyl'],
+  ['kovod_patach-for-kamatz', 'ka-voyd'],
+  ['sheym_chirik-for-tzere', 'shim'],
+  ['ato_kamatz-for-patach', 'o-to'],
+];
 const wav = Buffer.from(encodeWav(new Float32Array([0, .25, -.25, 0])));
 
 function syntheticWav(labels) {
@@ -114,6 +127,30 @@ test('Round 1 markdown has all 12 adult names, Say values, Hebrew and planted mi
   await assert.rejects(loadClips('unknown'), /adult or child/);
 });
 
+test('Round 1 selects only its 12 clips even when Round 1b appears first', async () => {
+  const markdown = await readFile(new URL('../../docs/ear-test.md', import.meta.url), 'utf8');
+  const newWordsStart = markdown.indexOf('## Round 1b: new words');
+  const newWordsEnd = markdown.indexOf('\n## ', newWordsStart + 1);
+  const newWordsSection = markdown.slice(newWordsStart, newWordsEnd);
+  assert.deepEqual(parseClips(markdown, 'Round 1b').map(({ name, say }) => [name, say]), expectedNewClips);
+  for (const source of [markdown, `${newWordsSection}\n\n${markdown}`]) {
+    const clips = parseClips(source, 'Round 1');
+    assert.equal(clips.length, 12);
+    assert.deepEqual(clips.map(({ name, say }) => [name, say]), expectedClips);
+    assert.ok(clips.every((clip) => !expectedNewClips.some(([name]) => name === clip.name)));
+  }
+});
+
+test('loadClips returns the voice check, then 11 Round 1b clips, then 12 Round 1 clips in table order', async () => {
+  const clips = await loadClips();
+  assert.deepEqual(clips.map(({ name, kind }) => [name, kind]), [
+    ['voice-check', 'voice'],
+    ...expectedNewClips.map(([name]) => [name, 'reading']),
+    ...expectedClips.map(([name]) => [name, 'reading']),
+  ]);
+  assert.deepEqual(clips.slice(1).map(({ name, say }) => [name, say]), [...expectedNewClips, ...expectedClips]);
+});
+
 test('parser follows the table instead of hardcoding its rows and rejects malformed input', async () => {
   const markdown = await readFile(new URL('../../docs/ear-test.md', import.meta.url), 'utf8');
   const changed = markdown.replace('| baruch_clean | בָּרוּךְ | bo-ruch |', '| baruch_changed | בָּרוּךְ | ba-ruch |');
@@ -140,11 +177,11 @@ test('parser selects the voice check section, escapes heading names and names er
 test('name validation accepts only exact table names in the selected set', async () => {
   const adult = await loadClips();
   const child = await loadClips('child');
-  assert.equal(adult.length, 13);
+  assert.equal(adult.length, 24);
   assert.equal(adult[0].name, 'voice-check');
   assert.equal(adult[0].kind, 'voice');
   assert.ok(adult.slice(1).every((clip) => clip.kind === 'reading'));
-  assert.equal(new Set(adult.map((clip) => clip.name)).size, 13);
+  assert.equal(new Set(adult.map((clip) => clip.name)).size, 24);
   assert.deepEqual(child, adult.map((clip) => ({ ...clip, name: `child_${clip.name}` })));
   for (const clip of adult) {
     assert.equal(isClipName(clip.name, adult), true);
@@ -183,7 +220,7 @@ test('server writes a posted WAV, lists completion, and reads it back from the s
   const server = await createRecorderServer({ directory });
   let list = await request(server, '/clips');
   assert.equal(list.json.set, 'adult');
-  assert.equal(list.json.clips.length, 13);
+  assert.equal(list.json.clips.length, 24);
   assert.ok(list.json.clips.every((clip) => !clip.done));
   const response = await post(server, 'baruch_clean');
   assert.equal(response.status, 200);
@@ -207,7 +244,7 @@ test('server lists, saves and plays the adult and child voice check like other c
     const server = await createRecorderServer({ set, directory });
     const name = `${set === 'child' ? 'child_' : ''}voice-check`;
     const list = await request(server, '/clips');
-    assert.equal(list.json.clips.length, 13);
+    assert.equal(list.json.clips.length, 24);
     assert.equal(list.json.clips[0].name, name);
     assert.equal(list.json.clips[0].kind, 'voice');
     assert.equal((await post(server, name)).status, 200);
@@ -326,13 +363,13 @@ test('ear runner sends only audio, respects the model, and prints PASS and MISS 
     ear: async (audio, options) => {
       assert.deepEqual(audio, { data: wav, format: 'wav' });
       assert.deepEqual(options, { model: 'fallback' });
-      return ++calls === 1 ? [['SHA', 'VOS']] : [['ba', 'ruch']];
+      return ++calls === 1 ? [['O', 'MEYN']] : [['ba', 'ra', 'cha']];
     } });
   assert.equal(calls, 2);
   assert.equal(result.code, 1);
   assert.match(output[0], /^Ear model: fallback \(.+\)$/);
   assert.deepEqual(output.slice(1), ['Vowel meter: off (no voice check recorded)', 'clip\tsaid\theard\tresult\tear',
-    'shabbos_va-for-ba\tsha-vos\tSHA-VOS\tPASS\tSHA-VOS', 'baruch_clean\tbo-ruch\tba-ruch\tMISS\tba-ruch']);
+    'omein_clean\to-meyn\tO-MEYN\tPASS\tO-MEYN', 'brocho_clean\tbe-ro-cho\tba-ra-cha\tMISS\tba-ra-cha']);
   assert.ok((await store.list()).slice(0, 2).every((clip) => clip.done));
 });
 
@@ -472,7 +509,7 @@ test('child runner prints then deletes each clip before the next call, including
     }
   }, ear: async () => {
     calls += 1;
-    if (calls === 1) return [['sha', 'vos']];
+    if (calls === 1) return [['o', 'meyn']];
     await assert.rejects(access(join(directory, `${clips[0].name}.wav`)));
     assert.equal(output.length, 4);
     throw new Error('Provider error that must not be printed');
@@ -480,7 +517,7 @@ test('child runner prints then deletes each clip before the next call, including
   assert.equal(result.code, 1);
   assert.equal(calls, 2);
   assert.deepEqual(await readdir(directory), ['baruch_clean.wav']);
-  assert.equal(output[4], 'child_baruch_clean\tbo-ruch\tERROR\tMISS\tERROR');
+  assert.equal(output[4], 'child_brocho_clean\tbe-ro-cho\tERROR\tMISS\tERROR');
   assert.ok(output.every((line) => !line.includes('Provider error')));
 });
 
@@ -490,7 +527,7 @@ test('--keep retains child audio and an all-PASS run succeeds', async (t) => {
   await recordingStore(clips, directory).save(clips[0].name, wav);
   const result = await runEar({ set: 'child', keep: true, directory, log: () => {}, ear: async (_audio, options) => {
     assert.deepEqual(options, { model: defaultEarModel() });
-    return [['sha', 'vos']];
+    return [['o', 'meyn']];
   } });
   assert.equal(result.code, 0);
   assert.deepEqual(await readFile(join(directory, `${clips[0].name}.wav`)), wav);
@@ -568,7 +605,7 @@ test('ear runner and CLI select and print the default model and honor explicit o
     const output = [];
     const result = await runEar({ directory, log: line => output.push(line), ear: async (_audio, options) => {
       assert.equal(options.model, model);
-      return [['sha', 'vos']];
+      return [['o', 'meyn']];
     } });
     assert.equal(result.code, 0);
     assert.equal(output[0], `Ear model: ${model} (${id})`);
@@ -580,7 +617,7 @@ test('ear runner and CLI select and print the default model and honor explicit o
   const output = [];
   await runEar({ ...explicit, directory, log: line => output.push(line), ear: async (_audio, options) => {
     assert.equal(options.model, 'primary');
-    return [['sha', 'vos']];
+    return [['o', 'meyn']];
   } });
   assert.equal(output[0], 'Ear model: primary (test-primary-model)');
 });
