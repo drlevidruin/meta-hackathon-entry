@@ -39,3 +39,15 @@ First results, October 26, three runs per model:
 - Muse Spark 1.3 corrected "shah voss" to sha-bos and added "ba-ruch ru-ach", the three example words that were in the prompt. The prompt now uses made-up sounds for its examples.
 - Muse Spark 1.2 answered in English prose ("I can't hear audio") on about a third of the clips, the same clips every run. The ear retries once, then fails the line cleanly rather than grading a refusal.
 - The Hebrew voice read וָרוּךְ as ba-ruch in every model, so that clip cannot tell a correcting ear from a voice that ignored the planted vav. Recorded voices settle it.
+
+Second results, October 26, with the made-up prompt examples, two runs per model. A plant counts as caught when the ear wrote the mistake the voice said.
+
+| Model | Plants caught (of 7, two runs) | Answered in prose or empty | Clips returned as "?" |
+| --- | --- | --- | --- |
+| Muse Wonder 1.0 | 6 to 7 per run: sha-vas, va-ruk, mu-der, mech, sha-vat, ya-chid | 0 | 1 per run |
+| Muse Spark 1.2 | 3 per run: sha-vas, va-ruch, and va-ruch on the Hebrew-voice clip | 2 to 3 per run | 5 per run |
+| Muse Spark 1.3 | 1 to 3 per run | 0 to 1 per run | 5 to 7 per run |
+
+Muse Wonder 1.0 is now the default fallback ear (`EAR_FALLBACK_MODEL` still overrides it). It also turned the English voice's "modeh" into mo-der, an r the voice put there.
+
+End to end, Wonder's answers through the real grader, 10 clips: 7 graded exactly as planted. Two words with two wrong sounds each (va-ruk for בָּרוּךְ, ya-chid for אֶחָד) came back as not decoded, because the grader stops blaming single letters once most of a word is off. One false wrong letter came from the English voice's r in mo-der.

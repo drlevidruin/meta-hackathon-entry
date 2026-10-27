@@ -10,7 +10,7 @@ import { hear, listen } from './hear.js';
 import { parseEarOutput } from './parse.js';
 
 const PRIMARY = 'meta-models/muse-spark-open-1026';
-const FALLBACK = 'muse-spark-1.2';
+const FALLBACK = 'muse-wonder-1.0';
 const primaryKey = 'offline-primary-placeholder';
 const fallbackKey = 'offline-fallback-placeholder';
 const audio = { data: Buffer.from('offline audio fixture'), format: 'wav' };

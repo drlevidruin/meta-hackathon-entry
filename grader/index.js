@@ -8,7 +8,8 @@ function readingsOf(result) {
   function visit(reading) {
     if (seen.has(reading.word)) return;
     seen.add(reading.word);
-    if (reading.pairs.length) readings.push(reading);
+    // A substituted Name with a prefix carries only the prefix in pairs.
+    if (reading.pairs.length && !reading.substitute) readings.push(reading);
     for (const alternative of reading.readings ?? []) visit(alternative);
   }
   visit(result);
@@ -24,7 +25,7 @@ function prepare(result) {
       let pair = source;
       // The requested conventional substitute is ha-shem, also under Ashkenazi
       // presets whose ordinary tzere is ey. Keep this exception in the grader.
-      if (reading !== result && reading.word.replace(/[^א-ת]/gu, '') === 'השם'
+      if (reading !== result && reading.word.replace(/[^א-ת]/gu, '').endsWith('השם')
         && source.vowel === 'tzere') {
         pair = { ...source, sounds: [...new Set([...source.sounds, ...source.consonants.map((c) => `${c}e`)])] };
       }

@@ -25,7 +25,8 @@ const PROVIDERS = {
     }),
   },
   fallback: {
-    model: process.env.EAR_FALLBACK_MODEL || 'muse-spark-1.2',
+    model: process.env.EAR_FALLBACK_MODEL || 'muse-wonder-1.0',
+    // Wonder heard planted mistakes best on the synthetic round (docs/ear-test.md).
     url: 'https://api.meta.ai/v1/chat/completions',
     key: 'META_API_KEY',
     // The Meta Model API rejects audio_url and takes input_audio (tested 2026-10-26).

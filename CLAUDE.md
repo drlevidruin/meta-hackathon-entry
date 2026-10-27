@@ -20,7 +20,7 @@ A classroom reading station. A child reads one line of Hebrew with nekudos from 
 | Job | Model ID | Host |
 | --- | --- | --- |
 | The ear | `meta-models/muse-spark-open-1026` | Baseten, OpenAI-compatible, base URL `https://inference.baseten.co/v1` |
-| The ear, fallback | `muse-spark-1.2` | Meta Model API |
+| The ear, fallback | `muse-wonder-1.0` (was `muse-spark-1.2`; Wonder heard planted mistakes best, docs/ear-test.md) | Meta Model API |
 | The coach | `muse-spark-1.3` | Meta Model API |
 
 Notes on Spark Open: it always reasons. The reasoning comes back in `reasoning_content`, the answer in `content`. `max_tokens` caps both together, so keep it high. There is no JSON mode; ask for one line per word and parse. Audio goes in as an `audio_url` content part, as a `data:` URL or an HTTPS URL. WAV, MP3, FLAC, OGG, or M4A, up to 5 minutes and 25 MB per file. Audio is billed as input tokens.

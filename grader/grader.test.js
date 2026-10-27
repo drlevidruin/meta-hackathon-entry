@@ -265,3 +265,13 @@ test('CLI prints words, pair verdicts, traditions and summary, and rejects inval
   }
   assert.equal(errors.length, 4);
 });
+
+test('a prefixed divine name needs the whole substitute, not the prefix alone', () => {
+  const alone = grade('שֶׁיְהֹוָה', 'sephardi', 'she');
+  assert.notEqual(alone.summary.ok, alone.summary.pairs);
+  for (const [preset, heard] of [['sephardi', 'she-a-do-na-y'], ['ashkenazi', 'she-a-do-noy'],
+    ['ashkenazi', 'she-ha-shem'], ['sephardi', 'she-ha-shem']]) {
+    const result = grade('שֶׁיְהֹוָה', preset, heard);
+    assert.equal(result.summary.ok, result.summary.pairs, `${preset} ${heard}`);
+  }
+});
