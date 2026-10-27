@@ -42,11 +42,11 @@ First results, October 26, three runs per model:
 
 Second results, October 26, with the made-up prompt examples, two runs per model. A plant counts as caught when the ear wrote the mistake the voice said.
 
-| Model | Plants caught (of 7, two runs) | Answered in prose or empty | Clips returned as "?" |
+| Model | Plants caught (of 7), run 1 and run 2 | Answered in prose, empty, or error | Clips returned as "?" |
 | --- | --- | --- | --- |
-| Muse Wonder 1.0 | 6 to 7 per run: sha-vas, va-ruk, mu-der, mech, sha-vat, ya-chid | 0 | 1 per run |
-| Muse Spark 1.2 | 3 per run: sha-vas, va-ruch, and va-ruch on the Hebrew-voice clip | 2 to 3 per run | 5 per run |
-| Muse Spark 1.3 | 1 to 3 per run | 0 to 1 per run | 5 to 7 per run |
+| Muse Wonder 1.0 | 5 and 5: va-ruk, mu-der, sha-vas, sha-vat, mach or mech, ya-chid | one HTTP 500 | 1 per run |
+| Muse Spark 1.2 | 2 and 2: sha-vas, and va-ruch on the Hebrew-voice clip | 3 and 2 in prose | 4 per run |
+| Muse Spark 1.3 | 1 and 4 | 0 and 1 empty | 7 and 4 |
 
 Muse Wonder 1.0 is now the default fallback ear (`EAR_FALLBACK_MODEL` still overrides it). It also turned the English voice's "modeh" into mo-der, an r the voice put there.
 
