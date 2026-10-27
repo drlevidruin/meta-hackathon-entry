@@ -162,6 +162,24 @@ for (const [score, point, voice, to, rule] of [
   });
 }
 
+for (const [reason, voice] of [
+  ['nearby centroids', { ...profile, vowels: { ...profile.vowels, o: { f1: 7.2, f2: 10.2, n: 3 } } }],
+  ['overlapping spread', { ...profile, spread: 2 }],
+  ['missing a', { ...profile, vowels: { o: profile.vowels.o } }],
+  ['missing o', { ...profile, vowels: { a: profile.vowels.a } }],
+]) {
+  test(`an unready meter (${reason}) preserves coda-l and band vowels but still undoes a low o`, () => {
+    const words = [['chal', 'kol', 'kom', 'kol', 'kom']];
+    const tokens = [0.84, 0.84, 0.37, 0.07, 0.07].map(score => vowel(score));
+    const points = words.flat().map(() => profile.vowels.o);
+    assert.deepEqual(applyReferee(words, tokens, calibration, { points, profile: voice }), {
+      words: [['chal', 'kol', 'kom', 'kal', 'kam']],
+      changes: [{ word: 0, syllable: 3, from: 'kol', to: 'kal', rule: 'phoneme' },
+        { word: 0, syllable: 4, from: 'kom', to: 'kam', rule: 'phoneme' }], status: 'checked',
+    });
+  });
+}
+
 test('the band requires a front or back token and follows the calibrated line', () => {
   const options = { points: [profile.vowels.a], profile };
   assert.deepEqual(applyReferee([['kom']], [vowel(0.37, 'e')], calibration, options).words, [['kom']]);
@@ -190,7 +208,21 @@ test('equal counts retain identity pairing even when the classes suggest gaps', 
   });
 });
 
-const phoneme = token => ({ token, top: [[token, 1]] });
+const phoneme = (token, index = 0) => ({
+  token, start: index * 0.1,
+  top: [[token, 0.85], [vowelClass(token) === 'back' ? 'a' : 'ɑ', 0.1], ['<pad>', 0.05]],
+});
+
+test('Shema alignment corrects the certain ra pair and leaves the tied second a-do-noy alone', () => {
+  const words = [['she', 'ma'], ['yis', 'ra', 'el'], ['a', 'do', 'noy'], ['a', 'do', 'noy'], ['e', 'chod']];
+  // The first noy and second do have no phoneme vowel. Open a/o classes tie
+  // over the repeated a-do-noy, so its uncertain pairs must not be refereed.
+  const tokens = 'a a i ɑ ɛ a ɑ a aɪ ɛ ɑ'.split(' ').map(phoneme);
+  assert.deepEqual(applyReferee(words, tokens, calibration), {
+    words: [['she', 'ma'], ['yis', 'ro', 'el'], ['a', 'do', 'noy'], ['a', 'do', 'noy'], ['e', 'chod']],
+    changes: [{ word: 1, syllable: 1, from: 'ra', to: 'ro', rule: 'phoneme' }], status: 'aligned',
+  });
+});
 
 test('13 syllables align to 11 vowels, correcting matches while leaving both gap syllables alone', () => {
   const words = [['ka', 'mi', 'nu'], ['be', 'tan', 'toy', 'bay'], ['li', 'ku', 'mey', 'pa', 'ra', 'ni']];
@@ -211,10 +243,9 @@ test('alignment skips an extra phoneme vowel without shifting the following syll
   });
 });
 
-test('alignment ties prefer a diagonal match on traceback, leaving the earliest repeated vowel at a gap', () => {
+test('alignment ties leave repeated vowel pairs unchanged when best paths disagree', () => {
   const words = [['ka', 'tan', 'ma']];
-  const expected = { words: [['ka', 'ton', 'ma']],
-    changes: [{ word: 0, syllable: 1, from: 'tan', to: 'ton', rule: 'phoneme' }], status: 'aligned' };
+  const expected = { words, changes: [], status: 'aligned' };
   assert.deepEqual(applyReferee(words, [vowel(0.9), vowel(0.07)], calibration), expected);
   assert.deepEqual(applyReferee(words, [vowel(0.9), vowel(0.07)], calibration), expected);
 });
@@ -237,10 +268,11 @@ for (const [syllable, examples] of [
 ]) {
   test(`alignment recognizes the normalized phoneme class for ${syllable}`, () => {
     for (const token of examples.split(' ')) {
-      const result = applyReferee([['ka', syllable, 'bo']], [phoneme(token), vowel(0.07)], calibration);
+      const gap = syllable === 'ma' ? 'li' : 'ka';
+      const result = applyReferee([[gap, syllable, 'bo']], [phoneme(token), vowel(0.07)], calibration);
       const middle = ['ma', 'me'].includes(syllable) && vowelClass(token) === 'back'
         ? syllable.replace(nucleus(syllable), 'o') : syllable;
-      assert.deepEqual(result.words, [['ka', middle, 'ba']], token);
+      assert.deepEqual(result.words, [[gap, middle, 'ba']], token);
       assert.equal(result.status, 'aligned', token);
     }
   });

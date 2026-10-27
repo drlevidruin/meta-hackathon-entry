@@ -88,43 +88,82 @@ function phonemeClass(token) {
   return null;
 }
 
+function bestPaths(choices) {
+  return choices.reduce((best, choice) => {
+    if (choice.score > best.score || (choice.score === best.score && choice.gaps < best.gaps)) return choice;
+    if (choice.score === best.score && choice.gaps === best.gaps) {
+      return { ...best, count: best.count + choice.count };
+    }
+    return best;
+  });
+}
+
 function alignVowels(syllables, vowels) {
   const difference = Math.abs(syllables.length - vowels.length);
   if (difference * 3 > Math.max(syllables.length, vowels.length)) return null;
   const ears = syllables.map(({ sound }) => earClasses[sound]);
   const phones = vowels.map(({ token }) => phonemeClass(token));
-  const table = Array.from({ length: ears.length + 1 }, () => Array(phones.length + 1));
-  table[0][0] = { score: 0, gaps: 0 };
-  for (let i = 1; i <= ears.length; i++) table[i][0] = { score: -i, gaps: i, move: 'ear' };
-  for (let j = 1; j <= phones.length; j++) table[0][j] = { score: -j, gaps: j, move: 'phone' };
+  const matchScore = (i, j) => {
+    const same = ears[i] === phones[j];
+    const openMid = (ears[i] === 'open' && phones[j] === 'mid')
+      || (ears[i] === 'mid' && phones[j] === 'open');
+    return same ? 2 : openMid ? 0 : -1;
+  };
+  const forward = Array.from({ length: ears.length + 1 }, () => Array(phones.length + 1));
+  // Counts can exceed Number's exact integer range in repeated vowel patterns.
+  forward[0][0] = { score: 0, gaps: 0, count: 1n };
+  for (let i = 1; i <= ears.length; i++) forward[i][0] = { score: -i, gaps: i, count: 1n, move: 'ear' };
+  for (let j = 1; j <= phones.length; j++) forward[0][j] = { score: -j, gaps: j, count: 1n, move: 'phone' };
   for (let i = 1; i <= ears.length; i++) {
     for (let j = 1; j <= phones.length; j++) {
-      const same = ears[i - 1] === phones[j - 1];
-      const openMid = (ears[i - 1] === 'open' && phones[j - 1] === 'mid')
-        || (ears[i - 1] === 'mid' && phones[j - 1] === 'open');
-      const diagonal = table[i - 1][j - 1];
-      const ear = table[i - 1][j];
-      const phone = table[i][j - 1];
-      const choices = [
-        { score: diagonal.score + (same ? 2 : openMid ? 0 : -1), gaps: diagonal.gaps, move: 'match' },
-        { score: ear.score - 1, gaps: ear.gaps + 1, move: 'ear' },
-        { score: phone.score - 1, gaps: phone.gaps + 1, move: 'phone' },
-      ];
+      const diagonal = forward[i - 1][j - 1];
+      const ear = forward[i - 1][j];
+      const phone = forward[i][j - 1];
       // At equal scores prefer fewer gaps, then a match, an ear gap, a phone gap.
-      table[i][j] = choices.reduce((best, choice) => choice.score > best.score
-        || (choice.score === best.score && choice.gaps < best.gaps) ? choice : best);
+      forward[i][j] = bestPaths([
+        { score: diagonal.score + matchScore(i - 1, j - 1), gaps: diagonal.gaps, count: diagonal.count, move: 'match' },
+        { score: ear.score - 1, gaps: ear.gaps + 1, count: ear.count, move: 'ear' },
+        { score: phone.score - 1, gaps: phone.gaps + 1, count: phone.count, move: 'phone' },
+      ]);
     }
   }
-  if (table[ears.length][phones.length].gaps > difference) return null;
+  const best = forward[ears.length][phones.length];
+  if (best.gaps > difference) return null;
   const matches = [];
   let i = ears.length, j = phones.length;
   while (i || j) {
-    const { move } = table[i][j];
+    const { move } = forward[i][j];
     if (move === 'match') matches.push([--i, --j]);
     else if (move === 'ear') i--;
     else j--;
   }
-  return matches.reverse();
+  const backward = Array.from({ length: ears.length + 1 }, () => Array(phones.length + 1));
+  backward[ears.length][phones.length] = { score: 0, gaps: 0, count: 1n };
+  for (let i = ears.length - 1; i >= 0; i--) {
+    backward[i][phones.length] = { score: i - ears.length, gaps: ears.length - i, count: 1n };
+  }
+  for (let j = phones.length - 1; j >= 0; j--) {
+    backward[ears.length][j] = { score: j - phones.length, gaps: phones.length - j, count: 1n };
+  }
+  for (let i = ears.length - 1; i >= 0; i--) {
+    for (let j = phones.length - 1; j >= 0; j--) {
+      const diagonal = backward[i + 1][j + 1];
+      const ear = backward[i + 1][j];
+      const phone = backward[i][j + 1];
+      backward[i][j] = bestPaths([
+        { score: diagonal.score + matchScore(i, j), gaps: diagonal.gaps, count: diagonal.count },
+        { score: ear.score - 1, gaps: ear.gaps + 1, count: ear.count },
+        { score: phone.score - 1, gaps: phone.gaps + 1, count: phone.count },
+      ]);
+    }
+  }
+  return matches.reverse().filter(([i, j]) => {
+    const before = forward[i][j];
+    const after = backward[i + 1][j + 1];
+    // Keep an edge only when its best prefixes and suffixes cover every best path.
+    return before.score + matchScore(i, j) + after.score === best.score
+      && before.gaps + after.gaps === best.gaps && before.count * after.count === best.count;
+  });
 }
 
 export function applyReferee(words, tokens, calibration, options = {}) {
@@ -143,6 +182,7 @@ export function applyReferee(words, tokens, calibration, options = {}) {
   const matches = equalCounts ? syllables.map((_, i) => [i, i]) : alignVowels(syllables, vowels);
   if (!matches) return { ...result, status: 'count' };
   result.status = equalCounts ? 'checked' : 'aligned';
+  const meterReady = meterChoice(options.profile?.vowels?.a, options.profile, ['a', 'o']) === 'a';
   for (const [earIndex, tokenIndex] of matches) {
     const { word, syllable, from, sound, index } = syllables[earIndex];
     if (!['a', 'o', 'e'].includes(sound)) continue;
@@ -155,11 +195,11 @@ export function applyReferee(words, tokens, calibration, options = {}) {
     else if (finalL || (sound === 'o' && score !== null && score >= low && score < line)) {
       rule = finalL ? 'coda-l' : 'band';
       const point = options.points?.[index];
-      const choice = meterChoice(point, options.profile, ['a', 'o']);
+      const choice = meterReady ? meterChoice(point, options.profile, ['a', 'o']) : null;
       if (sound === 'a' && choice === 'o') replacement = 'o';
       else if (sound === 'o') {
         if (choice === 'a') replacement = 'a';
-        else if (choice === null && point && options.profile) replacement = '?';
+        else if (choice === null && point && meterReady) replacement = '?';
       }
     } else if (score !== null && score >= line) replacement = 'o';
     const to = replacement === '?' ? '?' : from.replace(sound, replacement);
