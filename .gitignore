@@ -17,3 +17,5 @@ coverage/
 *.aac
 recordings/private/
 recordings/synthetic/
+phonemes/.venv/
+__pycache__/

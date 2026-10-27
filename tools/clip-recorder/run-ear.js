@@ -2,6 +2,8 @@ import '../../ear/env.js';
 import { defaultVotes, hear } from '../../ear/hear.js';
 import { applyMeter, buildVoiceProfile, pairsApart, VoiceCheckError } from '../../ear/meter.js';
 import { voiceCardToEar } from '../../ear/card-gate.js';
+import { hearPhonemes } from '../../ear/phonemes.js';
+import { applyReferee, cardCalibration, refereeSettings } from '../../ear/referee.js';
 import { cardLabels } from '../../rulebook/voice-card.js';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -19,7 +21,8 @@ export function matchesSay(heard, say) {
 }
 
 export async function runEar({ set = 'adult', model = defaultEarModel(), votes = defaultVotes(), keep = false, directory,
-  preset = 'ashkenazi', meter = true, card = true, ear = hear, log = console.log } = {}) {
+  preset = 'ashkenazi', meter = true, card = true, referee = true,
+  phonemes = audio => hearPhonemes(audio), ear = hear, log = console.log } = {}) {
   const store = recordingStore(await loadClips(set), directory);
   let failed = false;
   const rows = [];
@@ -33,7 +36,7 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), votes =
     log(`Ear model: ${model} (${modelId})`);
     const earVotes = model === 'fallback' ? 1 : votes;
     log(`Ear votes: ${earVotes}${model === 'fallback' ? ' (fallback ear)' : ''}`);
-    const voiceAudio = voice && (meter || card) ? await store.read(voice.name) : undefined;
+    const voiceAudio = voice && (meter || card || referee) ? await store.read(voice.name) : undefined;
     let profile;
     let voiceStatus;
     if (voice && (meter || card)) {
@@ -57,12 +60,32 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), votes =
       // listen() never sends the card to the fallback ear.
       : model === 'fallback' ? 'off (fallback ear)' : 'on';
     const reference = cardStatus === 'on' ? { data: voiceAudio, format: 'wav' } : undefined;
+    let calibration;
+    let refereeStatus = !referee ? 'off (--no-referee)' : 'off (no voice check recorded)';
+    if (referee && voice) {
+      try {
+        const tokens = await phonemes(voiceAudio);
+        if (tokens == null) refereeStatus = 'off (no answer from the phoneme service)';
+        else {
+          calibration = cardCalibration(tokens, cardLabels(preset));
+          const settings = refereeSettings(calibration);
+          refereeStatus = !calibration ? 'off (card vowels did not line up)'
+            : !settings.on ? 'off (card does not keep o and a apart)'
+            : `on (o ${calibration.o.toFixed(2)}, a ${calibration.a.toFixed(2)}, line ${settings.line.toFixed(2)})`;
+        }
+      } catch {
+        refereeStatus = 'off (no answer from the phoneme service)';
+      }
+    }
+    const refereeOn = refereeSettings(calibration).on;
     log(`Vowel meter: ${meterStatus}`);
     log(`Voice card to the ear: ${cardStatus}`);
-    log('clip\tsaid\theard\tresult\tear');
+    log(`Phoneme referee: ${refereeStatus}`);
+    log('clip\tsaid\theard\tresult\tear\tmetered');
     for (const clip of readings) {
       let heard = 'ERROR';
       let earSounds = 'ERROR';
+      let metered = 'ERROR';
       let result = 'MISS';
       try {
         // Only the audio reaches the ear, never the Hebrew, Say, or planted mistake.
@@ -71,16 +94,25 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), votes =
           model, votes: earVotes, ...(reference ? { reference } : {}),
         });
         earSounds = earWords.map((word) => word.join('-')).join(' ');
-        const words = meter && profile ? applyMeter(earWords, audio, profile).words : earWords;
+        let words = meter && profile ? applyMeter(earWords, audio, profile).words : earWords;
+        metered = words.map((word) => word.join('-')).join(' ');
+        if (refereeOn) {
+          try {
+            const tokens = await phonemes(audio);
+            if (tokens != null) words = applyReferee(words, tokens, calibration).words;
+          } catch {
+            // A phoneme failure leaves the metered words available for comparison.
+          }
+        }
         heard = words.map((word) => word.join('-')).join(' ');
         result = matchesSay(words, clip.say) ? 'PASS' : 'MISS';
       } catch {
         failed = true;
       }
       try {
-        const row = { clip: clip.name, said: clip.say, heard, result, ear: earSounds };
+        const row = { clip: clip.name, said: clip.say, heard, result, ear: earSounds, metered };
         rows.push(row);
-        log([row.clip, row.said, row.heard, row.result, row.ear].join('\t'));
+        log([row.clip, row.said, row.heard, row.result, row.ear, row.metered].join('\t'));
         if (result === 'MISS') failed = true;
       } finally {
         // Print the verdict, then immediately discard this child's audio.

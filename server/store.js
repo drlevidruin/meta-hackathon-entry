@@ -61,7 +61,19 @@ function voiceProfile(value) {
       || !Number.isInteger(vowel.n) || vowel.n < 2 || vowel.n > 15) continue;
     vowels[key] = { f1: vowel.f1, f2: vowel.f2, n: vowel.n };
   }
-  return Object.keys(vowels).length >= 1 ? { version: 2, vowels, spread: value.spread } : null;
+  if (Object.keys(vowels).length < 1) return null;
+  const phonemes = phonemeCalibration(value.phonemes);
+  return { version: 2, vowels, spread: value.spread, ...(phonemes && { phonemes }) };
+}
+
+// The referee's card medians: two back shares and their counts, never tokens.
+function phonemeCalibration(value) {
+  const count = number => Number.isSafeInteger(number) && number >= 2 && number <= 15;
+  if (!value || typeof value !== 'object' || Array.isArray(value) || value.version !== 1
+    || ![value.a, value.o].every(number => Number.isFinite(number) && number >= 0 && number <= 1)
+    || !value.n || typeof value.n !== 'object' || Array.isArray(value.n)
+    || ![value.n.a, value.n.o].every(count)) return null;
+  return { version: 1, a: value.a, o: value.o, n: { a: value.n.a, o: value.n.o } };
 }
 
 function safeState(state) {

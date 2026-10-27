@@ -36,3 +36,9 @@ export function startupMessages({ basetenApiKey, metaApiKey, hasStation, host, p
     `Kriah Listener: ${tls ? 'https' : 'http'}://${host.includes(':') ? `[${host}]` : host}:${port}`,
   ];
 }
+
+export function phonemeMessage({ url, ready }) {
+  if (!url) return 'Phoneme referee: off (PHONEME_URL off)';
+  return ready ? `Phoneme referee: on (${url})`
+    : `Phoneme referee: off (no phoneme service at ${url}; run npm run phonemes)`;
+}

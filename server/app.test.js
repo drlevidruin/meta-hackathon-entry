@@ -13,7 +13,8 @@ import * as realCoach from '../coach/index.js';
 import { gradeLine as realGradeLine } from '../grader/index.js';
 import { cardLabels } from '../rulebook/voice-card.js';
 import { join, silence, utterance, wav } from '../ear/synth-for-tests.js';
-import { measureVowel, pairsApart, soundIslands } from '../ear/meter.js';
+import { applyMeter, buildVoiceProfile, measureVowel, pairsApart, soundIslands } from '../ear/meter.js';
+import { voiceCardToEar } from '../ear/card-gate.js';
 import { VOWEL_IDS, fitsVowels } from '../rulebook/vowels.js';
 import { voiceCardFor } from '../rulebook/voice-card.js';
 
@@ -417,6 +418,203 @@ test('pending starts and checkpoints cannot survive a learned-vowel change', asy
 const voiceAudio = preset => wav(utterance(cardLabels(preset).map(label => label || 'o')));
 const voice = (app, child, options = {}) => request(app, `/api/voice?child=${child.id}`,
   { type: 'audio/wav', data: voiceAudio(child.preset), ...options });
+
+const phonemeVowel = (score, token = score >= 0.5 ? 'ɑ' : 'a') => ({
+  token, start: 0, end: 0.02, top: [['ɑ', score], ['a', 1 - score]],
+});
+function phonemeCard({ a = [0.75, 0.36, 0.43], o = [0.91, 0.93, 0.86], labels = cardLabels('ashkenazi') } = {}) {
+  const scores = { a: [...a], o: [...o] };
+  return labels.map(label => label === 'a' || label === 'o' ? phonemeVowel(scores[label].shift())
+    : { token: label || 'oɪ', start: 0, end: 0.02, top: [[label || 'oɪ', 1]] });
+}
+const phonemeCalibration = { version: 1, a: 0.43, o: 0.91, n: { a: 3, o: 3 } };
+
+test('a voice check stores phoneme medians and counts without tokens or audio', async () => {
+  const phonemes = mock.fn(async () => phonemeCard());
+  const { app, dataDir } = setup({ phonemes });
+  const child = await add(app, { preset: 'ashkenazi' });
+  const card = voiceAudio(child.preset);
+  assert.equal((await voice(app, child, { data: card })).status, 200);
+  assert.deepEqual(phonemes.mock.calls[0].arguments, [card]);
+  const saved = disk(dataDir).children[child.id].voice;
+  assert.deepEqual(saved.phonemes, phonemeCalibration);
+  assert.deepEqual(Object.keys(saved).sort(), ['phonemes', 'spread', 'version', 'vowels']);
+  assert.doesNotMatch(JSON.stringify(saved), /token|audio|RIFF|base64/i);
+  assert.equal((await get(app, '/api/children')).json[0].voiceStatus, 'done');
+  assert.equal((await teacherGet(app, `/api/children/${child.id}/detail`)).json.child.voiceStatus, 'done');
+  // An unrelated save and a reload must both preserve the numeric calibration.
+  assert.equal((await patch(app, child.id, { avatar: 'fox' })).status, 200);
+  const reloaded = setup({ dataDir });
+  assert.deepEqual(disk(dataDir).children[child.id].voice.phonemes, phonemeCalibration);
+  assert.equal((await patch(reloaded.app, child.id, { avatar: 'owl' })).status, 200);
+  assert.deepEqual(disk(dataDir).children[child.id].voice.phonemes, phonemeCalibration);
+});
+
+test('voice profile readers accept the extra phoneme calibration key', () => {
+  const profile = buildVoiceProfile(voiceAudio('ashkenazi'), cardLabels('ashkenazi'));
+  profile.phonemes = phonemeCalibration;
+  assert.equal(pairsApart(profile), true);
+  assert.equal(voiceCardToEar(profile, null, 'ashkenazi'), true);
+  assert.deepEqual(applyMeter([['ba']], wav(utterance(['o'])), profile).words, [['bo']]);
+});
+
+test('voice phoneme calibration uses the captured subset labels', async () => {
+  const vowels = ['kamatz', 'patach'];
+  const labels = cardLabels('ashkenazi', voiceCardFor(vowels, 'ashkenazi'));
+  const phonemes = async () => phonemeCard({ labels, a: Array(6).fill(0.3), o: Array(6).fill(0.9) });
+  const { app, dataDir } = setup({ phonemes });
+  const child = await add(app, { preset: 'ashkenazi', vowels });
+  assert.equal((await voice(app, child, { data: wav(utterance(labels)) })).status, 200);
+  assert.deepEqual(disk(dataDir).children[child.id].voice.phonemes,
+    { version: 1, a: 0.3, o: 0.9, n: { a: 6, o: 6 } });
+});
+
+for (const failure of ['null', 'throws', 'count']) {
+  test(`a ${failure} phoneme voice check still saves the meter profile`, async () => {
+    const { app, dataDir } = setup({ phonemes: async () => {
+      if (failure === 'throws') throw new Error('private phoneme failure');
+      return failure === 'count' ? [] : null;
+    } });
+    const child = await add(app, { preset: 'ashkenazi' });
+    const response = await voice(app, child);
+    assert.equal(response.status, 200);
+    const saved = disk(dataDir).children[child.id].voice;
+    assert.equal(saved.version, 2);
+    assert.equal(Object.hasOwn(saved, 'phonemes'), false);
+  });
+}
+
+test('refused voice uploads leave an earlier calibration and profile unchanged', async () => {
+  const { app, dataDir } = setup({ phonemes: async () => phonemeCard() });
+  const child = await add(app, { preset: 'ashkenazi' });
+  assert.equal((await voice(app, child)).status, 200);
+  assert.deepEqual(disk(dataDir).children[child.id].voice.phonemes, phonemeCalibration);
+  const saved = fs.readFileSync(path.join(dataDir, 'store.json'));
+  assert.equal((await voice(app, child, { data: wav(utterance(['a', 'o'])) })).status, 422);
+  assert.deepEqual(fs.readFileSync(path.join(dataDir, 'store.json')), saved);
+  const upload = openVoiceUpload(app, child);
+  await upload.entered;
+  let changed;
+  try {
+    assert.equal((await request(app, `/api/children/${child.id}/voice`, { method: 'DELETE', headers: auth })).status, 200);
+    changed = fs.readFileSync(path.join(dataDir, 'store.json'));
+  } finally {
+    upload.release();
+  }
+  assert.equal((await upload.response).status, 409);
+  assert.deepEqual(fs.readFileSync(path.join(dataDir, 'store.json')), changed);
+});
+
+test('grading sends only the reading buffer to phonemes and corrects ka-tan to ko-ton', async () => {
+  const phonemes = mock.fn(async () => phonemes.mock.callCount() === 0 ? phonemeCard()
+    : [phonemeVowel(0.9), phonemeVowel(0.8)]);
+  const { app, gradeLine } = setup({ phonemes, listen: async () => ({ words: [['ka', 'tan']] }) });
+  const child = await add(app, { preset: 'ashkenazi' });
+  assert.equal((await voice(app, child)).status, 200);
+  const turn = await start(app, child.id);
+  const data = wav(utterance(['a', 'a']));
+  const response = await grade(app, turn.turnId, 'kamatz-0', { data });
+  assert.equal(response.status, 200);
+  assert.deepEqual(phonemes.mock.calls[1].arguments, [data]);
+  assert.deepEqual(gradeLine.mock.calls[0].arguments[0].heard, [['ko', 'ton']]);
+});
+
+test('reading phonemes start while listen is unresolved', async () => {
+  const entered = deferred(), release = deferred();
+  const phonemes = mock.fn(async () => phonemes.mock.callCount() === 0 ? phonemeCard()
+    : [phonemeVowel(0.9), phonemeVowel(0.8)]);
+  const { app, gradeLine } = setup({ phonemes, listen: async () => {
+    entered.resolve();
+    await release.promise;
+    return { words: [['ka', 'tan']] };
+  } });
+  const child = await add(app, { preset: 'ashkenazi' });
+  await voice(app, child);
+  const turn = await start(app, child.id);
+  const pending = grade(app, turn.turnId);
+  await entered.promise;
+  try {
+    assert.equal(phonemes.mock.callCount(), 2);
+    assert.equal(gradeLine.mock.callCount(), 0);
+  } finally {
+    release.resolve();
+  }
+  assert.equal((await pending).status, 200);
+  assert.deepEqual(gradeLine.mock.calls[0].arguments[0].heard, [['ko', 'ton']]);
+});
+
+for (const failure of ['rejects', 'throws', 'null', 'count', 'malformed']) {
+  test(`phonemes ${failure} on grade preserves the metered words`, async () => {
+    let calls = 0;
+    const phonemes = () => {
+      if (++calls === 1) return Promise.resolve(phonemeCard());
+      if (failure === 'rejects') return Promise.reject(new Error('private failure'));
+      if (failure === 'throws') throw new Error('private failure');
+      return Promise.resolve(failure === 'count' ? [] : failure === 'malformed'
+        ? [{ token: 'a', top: [null] }, { token: 'u', top: [] }] : null);
+    };
+    const { app, gradeLine } = setup({ phonemes, listen: async () => ({ words: [['ba', 'ruch']] }) });
+    const child = await add(app, { preset: 'ashkenazi' });
+    await voice(app, child);
+    const turn = await start(app, child.id);
+    assert.equal((await grade(app, turn.turnId, 'kamatz-0', { data: wav(utterance(['o', 'u'])) })).status, 200);
+    assert.equal(calls, 2);
+    assert.deepEqual(gradeLine.mock.calls[0].arguments[0].heard, [['bo', 'ruch']]);
+  });
+}
+
+test('an off calibration avoids reading phoneme calls', async () => {
+  const phonemes = mock.fn(async () => phonemeCard({ a: [0.55, 0.55, 0.55], o: [0.6, 0.6, 0.6] }));
+  const { app, gradeLine } = setup({ phonemes, listen: async () => ({ words: [['ba']] }) });
+  const child = await add(app, { preset: 'ashkenazi' });
+  await voice(app, child);
+  const turn = await start(app, child.id);
+  assert.equal((await grade(app, turn.turnId)).status, 200);
+  assert.equal(phonemes.mock.callCount(), 1);
+  assert.deepEqual(gradeLine.mock.calls[0].arguments[0].heard, [['ba']]);
+});
+
+test('clearing a voice check removes calibration and disables the next grade referee', async () => {
+  const phonemes = mock.fn(async () => phonemes.mock.callCount() === 0 ? phonemeCard() : [phonemeVowel(0.9)]);
+  const { app, dataDir, gradeLine } = setup({ phonemes, listen: async () => ({ words: [['ba']] }) });
+  const child = await add(app, { preset: 'ashkenazi' });
+  await voice(app, child);
+  const turn = await start(app, child.id);
+  assert.equal((await grade(app, turn.turnId)).status, 200);
+  assert.deepEqual(gradeLine.mock.calls[0].arguments[0].heard, [['bo']]);
+  assert.equal((await request(app, `/api/children/${child.id}/voice`, { method: 'DELETE', headers: auth })).status, 200);
+  assert.equal(disk(dataDir).children[child.id].voice, null);
+  assert.equal((await grade(app, turn.turnId)).status, 200);
+  assert.equal(phonemes.mock.callCount(), 2);
+  assert.deepEqual(gradeLine.mock.calls[1].arguments[0].heard, [['ba']]);
+});
+
+for (const change of ['unrelated', 'replace', 'clear']) {
+  test(`a ${change} voice change during listen compares calibration values before refereeing`, async () => {
+    const entered = deferred(), release = deferred();
+    let calls = 0;
+    const { app, gradeLine } = setup({ phonemes: async () => {
+      calls += 1;
+      return calls === 1 ? phonemeCard() : calls === 2 ? [phonemeVowel(0.07), { token: 'u', top: [] }]
+        : phonemeCard({ a: [0.65, 0.65, 0.65], o: [0.99, 0.99, 0.99] });
+    }, listen: async () => { entered.resolve(); await release.promise; return { words: [['ba', 'ruch']] }; } });
+    const child = await add(app, { preset: 'ashkenazi' });
+    await voice(app, child);
+    const turn = await start(app, child.id);
+    const pending = grade(app, turn.turnId, 'kamatz-0', { data: wav(utterance(['o', 'u'])) });
+    await entered.promise;
+    try {
+      const response = change === 'unrelated' ? await patch(app, child.id, { avatar: 'fox' })
+        : change === 'replace' ? await voice(app, child)
+          : await request(app, `/api/children/${child.id}/voice`, { method: 'DELETE', headers: auth });
+      assert.equal(response.status, 200);
+    } finally {
+      release.resolve();
+    }
+    assert.equal((await pending).status, 200);
+    assert.deepEqual(gradeLine.mock.calls[0].arguments[0].heard, change === 'replace' ? [['bo', 'ruch']] : [['ba', 'ruch']]);
+  });
+}
 
 function openVoiceUpload(app, child, data = voiceAudio(child.preset)) {
   const entered = deferred(), release = deferred();

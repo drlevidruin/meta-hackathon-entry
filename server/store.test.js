@@ -139,6 +139,25 @@ test('voice sanitizer drops invalid vowels and requires at least one surviving c
   }
 });
 
+test('phoneme calibration keeps only its medians and counts on update and reload', async t => {
+  const { directory, store } = fixture(t);
+  const base = { version: 2, vowels: { o: { f1: 4, f2: 8, n: 3 } }, spread: 0.3 };
+  const phonemes = { version: 1, a: 0.43, o: 0.91, n: { a: 3, o: 3 } };
+  const polluted = { ...phonemes, tokens: 'PRIVATE_TOKENS', n: { ...phonemes.n, heard: 'PRIVATE_SOUND' } };
+  await store.update(state => { state.children.sprout = { voice: { ...base, phonemes: polluted } }; });
+  assert.deepEqual(store.read().children.sprout.voice, { ...base, phonemes });
+  const file = path.join(directory, 'store.json');
+  assert.doesNotMatch(fs.readFileSync(file, 'utf8'), /PRIVATE|tokens|heard/);
+  assert.deepEqual(createStore(directory).read().children.sprout.voice, { ...base, phonemes });
+  for (const invalid of [null, [], {}, { ...phonemes, version: 2 }, { ...phonemes, version: '1' },
+    { ...phonemes, a: 1.01 }, { ...phonemes, o: -0.01 }, { ...phonemes, a: '0.43' }, { ...phonemes, o: NaN },
+    { ...phonemes, n: null }, { ...phonemes, n: [] }, { ...phonemes, n: { a: 1, o: 3 } },
+    { ...phonemes, n: { a: 3, o: 16 } }, { ...phonemes, n: { a: 2.5, o: 3 } }, { ...phonemes, n: { a: 3 } }]) {
+    await store.update(state => { state.children.sprout = { voice: { ...base, phonemes: invalid } }; });
+    assert.deepEqual(store.read().children.sprout.voice, base);
+  }
+});
+
 test('a version 1 voice profile loads as null', t => {
   const { directory } = fixture(t);
   const voice = { version: 1, vowels: { a: { f1: 5, f2: 9, n: 3 }, o: { f1: 4, f2: 8, n: 3 } } };
