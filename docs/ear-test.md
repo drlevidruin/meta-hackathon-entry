@@ -370,7 +370,7 @@ Across all 46 clips with the meter, the card caught 60 of 66 plants against 61 a
 
 ## Phoneme referee, October 27
 
-The ear knows Hebrew words, and for an Ashkenazi reading it often writes the Israeli vowel of a word it knows. Meta's open phoneme model, wav2vec2 Large LV-60 fine-tuned to write espeak phonemes (`facebook/wav2vec2-lv-60-espeak-cv-ft`, Apache-2.0, revision `ae45363`), writes what it hears in IPA and knows no words. It ran on this Mac on all 62 saved adult clips. No audio left the computer.
+The ear knows Hebrew words, and for an Ashkenazi reading it often writes the Israeli vowel of a word it knows. Meta's open phoneme model, wav2vec2 Large LV-60 fine-tuned to write espeak phonemes (`facebook/wav2vec2-lv-60-espeak-cv-ft`, Apache-2.0, revision `ae45363`), writes what it hears in IPA, with no word list or language model behind it. It ran on this Mac on all 62 saved adult clips. No audio left the computer.
 
 It hears Levi's kamatz as a back vowel, `ɑ`, and his patach as a front `a`. On the card tests it was right on all twelve syllables: `bo do mo go to ko` came back as six `ɑ` and `ba da ma ga ta ka` as six `a`. On the readings it was right on 39 of 44 kamatz syllables and 13 of 14 patach syllables. It heard the kamatz as `a` in o-meyn, toy-ro, mitz-vo, bo-nim and bo-ruch, and no-chal's second patach as `ɑ`.
 
