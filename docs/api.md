@@ -439,7 +439,7 @@ No key or part of a key is printed. Configuration:
 | `DATA_DIR` | Store directory, default `<repo>/data` |
 | `HOST` | Listen address, default `127.0.0.1`; use `0.0.0.0` and TLS for network tablets |
 | `PORT` | Server port, default 8787 |
-| `PHONEME_URL` | Local phoneme service, default `http://127.0.0.1:8791`; `off`, empty or invalid disables it. Only http on `127.0.0.1`, `localhost` or `[::1]` is accepted. |
+| `PHONEME_URL` | Local phoneme service, default `http://127.0.0.1:8791`; `off`, empty or invalid disables it. Only http on `127.0.0.1`, `localhost` or `[::1]` is accepted, and only its origin is used. |
 | `PHONEME_PORT` | Phoneme service listen port, default 8791; set `PHONEME_URL` to match when changing it |
 | `TLS_CERT` | Optional PEM certificate path; set with `TLS_KEY` for https, leave both empty for http. An unreadable file stops startup. |
 | `TLS_KEY` | Optional PEM private key path; required with `TLS_CERT`. An unreadable file stops startup. |

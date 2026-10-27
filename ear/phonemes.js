@@ -5,7 +5,9 @@ export function phonemeUrl(env = process.env) {
   try {
     if (typeof value !== 'string' || !value || value === 'off') return null;
     const url = new URL(value);
-    return url.protocol === 'http:' && localHosts.has(url.hostname) ? value : null;
+    // Only the origin is kept, so a path, query or user name in the setting never
+    // reaches a request or the startup line.
+    return url.protocol === 'http:' && localHosts.has(url.hostname) ? url.origin : null;
   } catch {
     return null;
   }
@@ -14,13 +16,14 @@ export function phonemeUrl(env = process.env) {
 async function requestJson(path, { url, fetch, timeoutMs }, options) {
   let timer;
   try {
-    if (!phonemeUrl({ PHONEME_URL: url })) return null;
+    const base = phonemeUrl({ PHONEME_URL: url });
+    if (!base) return null;
     const controller = new AbortController();
     const timeout = new Promise(resolve => {
       timer = setTimeout(() => { controller.abort(); resolve(null); }, timeoutMs);
     });
     const request = (async () => {
-      const response = await fetch(`${url.replace(/\/+$/, '')}${path}`, {
+      const response = await fetch(`${base}${path}`, {
         ...options, signal: controller.signal, redirect: 'error',
       });
       return response.status === 200 ? await response.json() : null;

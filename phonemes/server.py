@@ -1,6 +1,8 @@
 import argparse
 import json
 import os
+import select
+import socket
 import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -15,6 +17,9 @@ from wav import read_wav
 MODEL = 'facebook/wav2vec2-lv-60-espeak-cv-ft'
 REVISION = 'ae45363bf3413b374fecd9dc8bc1df0e24c3b7f4'
 AUDIO_LIMIT = 25 * 1024 * 1024
+# One reading runs and three wait. More get a fast 503, which the app treats as
+# referee off for that reading, instead of a queue that outlasts its callers.
+ADMISSION_LIMIT = 4
 
 
 def load_inference():
@@ -31,10 +36,9 @@ def load_inference():
     vocab_path = hf_hub_download(MODEL, 'vocab.json', revision=REVISION, local_files_only=True)
     with open(vocab_path, encoding='utf-8') as vocab_file:
         id_to_token = {index: token for token, index in json.load(vocab_file).items()}
-    lock = threading.Lock()
 
     def infer(samples):
-        with lock, torch.no_grad():
+        with torch.no_grad():
             inputs = extractor(samples, sampling_rate=16000, return_tensors='pt')
             probs = model(**inputs).logits.softmax(dim=-1)[0].cpu().numpy()
             return decode(probs, id_to_token, model.config.pad_token_id)
@@ -43,6 +47,11 @@ def load_inference():
 
 
 class Server(ThreadingHTTPServer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.lock = threading.Lock()
+        self.admission = threading.BoundedSemaphore(ADMISSION_LIMIT)
+
     def handle_error(self, request, client_address):
         # A disconnected request must not print a traceback or request details.
         pass
@@ -60,6 +69,14 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Cache-Control', 'no-store')
         self.end_headers()
         self.wfile.write(data)
+
+    def client_gone(self):
+        # A caller that timed out has closed its socket, so nobody will read this answer.
+        try:
+            readable, _, _ = select.select([self.connection], [], [], 0)
+            return bool(readable) and self.connection.recv(1, socket.MSG_PEEK) == b''
+        except (OSError, ValueError):
+            return True
 
     def do_GET(self):
         if self.path != '/health':
@@ -90,12 +107,22 @@ class Handler(BaseHTTPRequestHandler):
             if len(data) != length:
                 self.reply(400, {'error': 'incomplete audio'})
                 return
-            try:
-                samples = read_wav(data)
-            except ValueError:
-                self.reply(400, {'error': 'unreadable audio'})
+            if not self.server.admission.acquire(blocking=False):
+                self.reply(503, {'error': 'busy'})
                 return
-            self.reply(200, {'tokens': self.server.infer(samples)})
+            try:
+                try:
+                    samples = read_wav(data)
+                except ValueError:
+                    self.reply(400, {'error': 'unreadable audio'})
+                    return
+                with self.server.lock:
+                    if self.client_gone():
+                        return
+                    tokens = self.server.infer(samples)
+            finally:
+                self.server.admission.release()
+            self.reply(200, {'tokens': tokens})
         except Exception:
             self.reply(500, {'error': 'failed'})
 

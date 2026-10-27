@@ -1,7 +1,9 @@
 import io
 import json
 import os
+import socket
 import sys
+import threading
 import unittest
 from contextlib import redirect_stderr
 from email.message import Message
@@ -28,7 +30,10 @@ class QuietHandler(Handler):
         pass
 
 
-def request(path, data=b'', content_type='audio/wav', length=None, infer=None):
+SOCKETS = []
+
+
+def request(path, data=b'', content_type='audio/wav', length=None, infer=None, admission=None):
     handler = QuietHandler.__new__(QuietHandler)
     handler.path = path
     handler.headers = Message()
@@ -36,11 +41,46 @@ def request(path, data=b'', content_type='audio/wav', length=None, infer=None):
     handler.headers['Content-Length'] = str(len(data) if length is None else length)
     handler.rfile = io.BytesIO(data)
     handler.wfile = io.BytesIO()
-    handler.server = SimpleNamespace(infer=infer or (lambda samples: []))
+    # The handler's end of a live connection; the test holds the caller's end.
+    handler.connection, handler.caller = socket.socketpair()
+    SOCKETS.extend([handler.connection, handler.caller])
+    handler.server = SimpleNamespace(infer=infer or (lambda samples: []), lock=threading.Lock(),
+                                     admission=admission or threading.BoundedSemaphore(service.ADMISSION_LIMIT))
     return handler
 
 
 class ServerTests(unittest.TestCase):
+    def tearDown(self):
+        while SOCKETS:
+            SOCKETS.pop().close()
+
+    def test_a_full_queue_answers_busy_without_decoding_or_inference(self):
+        admission = threading.BoundedSemaphore(service.ADMISSION_LIMIT)
+        for _ in range(service.ADMISSION_LIMIT):
+            admission.acquire()
+        handler = request('/phonemes', make_wav(bytes(8)), admission=admission,
+                          infer=lambda _: self.fail('a busy request reached inference'))
+        with patch.object(service, 'read_wav', side_effect=AssertionError('a busy request was decoded')):
+            handler.do_POST()
+        self.assertEqual(handler.status, 503)
+        self.assertEqual(json.loads(handler.wfile.getvalue()), {'error': 'busy'})
+
+    def test_a_caller_that_left_is_skipped_and_its_slot_is_freed(self):
+        admission = threading.BoundedSemaphore(1)
+        handler = request('/phonemes', make_wav(bytes(8)), admission=admission,
+                          infer=lambda _: self.fail('a departed caller reached inference'))
+        handler.caller.close()
+        handler.do_POST()
+        self.assertEqual(handler.wfile.getvalue(), b'')
+        self.assertTrue(admission.acquire(blocking=False))
+
+    def test_unreadable_audio_frees_its_slot(self):
+        admission = threading.BoundedSemaphore(1)
+        handler = request('/phonemes', b'not WAV', admission=admission)
+        handler.do_POST()
+        self.assertEqual(handler.status, 400)
+        self.assertTrue(admission.acquire(blocking=False))
+
     def test_health_names_the_pinned_model_and_revision(self):
         handler = request('/health')
         handler.do_GET()

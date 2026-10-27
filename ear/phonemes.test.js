@@ -13,6 +13,16 @@ test('phonemeUrl defaults to loopback and accepts only local HTTP URLs', () => {
   }
   for (const value of ['off', '', 'not a url', 'http://192.168.1.5:8791', 'https://127.0.0.1:8791',
     'http://localhost.example.com:8791']) assert.equal(phonemeUrl({ PHONEME_URL: value }), null);
+  for (const value of [`${url}/`, 'http://user:secret@127.0.0.1:8791/base?query=1#part']) {
+    assert.equal(phonemeUrl({ PHONEME_URL: value }), url);
+  }
+});
+
+test('hearPhonemes posts to the origin of an explicit URL', async () => {
+  let address;
+  await hearPhonemes(Buffer.from('wav'), { url: 'http://user:secret@127.0.0.1:8791/base?query=1',
+    fetch: async target => { address = target; return reply({ tokens }); } });
+  assert.equal(address, `${url}/phonemes`);
 });
 
 test('hearPhonemes posts only the WAV buffer with an abort signal and refuses redirects', async () => {
