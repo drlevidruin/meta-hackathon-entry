@@ -98,7 +98,7 @@ npm run -s ear-score -- --round "Round 1g" run-1.tsv
 
 For each reading it grades the said sounds and each answer with the Ashkenazi preset; `--preset` changes it. A planted mistake is caught when the answer gets every mark the said sounds get. Any other mark is a false mark, or an uncertain mark when the grader marks a syllable uncertain. The final, metered and ear answers are counted separately, and `--detail` lists each clip. The scorer reads only the saved file and the clip tables. It never calls the ear.
 
-`--max-uncertain N --runs-needed K` applies a pass rule to the final answers. A run passes when every clip of each round it scores appears once, with no ear error, every plant caught, no false mark and at most N uncertain marks. The rule passes when K runs pass, and the exit status is 1 when it fails. A row cut short is an error and a missing clip fails the run, so an interrupted run cannot pass.
+`--max-uncertain N --runs-needed K` applies a pass rule to the final answers. A run passes when every clip of each round it scores appears once, with no ear error, every plant caught, no false mark and at most N uncertain marks. The rule passes when K runs pass, and the exit status is 1 when it fails. A row cut short is an error and a missing clip fails the run, so an interrupted run cannot pass. Naming one file twice is an error, so one run cannot count as two.
 
 ## Offline checks
 
