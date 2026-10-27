@@ -445,3 +445,24 @@ test('the Meta fallback sends input_audio, Baseten sends audio_url', async (t) =
   assert.match(parts.primary.audio_url.url, /^data:audio\/wav;base64,/);
   assert.deepEqual(parts.fallback, { type: 'input_audio', input_audio: { data: audio.data.toString('base64'), format: 'wav' } });
 });
+
+test('a prose refusal is a failed call and is retried', async (t) => {
+  const audio = { data: Buffer.from('RIFF'), format: 'wav' };
+  const answers = [
+    "I don't have the ability to hear audio in this chat, so I can't hear the child reading. If you upload an audio file I can help.",
+    'sha-vos',
+  ];
+  let calls = 0;
+  const fakeFetch = async () => ({ ok: true, status: 200, json: async () => ({ choices: [{ message: { content: answers[calls++] } }] }) });
+  process.env.META_API_KEY = 'test-fallback';
+  t.after(() => { delete process.env.META_API_KEY; });
+  const result = await listen(audio, { fetch: fakeFetch, model: 'fallback' });
+  assert.equal(calls, 2);
+  assert.deepEqual(result.words, [['sha', 'vos']]);
+});
+
+test('looksLikeProse leaves real sound lines alone', async () => {
+  const { looksLikeProse } = await import('./parse.js');
+  assert.equal(looksLikeProse('she-ma\nyis-ro-eyl\na-do-noy\ne-lo-key-nu\na-do-noy\ne-chod'), false);
+  assert.equal(looksLikeProse('i ? have the ability to hear audio so i ? hear the child'), true);
+});

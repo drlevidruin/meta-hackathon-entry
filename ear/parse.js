@@ -33,3 +33,13 @@ export function parseEarOutput(text) {
       .map((syllable) => (tokenize(syllable) ? syllable : '?'))
   )).filter((word) => word.length));
 }
+
+// The models sometimes answer in English prose instead of sounds ("I don't have the
+// ability to hear audio"). That is a failed call, not a child who read badly.
+const proseWords = /\b(?:i|audio|hear|heard|ability|upload|sorry|cannot|unable|file|sound|alphabet|please)\b/i;
+
+export function looksLikeProse(raw) {
+  const tokens = raw.trim().split(/\s+/).filter(Boolean);
+  const longLine = raw.split(/\r?\n/).some((line) => line.trim().split(/\s+/).length > 6);
+  return tokens.length > 6 && longLine && proseWords.test(raw);
+}

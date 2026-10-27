@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { readFile, stat } from 'node:fs/promises';
 import { extname } from 'node:path';
 import './env.js';
-import { parseEarOutput } from './parse.js';
+import { looksLikeProse, parseEarOutput } from './parse.js';
 
 const prompt = readFileSync(new URL('./prompt.md', import.meta.url), 'utf8');
 const MAX_BYTES = 25 * 1024 * 1024;
@@ -111,6 +111,7 @@ async function request(provider, audio, fetcher) {
     if (typeof raw !== 'string' || !raw.trim()) {
       throw new EarFailure('empty answer');
     }
+    if (looksLikeProse(raw)) throw new EarFailure('answered in prose');
     return {
       words: parseEarOutput(raw),
       model: provider.model,
@@ -136,11 +137,16 @@ export async function listen(audio, options = {}) {
   const models = options.model ? [options.model] : ['primary', 'fallback'];
 
   const failures = [];
+  const tries = options.tries ?? 2;
   for (const name of models) {
-    try {
-      return await request(PROVIDERS[name], audioData, fetcher);
-    } catch (error) {
-      failures.push(`${name}: ${error instanceof EarFailure ? error.message : 'failed'}`);
+    for (let attempt = 1; attempt <= tries; attempt += 1) {
+      try {
+        return await request(PROVIDERS[name], audioData, fetcher);
+      } catch (error) {
+        failures.push(`${name}: ${error instanceof EarFailure ? error.message : 'failed'}`);
+        // Only a prose answer is worth a second try; anything else goes to the next model.
+        if (!(error instanceof EarFailure && error.message === 'answered in prose')) break;
+      }
     }
   }
   throw new Error(`No ear model returned an answer (${failures.join('; ')}).`);
