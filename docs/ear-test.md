@@ -132,6 +132,24 @@ Read each clip once, after the voice check, in Ashkenazi pronunciation. None of 
 | sheym_chirik-for-tzere | שֵׁם | shim | tzere read as chirik | shim |
 | ato_kamatz-for-patach | אַתָּה | o-to | patach read as kamatz | o-to |
 
+## Round 1c: sealed test
+
+Read each clip once, after Round 1b, in Ashkenazi pronunciation. Their results stay unread until the vowel meter's settings are final.
+
+| File name | Hebrew | Say | Planted | The ear should write |
+| --- | --- | --- | --- | --- |
+| odom_clean | אָדָם | o-dom | nothing | o-dom |
+| chochom_clean | חָכָם | cho-chom | nothing | cho-chom |
+| neshomo_clean | נְשָׁמָה | ne-sho-mo | nothing | ne-sho-mo |
+| tzedoko_clean | צְדָקָה | tze-do-ko | nothing | tze-do-ko |
+| shono_clean | שָׁנָה | sho-no | nothing | sho-no |
+| bonim_clean | בָּנִים | bo-nim | nothing | bo-nim |
+| kosuv_clean | כָּתוּב | ko-suv | nothing | ko-suv |
+| cholov_patach-for-kamatz | חָלָב | cha-lov | kamatz read as patach | cha-lov |
+| bayis_kamatz-for-patach | בַּיִת | bo-yis | patach read as kamatz | bo-yis |
+| leyv_chirik-for-tzere | לֵב | liv | tzere read as chirik | liv |
+| beney_patach-for-sheva | בְּנֵי | ba-ney | sheva read as patach | ba-ney |
+
 ## Round 2: a child's voice
 
 The adult round must pass first. Recording a child requires written parent consent. Turn Meta Model API free credits off and use a paid plan before sending children's audio. Meta's free-credit terms allow content to be used for product improvement.
