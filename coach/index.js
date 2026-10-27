@@ -132,7 +132,7 @@ function rulePlan(profile, levels) {
     return { level: current, target: weak[0] || null, why: 'start', misses: 0 };
   }
   if (profile.cleanAtLevel.clean) {
-    return { level: levels.find(level => level > profile.level) ?? current, target: weak[0] || null, why: 'clean', misses: 0 };
+    return { level: levels.find(level => level > current) ?? current, target: weak[0] || null, why: 'clean', misses: 0 };
   }
   const twice = weak.find(skill => {
     const record = profile.skills[skill];
@@ -141,7 +141,7 @@ function rulePlan(profile, levels) {
       && recent.length >= 2 && recent.at(-1) === 1 && recent.at(-2) === 1;
   });
   return twice
-    ? { level: levels.findLast(level => level < profile.level) ?? current, target: twice, why: 'missed_twice', misses: 2 }
+    ? { level: levels.findLast(level => level < current) ?? current, target: twice, why: 'missed_twice', misses: 2 }
     : { level: current, target: weak[0] || null, why: 'mixed', misses: 0 };
 }
 

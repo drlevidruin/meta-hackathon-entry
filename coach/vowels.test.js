@@ -37,7 +37,7 @@ test('a first set below all available levels starts at the lowest available leve
 
 test('rule levels snap and move between the available regular levels', async () => {
   for (const [level, state, expected] of [[2, 'clean', 4], [4, 'missed', 2], [3, 'start', 2],
-    [4, 'clean', 4], [6, 'start', 4], [3, 'mixed', 2], [1, 'missed', 1]]) {
+    [4, 'clean', 4], [6, 'start', 4], [3, 'mixed', 2], [1, 'missed', 1], [3, 'missed', 1]]) {
     const profile = startProfile({ level });
     if (state !== 'start') profile.checkpoints = 1;
     profile.cleanAtLevel.clean = state === 'clean';
@@ -76,4 +76,17 @@ test('an empty bank or challenge-only bank throws even when the turn could stop'
     profile.checkpoints = 8;
     await assert.rejects(chooseNextSet(profile, [], bank), RangeError);
   }
+});
+
+test('two misses at a level with no items step down from the snapped level and count as a drop', async () => {
+  const profile = startProfile({ level: 3 });
+  profile.checkpoints = 1;
+  profile.skills['vowel:kamatz'] = { tries: 2, misses: 2, recent: [1, 1] };
+  const picked = await chooseNextSet(profile, [], items, { useModel: false });
+  assert.equal(picked.level, 1);
+  assert.equal(picked.decision.move, 'down');
+  assert.equal(picked.decision.why, 'missed_twice');
+  assert.equal(picked.decision.from, 2);
+  assert.equal(picked.decision.misses, 2);
+  assert.equal(picked.profile.skills['vowel:kamatz'].demotedAt, 2);
 });

@@ -248,3 +248,16 @@ it('ignores mock sessions from the previous storage key', async () => {
   await mock.skipVoice('bim');
   expect(JSON.parse(sessionStorage.getItem('kriah.mock.v5')).children).toHaveLength(13);
 });
+
+it('ends every set with its challenge line for a child with some of the vowels', async () => {
+  const child = (await mock.children()).find(child => child.id === 'bim');
+  await mock.editChild(child.id, { vowels: ['kamatz', 'patach', 'chirik'] });
+  let response = await mock.start({ childId: child.id });
+  const { turnId } = response;
+  while (!response.done) {
+    const flags = response.set.map(item => Boolean(item.source?.challenge));
+    expect(flags).toEqual([...flags].sort((a, b) => Number(a) - Number(b)));
+    expect(new Set(response.set.map(item => item.id)).size).toBe(response.set.length);
+    response = await mock.next({ turnId });
+  }
+});

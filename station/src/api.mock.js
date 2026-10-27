@@ -39,7 +39,9 @@ const itemsFor = child => {
 };
 const setFor = (child, round) => {
   const eligible = itemsFor(child);
-  return clone([eligible[(round * 2) % eligible.length], eligible[(round * 2 + 1) % eligible.length]]);
+  const set = [...new Set([eligible[(round * 2) % eligible.length], eligible[(round * 2 + 1) % eligible.length]])];
+  // A challenge line ends its set, as on the real server.
+  return clone(set.sort((a, b) => Number(Boolean(a.source?.challenge)) - Number(Boolean(b.source?.challenge))));
 };
 const findChild = (db, id) => {
   const child = db.children.find(child => child.id === id);
