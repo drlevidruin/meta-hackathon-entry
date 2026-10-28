@@ -562,6 +562,12 @@ Read each clip once, in Ashkenazi pronunciation, right after Voice check 2 and i
 
 Read each clip once, in the same sitting as Round 1f. Round 1e has been read, so these thirteen words take its place as the sealed test. Nobody reads the ear's or the phoneme model's answers on them until the rules are frozen, and the pass rule is set before the first run. Once they are, `npm run ear-test -- --round "Round 1g"` runs three times, against Voice check 2.
 
+The pass rule, set by Levi on October 27, before any Round 1g clip was recorded: all three runs must pass. A run passes when all thirteen clips are graded once, the ear answers every one, all four planted mistakes are caught, no correct reading is marked wrong, and at most two syllables are marked uncertain. Two are allowed because shi-ro and di-ro end in ro after an r, where toy-ro came back uncertain in every design replay. The scorer checks it:
+
+```bash
+npm run -s ear-score -- --round "Round 1g" --max-uncertain 2 --runs-needed 3 run-1.tsv run-2.tsv run-3.tsv
+```
+
 | File name | Hebrew | Say | Planted | The ear should write |
 | --- | --- | --- | --- | --- |
 | sal_clean | סַל | sal | nothing | sal |
