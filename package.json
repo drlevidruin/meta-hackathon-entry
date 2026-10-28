@@ -9,7 +9,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/drlevidruin/kriah-listener-entry"
+    "url": "https://github.com/drlevidruin/meta-hackathon-entry"
   },
   "scripts": {
     "start": "node server/index.js",
