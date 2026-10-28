@@ -81,7 +81,8 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), votes =
   const rows = [];
   const outcomes = [];
   const cards = new Map();
-  let probeDecided = 0;
+  let probeChose = 0;
+  let probeChanged = 0;
   try {
     const modelId = model === 'primary'
       ? process.env.EAR_PRIMARY_MODEL || 'muse-wonder-1.0'
@@ -121,6 +122,9 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), votes =
       if (referee && voice) {
         try {
           const tokens = await phonemesWithRetry(voiceAudio, phonemes, probe);
+          if (probe && tokens == null && Array.isArray(await phonemes(voiceAudio))) {
+            throw new SelectionError('--probe needs a phoneme service that returns probe vectors. Restart the phoneme service from this checkout.');
+          }
           if (tokens == null) refereeStatus = 'off (no answer from the phoneme service)';
           else {
             calibration = cardCalibration(tokens, cardLabels(preset));
@@ -130,7 +134,8 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), votes =
               : !settings.on ? 'off (card does not keep o and a apart)'
               : `on (o ${calibration.o.toFixed(2)}, a ${calibration.a.toFixed(2)}, line ${settings.line.toFixed(2)})`;
           }
-        } catch {
+        } catch (error) {
+          if (error instanceof SelectionError) throw error;
           refereeStatus = 'off (no answer from the phoneme service)';
         }
       }
@@ -172,7 +177,8 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), votes =
               let options = meter && profile ? { points: syllablePoints(words, audio), profile } : undefined;
               if (probe) options = { ...options, probe: cardProbe };
               const answer = applyReferee(words, tokens, calibration, options);
-              probeDecided += answer.changes.filter(change => change.judge === 'probe').length;
+              probeChose += answer.probed ?? 0;
+              probeChanged += answer.changes.filter(change => change.judge === 'probe').length;
               words = answer.words;
               status = answer.status;
             }
@@ -207,7 +213,7 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), votes =
       if (noAnswer.length) log(`Phoneme referee: no answer for ${noAnswer.join(', ')}`);
       if (count.length) log(`Phoneme referee: vowels did not line up for ${count.join(', ')}`);
       if (other.length) log(`Phoneme referee: failed on ${other.join(', ')}`);
-      log(`Probe decided ${probeDecided} syllables.`);
+      if (probe) log(`Probe chose ${probeChose} syllables and changed ${probeChanged}.`);
     }
     return { rows, code: failed || !readings.length ? 1 : 0 };
   } finally {

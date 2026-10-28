@@ -217,6 +217,7 @@ function hasFiniteFormants(point) {
 
 export function applyReferee(words, tokens, calibration, options = {}) {
   const result = { words: words.map(word => [...word]), changes: [], status: 'off' };
+  if (options.probe) result.probed = 0;
   const { on, line, low } = refereeSettings(calibration);
   if (!on || !Array.isArray(tokens)) return result;
   const vowels = tokens.filter(value => vowelClass(value?.token) !== null);
@@ -253,6 +254,7 @@ export function applyReferee(words, tokens, calibration, options = {}) {
       if (sound === 'a' || score < low) {
         const point = options.points?.[index];
         const proposed = probeChoice(vowels[tokenIndex], options.probe);
+        if (proposed) result.probed++;
         const choice = proposed ?? (meterReady ? meterChoice(point, options.profile, ['a', 'o']) : null);
         judge = proposed ? 'probe' : 'meter';
         if (choice) replacement = choice;
@@ -263,6 +265,7 @@ export function applyReferee(words, tokens, calibration, options = {}) {
       rule = finalL ? 'coda-l' : 'band';
       const point = options.points?.[index];
       const proposed = probeChoice(vowels[tokenIndex], options.probe);
+      if (proposed) result.probed++;
       const choice = proposed ?? (meterReady ? meterChoice(point, options.profile, ['a', 'o']) : null);
       judge = proposed ? 'probe' : 'meter';
       if (sound === 'a' && choice === 'o') replacement = 'o';

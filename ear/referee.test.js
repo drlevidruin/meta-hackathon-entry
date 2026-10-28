@@ -196,7 +196,7 @@ for (const [from, score, vector, point, to, rule] of [
       { probe, points: [point, point], profile: { ...profile, spread: 2 } }]) {
       assert.deepEqual(applyReferee(words, tokens, calibration, options), {
         words: [to.split('-')], changes: [{ word: 0, syllable, from: words[0][syllable],
-          to: to.split('-')[syllable], rule, judge: 'probe' }], status: 'checked',
+          to: to.split('-')[syllable], rule, judge: 'probe' }], status: 'checked', probed: 1,
       });
     }
   });
@@ -208,11 +208,58 @@ for (const [from, score, vector, point, to, rule] of [
       assert.deepEqual(applyReferee(words, reading, calibration,
         { probe, points: [meterPoint, meterPoint], profile }), {
         words: [to.split('-')], changes: [{ word: 0, syllable, from: words[0][syllable],
-          to: to.split('-')[syllable], rule, judge: 'meter' }], status: 'checked',
+          to: to.split('-')[syllable], rule, judge: 'meter' }], status: 'checked', probed: 0,
       });
     }
   });
 }
+
+test('band keeps kom when the probe chooses o and the ready meter is ambiguous', () => {
+  assert.deepEqual(applyReferee([['kom']], [{ ...vowel(0.37), probe: [1, 0] }], calibration,
+    { probe, points: [ambiguous], profile }), {
+    words: [['kom']], changes: [], status: 'checked', probed: 1,
+  });
+});
+
+test('open-end keeps ra when the probe chooses a and the ready meter is ambiguous', () => {
+  assert.deepEqual(applyReferee([['toy', 'ra']], [vowel(0.9, 'oɪ'), { ...vowel(0.37), probe: [-1, 0] }],
+    calibration, { probe, points: [ambiguous, ambiguous], profile }), {
+    words: [['toy', 'ra']], changes: [], status: 'checked', probed: 1,
+  });
+});
+
+test('aligned probe choices use the matched token after an extra phoneme vowel', () => {
+  const tokens = [{ ...vowel(0.07), probe: [-1, 0] }, { ...vowel(0.1, 'i'), probe: [-1, 0] },
+    { ...vowel(0.1, 'e'), probe: [-1, 0] }, { ...vowel(0.37), probe: [1, 0] }];
+  assert.deepEqual(applyReferee([['ba', 'be', 'ra']], tokens, calibration,
+    { probe, points: [ambiguous, ambiguous, ambiguous], profile }), {
+    words: [['ba', 'be', 'ro']], changes: [
+      { word: 0, syllable: 2, from: 'ra', to: 'ro', rule: 'open-end', judge: 'probe' },
+    ], status: 'aligned', probed: 1,
+  });
+});
+
+test('rounded keeps precedence when the probe chooses a and the ready meter is ambiguous', () => {
+  assert.deepEqual(applyReferee([['kol']], [{ ...vowel(0.1, 'ʊ'), probe: [-1, 0] }], calibration,
+    { probe, points: [ambiguous], profile }), {
+    words: [['kul']], changes: [
+      { word: 0, syllable: 0, from: 'kol', to: 'kul', rule: 'rounded' },
+    ], status: 'checked', probed: 0,
+  });
+});
+
+test('probed is absent without a probe and zero on early returns with a probe', () => {
+  const words = [['ka', 'tan']];
+  for (const [tokens, card, status] of [[null, calibration, 'off'], [[vowel(0.9)], null, 'off'],
+    [[vowel(0.9)], calibration, 'count']]) {
+    for (const option of [undefined, null, false]) {
+      assert.deepEqual(applyReferee(words, tokens, card, { probe: option, points: [ambiguous, ambiguous], profile }),
+        { words, changes: [], status });
+    }
+    assert.deepEqual(applyReferee(words, tokens, card, { probe, points: [ambiguous, ambiguous], profile }),
+      { words, changes: [], status, probed: 0 });
+  }
+});
 
 for (const [from, score, rule] of [['toy-ra', 0.07, 'open-end'], ['so-ro', 0.07, 'open-end'],
   ['kol', 0.84, 'coda-l'], ['kom', 0.37, 'band']]) {
@@ -230,6 +277,7 @@ for (const [from, score, rule] of [['toy-ra', 0.07, 'open-end'], ['so-ro', 0.07,
       assert.deepEqual(applyReferee(words, tokens, calibration, { probe, points: [point, point], profile: voice }), {
         words: expected, changes: uncertain
           ? [{ word: 0, syllable, from: words[0][syllable], to: '?', rule, judge: 'meter' }] : [], status: 'checked',
+        probed: 0,
       });
     }
   });
@@ -242,7 +290,7 @@ test('probe vectors follow vowel pairing across words, consonants and syllables 
     words: [["b'", 'kal'], ['?', 'toy', 'ro']], changes: [
       { word: 0, syllable: 1, from: 'kol', to: 'kal', rule: 'coda-l', judge: 'probe' },
       { word: 1, syllable: 2, from: 'ra', to: 'ro', rule: 'open-end', judge: 'probe' },
-    ], status: 'checked',
+    ], status: 'checked', probed: 2,
   });
 });
 
@@ -255,7 +303,7 @@ test('probe does not change the rounded, low-score, high-score or open-end band 
   ]) {
     assert.deepEqual(applyReferee(words, tokens.map(value => ({ ...value, probe: [1, 0] })), calibration, { probe }), {
       words: expected, changes: rule ? [{ word: 0, syllable: 0, from: words[0][0], to: expected[0][0], rule }] : [],
-      status: 'checked',
+      status: 'checked', probed: 0,
     });
   }
 });

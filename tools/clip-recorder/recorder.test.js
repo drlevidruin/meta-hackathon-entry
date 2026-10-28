@@ -641,7 +641,7 @@ test('each sitting prepares its own card once before any ear call and uses its m
     assert.deepEqual(output.slice(2, 13), blocks);
     assert.deepEqual(result.rows.map(row => [row.clip, row.ear, row.metered, row.heard]),
       recordings.map(([name, , words, heard]) => [`${prefix}${name}`, words.map(word => word.join('-')).join(' '), heard, heard]));
-    assert.deepEqual(output.slice(16), ['Phoneme referee: checked 3 of 3 readings', 'Probe decided 0 syllables.']);
+    assert.deepEqual(output.slice(16), ['Phoneme referee: checked 3 of 3 readings']);
   }
 });
 
@@ -710,7 +710,7 @@ test('--card overrides every reading card across sittings and prepares only the 
   assert.deepEqual(output.filter(line => line.startsWith('Voice card:')), ['Voice card: voice-check-2']);
   assert.deepEqual(result.rows.map(row => [row.ear, row.metered, row.heard]),
     [['a-meyn', 'o-meyn', 'o-meyn'], ['gol', 'gol', 'gal']]);
-  assert.deepEqual(output.slice(10), ['Phoneme referee: checked 2 of 2 readings', 'Probe decided 0 syllables.']);
+  assert.deepEqual(output.slice(10), ['Phoneme referee: checked 2 of 2 readings']);
 });
 
 test('--card rejects unknown, non-voice and unrecorded clips before calling either service', async t => {
@@ -1398,9 +1398,90 @@ for (const [mode, expected] of [
     assert.match(output[5], /^Phoneme referee:/);
     assert.equal(output[7], 'clip\tsaid\theard\tresult\tear\tmetered\tvotes');
     assert.deepEqual(calls, ['disabled', 'missing'].includes(mode) ? []
-      : mode === 'unset' ? [[wav]] : Array.from({ length: mode === 'unavailable' ? 2 : 1 }, () => [wav, { probe: true }]));
+      : mode === 'unset' ? [[wav]] : mode === 'unavailable' ? [[wav, { probe: true }], [wav, { probe: true }], [wav]]
+        : [[wav, { probe: true }]]);
   });
 }
+
+test('--probe stops before the ear when the phoneme service only answers plain card requests', async t => {
+  const directory = await fixtureDirectory(t);
+  const store = recordingStore(await loadClips(), directory);
+  await store.save('voice-check', wav);
+  await store.save('kal_clean', Buffer.from('reading fixture'));
+  const calls = [];
+  let reads = 0;
+  await assert.rejects(runEar({ ...parseOptions(['--probe', '--no-meter', '--no-card'], 'ear'), directory,
+    phonemes: async (...args) => {
+      calls.push(args);
+      return args[1]?.probe ? null : phonemeCard();
+    }, ear: async () => { reads += 1; return earAnswer([['kal']]); }, log: () => {} }), error => {
+    assert.equal(error.constructor.name, 'SelectionError');
+    assert.equal(error.message,
+      '--probe needs a phoneme service that returns probe vectors. Restart the phoneme service from this checkout.');
+    return true;
+  });
+  assert.deepEqual(calls, [[wav, { probe: true }], [wav, { probe: true }], [wav]]);
+  assert.equal(reads, 0);
+});
+
+test('--probe keeps the referee off and continues when every phoneme request gets no answer', async t => {
+  const directory = await fixtureDirectory(t);
+  const store = recordingStore(await loadClips(), directory);
+  await store.save('voice-check', wav);
+  await store.save('kal_clean', Buffer.from('reading fixture'));
+  const calls = [];
+  const output = [];
+  let reads = 0;
+  const result = await runEar({ ...parseOptions(['--probe', '--no-meter', '--no-card'], 'ear'), directory,
+    phonemes: async (...args) => { calls.push(args); return null; },
+    ear: async () => { reads += 1; return earAnswer([['kal']]); }, log: line => output.push(line) });
+  assert.deepEqual(calls, [[wav, { probe: true }], [wav, { probe: true }], [wav]]);
+  assert.equal(reads, 1);
+  assert.equal(result.code, 0);
+  assert.equal(result.rows[0].heard, 'kal');
+  assert.equal(output[5], 'Phoneme referee: off (no answer from the phoneme service)');
+  assert.equal(output[6], 'Card probe: off (referee off)');
+});
+
+test('runner counts unchanged probe choices separately from changes across readings', async t => {
+  const directory = await fixtureDirectory(t);
+  const store = recordingStore(await loadClips(), directory);
+  const unchanged = Buffer.from('unchanged reading');
+  const changed = Buffer.from('changed reading');
+  await store.save('voice-check', wav);
+  await store.save('shom_clean', unchanged);
+  await store.save('kal_clean', changed);
+  const output = [];
+  const result = await runEar({ ...parseOptions(['--probe', '--no-meter', '--no-card'], 'ear'), directory,
+    ear: async audio => earAnswer(audio.data.equals(unchanged) ? [['shom']] : [['kol']]),
+    phonemes: async audio => audio.equals(wav) ? probeCard()
+      : audio.equals(unchanged) ? [{ ...phonemeVowel(0.37), probe: [1, 0] }]
+        : [{ ...phonemeVowel(0.84), probe: [-1, 0] }], log: line => output.push(line) });
+  assert.equal(result.code, 0);
+  assert.deepEqual(result.rows.map(row => row.heard), ['shom', 'kal']);
+  assert.deepEqual(output.slice(-2), ['Phoneme referee: checked 2 of 2 readings',
+    'Probe chose 2 syllables and changed 1.']);
+});
+
+test('a failed reading probe stays a no-answer result without a plain request', async t => {
+  const directory = await fixtureDirectory(t);
+  const store = recordingStore(await loadClips(), directory);
+  const reading = Buffer.from('reading fixture');
+  await store.save('voice-check', wav);
+  await store.save('kal_clean', reading);
+  const calls = [];
+  const output = [];
+  const result = await runEar({ ...parseOptions(['--probe', '--no-meter', '--no-card'], 'ear'), directory,
+    ear: async () => earAnswer([['kal']]), phonemes: async (...args) => {
+      calls.push(args);
+      return args[0].equals(wav) ? probeCard() : args[1]?.probe ? null : [phonemeVowel(0.84)];
+    }, log: line => output.push(line) });
+  assert.deepEqual(calls, [[wav, { probe: true }], [reading, { probe: true }], [reading, { probe: true }]]);
+  assert.equal(result.code, 0);
+  assert.equal(result.rows[0].heard, 'kal');
+  assert.deepEqual(output.slice(-3), ['Phoneme referee: checked 0 of 1 readings',
+    'Phoneme referee: no answer for kal_clean', 'Probe chose 0 syllables and changed 0.']);
+});
 
 for (const meter of [false, true]) {
   test(`runner passes the card probe to the referee with the meter ${meter ? 'on' : 'off'}`, async t => {
@@ -1423,7 +1504,8 @@ for (const meter of [false, true]) {
       assert.deepEqual(result.rows, [{ clip: 'kal_clean', said: 'kal', heard: enabled ? 'kal' : 'kol',
         result: enabled ? 'PASS' : 'MISS', ear: 'kol', metered: 'kol', votes: 'kol' }]);
       assert.equal(result.code, enabled ? 0 : 1);
-      assert.equal(output.at(-1), `Probe decided ${enabled ? 1 : 0} syllables.`);
+      assert.deepEqual(output.filter(line => line.startsWith('Probe chose ')),
+        enabled ? ['Probe chose 1 syllables and changed 1.'] : []);
       assert.ok(output.filter(line => line.includes('\t')).every(line => line.split('\t').length === 7));
     }
   });
@@ -1497,7 +1579,7 @@ test('runner calibrates a separate probe for each sitting from the same card req
   assert.equal(result.code, 0);
   assert.deepEqual(output.filter(line => line.startsWith('Card probe:')),
     ['Card probe: on (a 3, o 3)', 'Card probe: on (a 3, o 3)']);
-  assert.equal(output.at(-1), 'Probe decided 2 syllables.');
+  assert.equal(output.at(-1), 'Probe chose 2 syllables and changed 2.');
 });
 
 for (const [mode, expected] of [
@@ -1529,7 +1611,7 @@ for (const [mode, expected] of [
     assert.equal(output[7], 'clip\tsaid\theard\tresult\tear\tmetered\tvotes');
     assert.deepEqual(calls, ['disabled', 'missing'].includes(mode) ? []
       : ['unavailable', 'throws'].includes(mode) ? [[card], [card]] : [[card]]);
-    assert.deepEqual(output.slice(8), mode === 'on' ? ['Phoneme referee: checked 0 of 0 readings', 'Probe decided 0 syllables.'] : []);
+    assert.deepEqual(output.slice(8), mode === 'on' ? ['Phoneme referee: checked 0 of 0 readings'] : []);
     assert.ok(output.every(line => !line.includes('private failure')));
   });
 }
@@ -1556,7 +1638,7 @@ test('referee calibrates once and grades final sounds while keeping ear and mete
     { clip: 'koton_clean', said: 'ko-ton', heard: 'ko-ton', result: 'PASS', ear: 'ka-tan', metered: 'ka-tan', votes: 'ka-tan' },
   ]);
   assert.equal(output[9], 'koton_clean\tko-ton\tko-ton\tPASS\tka-tan\tka-tan\tka-tan');
-  assert.deepEqual(output.slice(10), ['Phoneme referee: checked 2 of 2 readings', 'Probe decided 0 syllables.']);
+  assert.deepEqual(output.slice(10), ['Phoneme referee: checked 2 of 2 readings']);
 });
 
 for (const [label, heard, result] of [['a', 'ga-mal', 'MISS'], ['o', 'go-mol', 'PASS']]) {
@@ -1615,7 +1697,7 @@ test('runner counts an aligned reading as checked and leaves a syllable at a gap
       : [phonemeVowel(0.9), { token: 'u', top: [['u', 1]] }], log: line => output.push(line) });
   assert.deepEqual(answer.rows, [{ clip: 'baruch_clean', said: 'bo-ruch', heard: 'bo-ruch-mi', result: 'MISS',
     ear: 'ba-ruch-mi', metered: 'ba-ruch-mi', votes: 'ba-ruch-mi' }]);
-  assert.deepEqual(output.slice(9), ['Phoneme referee: checked 1 of 1 readings', 'Probe decided 0 syllables.']);
+  assert.deepEqual(output.slice(9), ['Phoneme referee: checked 1 of 1 readings']);
 });
 
 test('referee runs after the meter and can undo its o while preserving the metered column', async t => {
@@ -1657,7 +1739,7 @@ for (const failure of ['null', 'throws', 'count', 'object', 'unreadable']) {
     assert.deepEqual(output.slice(9), ['Phoneme referee: checked 0 of 1 readings', failure === 'count'
       ? 'Phoneme referee: vowels did not line up for baruch_clean'
       : failure === 'unreadable' ? 'Phoneme referee: failed on baruch_clean'
-        : 'Phoneme referee: no answer for baruch_clean', 'Probe decided 0 syllables.']);
+        : 'Phoneme referee: no answer for baruch_clean']);
     assert.ok(output.slice(9).every(line => !line.includes('\t') && !line.includes('private failure')));
   });
 }
@@ -1693,7 +1775,7 @@ for (const failure of ['null', 'throws']) {
     assert.equal(result.code, 1);
     assert.deepEqual(result.rows, [{ clip: 'gomol_clean', said: 'go-mol', heard: 'go-mal', result: 'MISS',
       ear: 'ga-mal', metered: 'ga-mal', votes: 'ga-mal' }]);
-    assert.deepEqual(output.slice(9), ['Phoneme referee: checked 1 of 1 readings', 'Probe decided 0 syllables.']);
+    assert.deepEqual(output.slice(9), ['Phoneme referee: checked 1 of 1 readings']);
   });
 
   test(`a voice card with a ${failure} phoneme answer is retried once`, async t => {
@@ -1716,7 +1798,7 @@ for (const failure of ['null', 'throws']) {
     assert.deepEqual(calls, [[card], [card]]);
     assert.strictEqual(calls[0][0], calls[1][0]);
     assert.equal(output[5], 'Phoneme referee: on (o 0.91, a 0.43, line 0.50)');
-    assert.deepEqual(output.slice(8), ['Phoneme referee: checked 0 of 0 readings', 'Probe decided 0 syllables.']);
+    assert.deepEqual(output.slice(8), ['Phoneme referee: checked 0 of 0 readings']);
   });
 }
 
@@ -1750,7 +1832,6 @@ test('referee summary lists missed readings in order, excludes ear failures and 
     'Phoneme referee: checked 1 of 4 readings',
     'Phoneme referee: no answer for child_brocho_clean, child_shomayim_clean',
     'Phoneme referee: vowels did not line up for child_dovor_clean',
-    'Probe decided 0 syllables.',
   ]);
   assert.ok(output.slice(13).every(line => !line.includes('\t')));
   assert.ok(output.slice(7, 13).every(line => line.split('\t').length === 7));
