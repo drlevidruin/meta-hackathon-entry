@@ -21,6 +21,7 @@
     "record": "node tools/clip-recorder/server.js",
     "ear-test": "node tools/clip-recorder/run-ear.js",
     "ear-score": "node tools/clip-recorder/score.js",
+    "ear-replay": "node tools/clip-recorder/replay.js",
     "phonemes:setup": "python3 -m venv phonemes/.venv && phonemes/.venv/bin/pip install --no-cache-dir -r phonemes/requirements.txt && phonemes/.venv/bin/python -I phonemes/server.py --download",
     "phonemes": "phonemes/.venv/bin/python -I phonemes/server.py",
     "test:phonemes": "phonemes/.venv/bin/python -I -m unittest discover -s phonemes -p 'test_*.py'",
