@@ -50,6 +50,32 @@ test('hearPhonemes rejects error responses, bad JSON and malformed tokens', asyn
   for (const fetch of fetches) assert.equal(await hearPhonemes(Buffer.from('wav'), { url, fetch }), null);
 });
 
+test('hearPhonemes requests probe vectors only when enabled and preserves the WAV request', async () => {
+  const audio = Buffer.from('WAV fixture');
+  const probed = [...tokens, { ...tokens[0], token: 'b' }].map(value => ({ ...value, probe: [0.125, -2] }));
+  for (const probe of [false, true]) {
+    const result = await hearPhonemes(audio, { url, probe, fetch: async (address, options) => {
+      assert.equal(address, `${url}/phonemes${probe ? '?probe=1' : ''}`);
+      assert.equal(options.body, audio);
+      assert.deepEqual(options.headers, { 'Content-Type': 'audio/wav', 'X-Timeout-Ms': '15000' });
+      return reply({ tokens: probed });
+    } });
+    assert.deepEqual(result, probed);
+  }
+});
+
+test('hearPhonemes rejects missing, empty, unequal or nonfinite probe vectors on every token', async () => {
+  for (const vector of [undefined, null, {}, [], [NaN], [Infinity], [-Infinity], ['1'], [1, null], [1], Array(2)]) {
+    for (const index of [0, 1]) {
+      const probed = [{ ...tokens[0], probe: [1, 2] }, { ...tokens[0], token: 'b', probe: [3, 4] }];
+      probed[index].probe = vector;
+      const fetch = async () => reply({ tokens: probed });
+      assert.equal(await hearPhonemes(Buffer.from('wav'), { url, probe: true, fetch }), null);
+      assert.deepEqual(await hearPhonemes(Buffer.from('wav'), { url, fetch }), probed);
+    }
+  }
+});
+
 test('hearPhonemes aborts a slow request and bounds a fetch that ignores abort', async () => {
   let signal;
   assert.equal(await hearPhonemes(Buffer.from('wav'), { url, timeoutMs: 5,

@@ -172,6 +172,13 @@ Other vowels and diphthongs stay unchanged. A changed or cleared calibration,
 vowel counts too far apart to line up, or any phoneme failure leaves the
 metered answer.
 
+The clip runner's `--probe` flag enables a per-reader vowel probe, off by
+default. It compares the phoneme model's sixth-layer hidden states with the
+same reader's voice card before asking the meter at open ends, before final l
+and in the middle band. A missing or tied probe choice falls back to the
+meter, including its existing `?` rule. Audio stays in memory and the probe
+never sees the printed text.
+
 The grader receives `{ heard: words, text: item.text, preset: turn.preset }`,
 where `words` is the final answer after the meter and referee when enabled.
 The response omits the top-level `verdicts` and ear model. `words` is the grader's

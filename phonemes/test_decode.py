@@ -34,6 +34,28 @@ class DecodeTests(unittest.TestCase):
         self.assertEqual(decode(np.eye(2)[[0, 0]], {0: '<pad>', 1: 'a'}, 0), [])
         self.assertEqual(decode(np.empty((0, 2)), {0: '<pad>', 1: 'a'}, 0), [])
 
+    def test_probe_pools_first_and_last_tokens_with_six_frames_of_context(self):
+        probs = np.eye(3)[[0] * 2 + [1] * 2 + [0] * 16 + [2] * 2 + [0] * 8]
+        frames = np.arange(30, dtype=float)
+        hidden = np.column_stack((frames, frames ** 2))
+        tokens = decode(probs, {0: '<pad>', 1: 'a', 2: 'o'}, 0, hidden=hidden)
+        self.assertEqual([value['probe'] for value in tokens], [[4.5, 28.5], [20.5, 436.5]])
+
+    def test_probe_clips_context_at_nearby_non_pad_tokens_including_consonants(self):
+        probs = np.eye(4)[[0] * 2 + [1] * 2 + [0] * 2 + [2] * 2 + [0] + [3] * 2 + [0] * 3]
+        frames = np.arange(14, dtype=float)
+        hidden = np.column_stack((frames, frames ** 2))
+        tokens = decode(probs, {0: '<pad>', 1: 'a', 2: 'b', 3: 'o'}, 0, hidden=hidden)
+        self.assertEqual([value['probe'] for value in tokens],
+                         [[2.5, 9.1667], [6.0, 38.0], [10.5, 113.1667]])
+
+    def test_probe_pools_a_single_token_using_integer_spans_and_clips_to_the_audio(self):
+        probs = np.eye(2)[[0, 0, 1, 1, 0, 0]]
+        hidden = np.array([[value, value + 0.123456] for value in range(6)])
+        tokens = decode(probs, {0: '<pad>', 1: 'a'}, 0, frame_seconds=0.0125, hidden=hidden)
+        self.assertEqual(tokens, [{'token': 'a', 'start': 0.03, 'end': 0.05,
+                                  'top': [['a', 1.0], ['<pad>', 0.0]], 'probe': [2.5, 2.6235]}])
+
 
 if __name__ == '__main__':
     unittest.main()

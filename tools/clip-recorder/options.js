@@ -10,7 +10,7 @@ export function defaultEarModel(env = process.env) {
 export function parseOptions(argv, command) {
   const options = command === 'server'
     ? { set: 'adult', port: 8790 }
-    : { set: 'adult', model: defaultEarModel(), votes: defaultVotes(), keep: false, preset: 'ashkenazi', meter: true, card: true, referee: true };
+    : { set: 'adult', model: defaultEarModel(), votes: defaultVotes(), keep: false, preset: 'ashkenazi', meter: true, card: true, referee: true, probe: false };
   for (let index = 0; index < argv.length; index += 1) {
     const flag = argv[index];
     if (flag === '--set') options.set = checkSet(argv[++index]);
@@ -45,6 +45,7 @@ export function parseOptions(argv, command) {
     } else if (flag === '--no-meter' && command === 'ear') options.meter = false;
     else if (flag === '--no-card' && command === 'ear') options.card = false;
     else if (flag === '--no-referee' && command === 'ear') options.referee = false;
+    else if (flag === '--probe' && command === 'ear') options.probe = true;
     else if (flag === '--keep' && command === 'ear') options.keep = true;
     else throw new Error(`Unknown option: ${flag}`);
   }

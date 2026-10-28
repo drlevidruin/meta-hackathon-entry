@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { cardLabels } from '../rulebook/voice-card.js';
-import { alignVowels, applyReferee, backScore, cardCalibration, nucleus, refereeSettings, vowelClass } from './referee.js';
+import { alignVowels, applyReferee, backScore, cardCalibration, nucleus, probeCalibration, probeChoice,
+  refereeSettings, vowelClass } from './referee.js';
 
 const calibration = { version: 1, a: 0.43, o: 0.91, n: { a: 3, o: 3 } };
 const vowel = (score, token = score >= 0.5 ? 'ɑ' : 'a') => ({
@@ -57,6 +58,66 @@ test('cardCalibration skips a labeled vowel heard as ɛ and averages the middle 
   tokens[1] = { token: 'ɛ', top: [['ɛ', 0.8], ['a', 0.2]] };
   assert.deepEqual(cardCalibration(tokens, cardLabels('ashkenazi')),
     { version: 1, a: 0.395, o: 0.91, n: { a: 2, o: 3 } });
+});
+
+const probeLabels = ['a', 'a', 'o', 'o', null];
+const probeTokens = () => [[10, 0], [12, 0], [10, 4], [12, 4], [16, 2]]
+  .map((probe, index) => ({ ...vowel(0.5, index === 0 ? 'ɛ' : 'a'), probe }));
+const probe = { version: 1, centre: [0, 0], a: [-1, 0], o: [1, 0], n: { a: 2, o: 2 } };
+
+test('probeCalibration centres every card vowel and averages unit vectors for each label', () => {
+  const tokens = [{ token: 'b' }, ...probeTokens()];
+  const before = structuredClone(tokens);
+  const result = probeCalibration(tokens, probeLabels);
+  assert.equal(result.version, 1);
+  assert.deepEqual(result.n, { a: 2, o: 2 });
+  assert.deepEqual(result.centre, [12, 2]);
+  for (const [label, expected] of [['a', [-0.3826834323650898, -0.9238795325112867]],
+    ['o', [-0.3826834323650898, 0.9238795325112867]]]) {
+    assert.ok(Math.abs(Math.hypot(...result[label]) - 1) < 1e-12);
+    result[label].forEach((value, index) => assert.ok(Math.abs(value - expected[index]) < 1e-12));
+  }
+  assert.deepEqual(tokens, before);
+});
+
+test('probeCalibration requires aligned vowels, finite equal vectors and two of each label', () => {
+  for (const [tokens, labels] of [[null, probeLabels], [probeTokens(), null], [[], []],
+    [probeTokens().slice(1), probeLabels], [probeTokens(), ['a', 'o', 'o', null, null]],
+    [probeTokens(), ['a', 'a', 'o', null, null]]]) {
+    assert.equal(probeCalibration(tokens, labels), null);
+  }
+  for (const vector of [undefined, null, {}, [], [1], [1, 2, 3], [NaN, 0], [Infinity, 0],
+    [-Infinity, 0], ['1', 0], [null, 0], Array(2)]) {
+    for (const index of [0, 4]) {
+      const tokens = probeTokens();
+      tokens[index].probe = vector;
+      assert.equal(probeCalibration(tokens, probeLabels), null);
+    }
+  }
+});
+
+test('probeChoice compares centred directions without a margin and abstains on ties', () => {
+  const card = { ...probe, centre: [10, 20] };
+  for (const [vector, choice] of [[[12, 21], 'o'], [[8, 21], 'a'], [[10, 25], null],
+    [[10, 20], null], [[10 + 1e-12, 21], 'o']]) {
+    assert.equal(probeChoice({ probe: vector }, card), choice);
+  }
+  const zero = probeCalibration(Array.from({ length: 4 }, () => ({ token: 'a', probe: [1, 1] })),
+    ['a', 'a', 'o', 'o']);
+  assert.equal(probeChoice({ probe: [2, 2] }, zero), null);
+});
+
+test('probeChoice abstains on missing, mismatched and nonfinite vectors', () => {
+  assert.equal(probeChoice(null, probe), null);
+  assert.equal(probeChoice({}, probe), null);
+  for (const card of [null, {}, { ...probe, version: 2 }]) assert.equal(probeChoice({ probe: [1, 0] }, card), null);
+  for (const vector of [undefined, null, {}, [], [1], [1, 2, 3], [NaN, 0], [Infinity, 0],
+    [-Infinity, 0], ['1', 0], [null, 0], Array(2)]) {
+    assert.equal(probeChoice({ probe: vector }, probe), null);
+    for (const field of ['centre', 'a', 'o']) {
+      assert.equal(probeChoice({ probe: [1, 0] }, { ...probe, [field]: vector }), null);
+    }
+  }
 });
 
 for (const [a, o, on, line] of [[0.43, 0.91, true, 0.5], [0.65, 0.99, true, 0.7],
@@ -118,6 +179,103 @@ const profile = { version: 2, vowels: {
   a: { f1: 7, f2: 10, n: 3 }, o: { f1: 4, f2: 8, n: 3 },
 }, spread: 0.2 };
 const ambiguous = { f1: 5.5, f2: 9 };
+
+for (const [from, score, vector, point, to, rule] of [
+  ['toy-ra', 0.37, [1, 0], profile.vowels.a, 'toy-ro', 'open-end'],
+  ['so-ro', 0.07, [-1, 0], profile.vowels.o, 'so-ra', 'open-end'],
+  ['chal', 0.84, [1, 0], profile.vowels.a, 'chol', 'coda-l'],
+  ['kol', 0.84, [-1, 0], profile.vowels.o, 'kal', 'coda-l'],
+  ['kom', 0.37, [-1, 0], profile.vowels.o, 'kam', 'band'],
+]) {
+  const words = [from.split('-')];
+  const syllable = words[0].length - 1;
+  const tokens = [...(syllable ? [vowel(0.9, from.startsWith('toy') ? 'oɪ' : 'ɑ')] : []),
+    { ...vowel(score), probe: vector }];
+  test(`${rule} uses the probe first for ${from} even without a ready meter`, () => {
+    for (const options of [{ probe }, { probe, points: [point, point], profile },
+      { probe, points: [point, point], profile: { ...profile, spread: 2 } }]) {
+      assert.deepEqual(applyReferee(words, tokens, calibration, options), {
+        words: [to.split('-')], changes: [{ word: 0, syllable, from: words[0][syllable],
+          to: to.split('-')[syllable], rule, judge: 'probe' }], status: 'checked',
+      });
+    }
+  });
+
+  test(`${rule} falls back to the meter for ${from} when the probe has no choice`, () => {
+    const meterPoint = vector[0] > 0 ? profile.vowels.o : profile.vowels.a;
+    for (const vector of [undefined, [0, 1], [0, 0], [NaN, 0], [1]]) {
+      const reading = tokens.map(value => ({ ...value, probe: vector }));
+      assert.deepEqual(applyReferee(words, reading, calibration,
+        { probe, points: [meterPoint, meterPoint], profile }), {
+        words: [to.split('-')], changes: [{ word: 0, syllable, from: words[0][syllable],
+          to: to.split('-')[syllable], rule, judge: 'meter' }], status: 'checked',
+      });
+    }
+  });
+}
+
+for (const [from, score, rule] of [['toy-ra', 0.07, 'open-end'], ['so-ro', 0.07, 'open-end'],
+  ['kol', 0.84, 'coda-l'], ['kom', 0.37, 'band']]) {
+  test(`${rule} keeps the question mark path for ${from} only with finite points and a ready meter`, () => {
+    const words = [from.split('-')];
+    const syllable = words[0].length - 1;
+    const tokens = [...(syllable ? [vowel(0.9, from.startsWith('toy') ? 'oɪ' : 'ɑ')] : []),
+      { ...vowel(score), probe: [0, 1] }];
+    for (const [point, voice, uncertain] of [[ambiguous, profile, true], [null, profile, false],
+      [{}, profile, false], [{ f1: null, f2: null }, profile, false],
+      [{ f1: Infinity, f2: 9 }, profile, false], [ambiguous, undefined, false],
+      [ambiguous, { ...profile, spread: 2 }, false]]) {
+      const expected = structuredClone(words);
+      if (uncertain) expected[0][syllable] = '?';
+      assert.deepEqual(applyReferee(words, tokens, calibration, { probe, points: [point, point], profile: voice }), {
+        words: expected, changes: uncertain
+          ? [{ word: 0, syllable, from: words[0][syllable], to: '?', rule, judge: 'meter' }] : [], status: 'checked',
+      });
+    }
+  });
+}
+
+test('probe vectors follow vowel pairing across words, consonants and syllables without nuclei', () => {
+  assert.deepEqual(applyReferee([["b'", 'kol'], ['?', 'toy', 'ra']],
+    [{ token: 'b' }, { ...vowel(0.84), probe: [-1, 0] }, vowel(0.9, 'oɪ'),
+      { ...vowel(0.07), probe: [1, 0] }], calibration, { probe }), {
+    words: [["b'", 'kal'], ['?', 'toy', 'ro']], changes: [
+      { word: 0, syllable: 1, from: 'kol', to: 'kal', rule: 'coda-l', judge: 'probe' },
+      { word: 1, syllable: 2, from: 'ra', to: 'ro', rule: 'open-end', judge: 'probe' },
+    ], status: 'checked',
+  });
+});
+
+test('probe does not change the rounded, low-score, high-score or open-end band rules', () => {
+  for (const [words, tokens, expected, rule] of [
+    [[['kol']], [vowel(0.1, 'ʊ')], [['kul']], 'rounded'],
+    [[['kol']], [vowel(0.07)], [['kal']], 'phoneme'],
+    [[['ba']], [vowel(0.9)], [['bo']], 'phoneme'],
+    [[['so', 'ro']], [vowel(0.9), vowel(0.37)], [['so', 'ro']], null],
+  ]) {
+    assert.deepEqual(applyReferee(words, tokens.map(value => ({ ...value, probe: [1, 0] })), calibration, { probe }), {
+      words: expected, changes: rule ? [{ word: 0, syllable: 0, from: words[0][0], to: expected[0][0], rule }] : [],
+      status: 'checked',
+    });
+  }
+});
+
+test('without a probe option existing fallback fixtures keep their complete legacy results', () => {
+  for (const [words, scores, points, expected, change] of [
+    [[['toy', 'ra']], [0.9, 0.07], [null, profile.vowels.o], [['toy', 'ro']],
+      { word: 0, syllable: 1, from: 'ra', to: 'ro', rule: 'open-end' }],
+    [[['kol']], [0.84], [profile.vowels.a], [['kal']],
+      { word: 0, syllable: 0, from: 'kol', to: 'kal', rule: 'coda-l' }],
+    [[['kom']], [0.37], [ambiguous], [['?']],
+      { word: 0, syllable: 0, from: 'kom', to: '?', rule: 'band' }],
+  ]) {
+    const tokens = scores.map((score, index) => ({ ...vowel(score, index === 0 && scores.length > 1 ? 'oɪ' : 'ɑ'),
+      probe: [1, 0] }));
+    assert.deepEqual(applyReferee(words, tokens, calibration, { points, profile }), {
+      words: expected, changes: [change], status: 'checked',
+    });
+  }
+});
 
 for (const token of ['œ', 'ʉ']) {
   test(`rounded corrects ko-sov to ko-suv from a normalized ${token} token`, () => {

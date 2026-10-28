@@ -3,7 +3,7 @@ import { defaultVotes, listen } from '../../ear/hear.js';
 import { applyMeter, buildVoiceProfile, pairsApart, syllablePoints, VoiceCheckError } from '../../ear/meter.js';
 import { voiceCardToEar } from '../../ear/card-gate.js';
 import { hearPhonemes } from '../../ear/phonemes.js';
-import { applyReferee, cardCalibration, refereeSettings } from '../../ear/referee.js';
+import { applyReferee, cardCalibration, probeCalibration, refereeSettings } from '../../ear/referee.js';
 import { cardLabels } from '../../rulebook/voice-card.js';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -24,10 +24,10 @@ export function matchesSay(heard, say) {
     && heard.every((word, index) => normalize(word.join('-')) === expected[index]);
 }
 
-async function phonemesWithRetry(audio, phonemes) {
+async function phonemesWithRetry(audio, phonemes, probe) {
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      const tokens = await phonemes(audio);
+      const tokens = probe ? await phonemes(audio, { probe: true }) : await phonemes(audio);
       if (Array.isArray(tokens)) return tokens;
     } catch {
       // A missed answer gets one more try with the same audio.
@@ -37,8 +37,8 @@ async function phonemesWithRetry(audio, phonemes) {
 }
 
 export async function runEar({ set = 'adult', model = defaultEarModel(), votes = defaultVotes(), keep = false, directory,
-  preset = 'ashkenazi', meter = true, card = true, referee = true, cardName, round,
-  phonemes = audio => hearPhonemes(audio), ear = listen, log = console.log } = {}) {
+  preset = 'ashkenazi', meter = true, card = true, referee = true, probe = false, cardName, round,
+  phonemes = hearPhonemes, ear = listen, log = console.log } = {}) {
   if (set === 'child' && round !== undefined && !keep) {
     throw new SelectionError("--round with --set child requires --keep: the child's other rounds would be deleted without being graded.");
   }
@@ -81,6 +81,7 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), votes =
   const rows = [];
   const outcomes = [];
   const cards = new Map();
+  let probeDecided = 0;
   try {
     const modelId = model === 'primary'
       ? process.env.EAR_PRIMARY_MODEL || 'muse-wonder-1.0'
@@ -115,13 +116,15 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), votes =
         : model === 'fallback' ? 'off (fallback ear)' : 'on';
       const reference = cardStatus === 'on' ? { data: voiceAudio, format: 'wav' } : undefined;
       let calibration;
+      let cardProbe;
       let refereeStatus = !referee ? 'off (--no-referee)' : 'off (no voice check recorded)';
       if (referee && voice) {
         try {
-          const tokens = await phonemesWithRetry(voiceAudio, phonemes);
+          const tokens = await phonemesWithRetry(voiceAudio, phonemes, probe);
           if (tokens == null) refereeStatus = 'off (no answer from the phoneme service)';
           else {
             calibration = cardCalibration(tokens, cardLabels(preset));
+            if (probe) cardProbe = probeCalibration(tokens, cardLabels(preset));
             const settings = refereeSettings(calibration);
             refereeStatus = !calibration ? 'off (card vowels did not line up)'
               : !settings.on ? 'off (card does not keep o and a apart)'
@@ -131,14 +134,18 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), votes =
           refereeStatus = 'off (no answer from the phoneme service)';
         }
       }
-      cards.set(name, { profile, reference, calibration, refereeOn: refereeSettings(calibration).on });
+      const refereeOn = refereeSettings(calibration).on;
+      const probeStatus = !probe ? 'off (--probe not set)' : !refereeOn ? 'off (referee off)'
+        : !cardProbe ? 'off (card vowels did not line up)' : `on (a ${cardProbe.n.a}, o ${cardProbe.n.o})`;
+      cards.set(name, { profile, reference, calibration, refereeOn, probe: cardProbe });
       log(`Vowel meter: ${meterStatus}`);
       log(`Voice card to the ear: ${cardStatus}`);
       log(`Phoneme referee: ${refereeStatus}`);
+      log(`Card probe: ${probeStatus}`);
     }
     log('clip\tsaid\theard\tresult\tear\tmetered\tvotes');
     for (const clip of readings) {
-      const { profile, reference, calibration, refereeOn } = cards.get(override?.name ?? clip.card);
+      const { profile, reference, calibration, refereeOn, probe: cardProbe } = cards.get(override?.name ?? clip.card);
       let heard = 'ERROR';
       let earSounds = 'ERROR';
       let metered = 'ERROR';
@@ -159,11 +166,13 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), votes =
         if (refereeOn) {
           let status = 'failed';
           try {
-            const tokens = await phonemesWithRetry(audio, phonemes);
+            const tokens = await phonemesWithRetry(audio, phonemes, probe);
             if (tokens == null) status = null;
             else {
-              const options = meter && profile ? { points: syllablePoints(words, audio), profile } : undefined;
+              let options = meter && profile ? { points: syllablePoints(words, audio), profile } : undefined;
+              if (probe) options = { ...options, probe: cardProbe };
               const answer = applyReferee(words, tokens, calibration, options);
+              probeDecided += answer.changes.filter(change => change.judge === 'probe').length;
               words = answer.words;
               status = answer.status;
             }
@@ -198,6 +207,7 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), votes =
       if (noAnswer.length) log(`Phoneme referee: no answer for ${noAnswer.join(', ')}`);
       if (count.length) log(`Phoneme referee: vowels did not line up for ${count.join(', ')}`);
       if (other.length) log(`Phoneme referee: failed on ${other.join(', ')}`);
+      log(`Probe decided ${probeDecided} syllables.`);
     }
     return { rows, code: failed || !readings.length ? 1 : 0 };
   } finally {

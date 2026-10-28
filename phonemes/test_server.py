@@ -5,7 +5,8 @@ import os
 import sys
 import threading
 import unittest
-from contextlib import redirect_stderr
+import weakref
+from contextlib import nullcontext, redirect_stderr
 from email.message import Message
 from pathlib import Path
 from types import SimpleNamespace
@@ -48,6 +49,65 @@ def request(path, data=b'', content_type='audio/wav', length=None, infer=None, a
 def tensor(pointer, size):
     storage = SimpleNamespace(data_ptr=lambda: pointer, nbytes=lambda: size)
     return SimpleNamespace(untyped_storage=lambda: storage)
+
+
+class ArrayTensor:
+    def __init__(self, values):
+        self.values = values
+
+    def __getitem__(self, index):
+        return ArrayTensor(self.values[index])
+
+    def cpu(self):
+        return self
+
+    def numpy(self):
+        return self.values
+
+
+class InferenceTests(unittest.TestCase):
+    def test_probe_uses_layer_six_from_one_model_call_and_releases_hidden_states(self):
+        calls = []
+        hidden_refs = []
+        probs = np.eye(3)[[0, 1, 1, 0, 2, 0]]
+
+        def forward(**kwargs):
+            calls.append(kwargs)
+            output = SimpleNamespace(logits=SimpleNamespace(
+                softmax=lambda dim: ArrayTensor(probs[None])))
+            if kwargs.get('output_hidden_states'):
+                layers = [np.full((1, 6, 2), index + 0.123456) for index in range(8)]
+                hidden_refs.extend(weakref.ref(layer) for layer in layers)
+                output.hidden_states = tuple(ArrayTensor(layer) for layer in layers)
+            return output
+
+        model = Mock(side_effect=forward)
+        model.config = SimpleNamespace(pad_token_id=0)
+        model.parameters.return_value = []
+        model.buffers.return_value = []
+        extractor = Mock(return_value={'input_values': 'samples'})
+        modules = {
+            'torch': SimpleNamespace(set_num_threads=Mock(), no_grad=nullcontext),
+            'huggingface_hub': SimpleNamespace(hf_hub_download=lambda *args, **kwargs: 'vocab.json'),
+            'transformers': SimpleNamespace(
+                Wav2Vec2FeatureExtractor=SimpleNamespace(from_pretrained=lambda *args, **kwargs: extractor),
+                Wav2Vec2ForCTC=SimpleNamespace(from_pretrained=lambda *args, **kwargs: model)),
+        }
+        with patch.dict(sys.modules, modules), patch.dict(os.environ), \
+                patch.object(service, 'pin', return_value=0), \
+                patch('builtins.open', return_value=io.StringIO('{"<pad>": 0, "a": 1, "b": 2}')), \
+                redirect_stderr(io.StringIO()):
+            infer = service.load_inference()
+            plain = infer(np.zeros(8))
+            probed = infer(np.zeros(8), probe=True)
+        self.assertEqual(calls, [{'input_values': 'samples'},
+                                 {'input_values': 'samples', 'output_hidden_states': True}])
+        self.assertEqual(plain, [
+            {'token': 'a', 'start': 0.02, 'end': 0.06, 'top': [['a', 1.0], ['<pad>', 0.0], ['b', 0.0]]},
+            {'token': 'b', 'start': 0.08, 'end': 0.1, 'top': [['b', 1.0], ['<pad>', 0.0], ['a', 0.0]]},
+        ])
+        self.assertEqual(probed, [{**value, 'probe': [6.1235, 6.1235]} for value in plain])
+        self.assertTrue(all(reference() is None for reference in hidden_refs))
 
 
 class PinTests(unittest.TestCase):
@@ -201,7 +261,32 @@ class ServerTests(unittest.TestCase):
         handler.do_POST()
         self.assertEqual(handler.status, 200)
         self.assertEqual(json.loads(handler.wfile.getvalue()), {'tokens': tokens})
+        self.assertEqual(handler.wfile.getvalue(), json.dumps({'tokens': tokens}).encode('utf-8'))
         np.testing.assert_array_equal(calls[0], np.array([0, 0.25], dtype=np.float32))
+
+    def test_probe_query_requests_vectors_and_returns_them_for_every_token(self):
+        tokens = [{'token': 'a', 'start': 0, 'end': 0.02, 'top': [['a', 1]], 'probe': [0.1235, -2.0]},
+                  {'token': 'b', 'start': 0.02, 'end': 0.04, 'top': [['b', 1]], 'probe': [3.0, 4.0]}]
+
+        def infer(samples, *, probe):
+            self.assertTrue(probe)
+            np.testing.assert_array_equal(samples, np.zeros(4, dtype=np.float32))
+            return tokens
+
+        handler = request('/phonemes?probe=1', make_wav(bytes(8)), infer=infer)
+        handler.do_POST()
+        self.assertEqual(handler.status, 200)
+        self.assertEqual(json.loads(handler.wfile.getvalue()), {'tokens': tokens})
+
+    def test_other_paths_and_query_strings_are_not_found_before_reading_audio(self):
+        for path in ['/other', '/phonemes?probe=0', '/phonemes?other=1',
+                     '/phonemes?probe=1&other=1', '/phonemes?', '/phonemes/?probe=1']:
+            with self.subTest(path=path):
+                handler = request(path, make_wav(bytes(8)), infer=lambda _: self.fail('unknown path ran inference'))
+                handler.do_POST()
+                self.assertEqual(handler.status, 404)
+                self.assertEqual(json.loads(handler.wfile.getvalue()), {'error': 'not found'})
+                self.assertEqual(handler.rfile.tell(), 0)
 
     def test_invalid_requests_never_reach_inference_or_echo_audio(self):
         secret = b'PRIVATE_AUDIO_BYTES'

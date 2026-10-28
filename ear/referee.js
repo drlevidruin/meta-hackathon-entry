@@ -57,6 +57,50 @@ export function cardCalibration(tokens, labels) {
   return { version: 1, a: median(scores.a), o: median(scores.o), n: { a: scores.a.length, o: scores.o.length } };
 }
 
+function finiteVector(value, length) {
+  return Array.isArray(value) && value.length > 0 && (length === undefined || value.length === length)
+    && [...value].every(Number.isFinite);
+}
+
+function unit(vector) {
+  const length = Math.hypot(...vector) || 1e-12;
+  return vector.map(value => value / length);
+}
+
+function meanVectors(vectors) {
+  return vectors[0].map((_, index) => vectors.reduce((sum, vector) => sum + vector[index], 0) / vectors.length);
+}
+
+export function probeCalibration(tokens, labels) {
+  if (!Array.isArray(tokens) || !Array.isArray(labels)) return null;
+  const vowels = tokens.filter(value => vowelClass(value?.token) !== null);
+  if (!vowels.length || vowels.length !== labels.length) return null;
+  const length = vowels[0].probe?.length;
+  if (!vowels.every(value => finiteVector(value.probe, length))) return null;
+  const centre = meanVectors(vowels.map(value => value.probe));
+  const vectors = { a: [], o: [] };
+  for (const [index, value] of vowels.entries()) {
+    const label = labels[index];
+    if (label === 'a' || label === 'o') {
+      vectors[label].push(unit(value.probe.map((number, i) => number - centre[i])));
+    }
+  }
+  if (vectors.a.length < 2 || vectors.o.length < 2) return null;
+  return { version: 1, centre, a: unit(meanVectors(vectors.a)), o: unit(meanVectors(vectors.o)),
+    n: { a: vectors.a.length, o: vectors.o.length } };
+}
+
+export function probeChoice(value, calibration) {
+  if (calibration?.version !== 1 || !finiteVector(calibration.centre)) return null;
+  const length = calibration.centre.length;
+  if (![value?.probe, calibration.a, calibration.o].every(vector => finiteVector(vector, length))) return null;
+  const x = unit(value.probe.map((number, index) => number - calibration.centre[index]));
+  const distance = vector => 1 - x.reduce((sum, number, index) => sum + number * vector[index], 0);
+  const dA = distance(calibration.a);
+  const dO = distance(calibration.o);
+  return dO < dA ? 'o' : dA < dO ? 'a' : null;
+}
+
 export function refereeSettings(calibration) {
   const off = { on: false, line: null, low: null };
   try {
@@ -198,6 +242,7 @@ export function applyReferee(words, tokens, calibration, options = {}) {
       && ['a', 'o'].includes(sound) && from.endsWith(sound);
     let replacement = sound;
     let rule = 'phoneme';
+    let judge;
     if (sound === 'o' && /^[uʊʉyʏøœ]$/.test(normalizeVowel(vowels[tokenIndex].token))
       && !(meterReady && meterChoice(options.points?.[index], options.profile, ['a', 'o']) === 'a')) {
       replacement = 'u';
@@ -207,7 +252,9 @@ export function applyReferee(words, tokens, calibration, options = {}) {
       rule = 'open-end';
       if (sound === 'a' || score < low) {
         const point = options.points?.[index];
-        const choice = meterReady ? meterChoice(point, options.profile, ['a', 'o']) : null;
+        const proposed = probeChoice(vowels[tokenIndex], options.probe);
+        const choice = proposed ?? (meterReady ? meterChoice(point, options.profile, ['a', 'o']) : null);
+        judge = proposed ? 'probe' : 'meter';
         if (choice) replacement = choice;
         else if (hasFiniteFormants(point) && meterReady) replacement = '?';
       }
@@ -215,7 +262,9 @@ export function applyReferee(words, tokens, calibration, options = {}) {
     else if (finalL || (sound === 'o' && score !== null && score >= low && score < line)) {
       rule = finalL ? 'coda-l' : 'band';
       const point = options.points?.[index];
-      const choice = meterReady ? meterChoice(point, options.profile, ['a', 'o']) : null;
+      const proposed = probeChoice(vowels[tokenIndex], options.probe);
+      const choice = proposed ?? (meterReady ? meterChoice(point, options.profile, ['a', 'o']) : null);
+      judge = proposed ? 'probe' : 'meter';
       if (sound === 'a' && choice === 'o') replacement = 'o';
       else if (sound === 'o') {
         if (choice === 'a') replacement = 'a';
@@ -225,7 +274,7 @@ export function applyReferee(words, tokens, calibration, options = {}) {
     const to = replacement === '?' ? '?' : from.replace(sound, replacement);
     if (to === from) continue;
     result.words[word][syllable] = to;
-    result.changes.push({ word, syllable, from, to, rule });
+    result.changes.push({ word, syllable, from, to, rule, ...(options.probe && judge ? { judge } : {}) });
   }
   return result;
 }

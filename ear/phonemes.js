@@ -42,18 +42,20 @@ export function phonemeTimeout(audio) {
   return Math.max(15000, Math.ceil(audio.length / 32000) * 3000);
 }
 
-export async function hearPhonemes(audio, { url = phonemeUrl(), fetch = globalThis.fetch, timeoutMs } = {}) {
+export async function hearPhonemes(audio, { url = phonemeUrl(), fetch = globalThis.fetch, timeoutMs, probe = false } = {}) {
   try {
     if (!Buffer.isBuffer(audio)) return null;
     const wait = timeoutMs ?? phonemeTimeout(audio);
     // The service skips a recording still queued when this wait runs out.
-    const reply = await requestJson('/phonemes', { url, fetch, timeoutMs: wait }, {
+    const reply = await requestJson(probe ? '/phonemes?probe=1' : '/phonemes', { url, fetch, timeoutMs: wait }, {
       method: 'POST', headers: { 'Content-Type': 'audio/wav', 'X-Timeout-Ms': String(wait) }, body: audio,
     });
     if (!Array.isArray(reply?.tokens) || !reply.tokens.every(value => value && typeof value.token === 'string'
       && Number.isFinite(value.start) && Number.isFinite(value.end) && Array.isArray(value.top)
       && value.top.every(pair => Array.isArray(pair) && pair.length === 2
         && typeof pair[0] === 'string' && Number.isFinite(pair[1])))) return null;
+    if (probe && !reply.tokens.every(value => Array.isArray(value.probe) && value.probe.length > 0
+      && value.probe.length === reply.tokens[0].probe.length && [...value.probe].every(Number.isFinite))) return null;
     return reply.tokens;
   } catch {
     return null;
