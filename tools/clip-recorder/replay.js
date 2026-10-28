@@ -153,7 +153,7 @@ export async function replayRun({ text, file = '<input>', probe, directory,
       const audio = await readRecording(store, row.clip);
       const tokens = await phonemesWithRetry(audio, phonemes, probe);
       if (tokens === null) throw new Error(`No answer from the phoneme service for reading: ${row.clip}.`);
-      if (probe) requireProbeVectors(tokens);
+      if (probe && tokens.length) requireProbeVectors(tokens);
       const words = row.metered.trim() ? row.metered.trim().split(/\s+/u).map(word => word.split('-')) : [];
       let options = run.meter && profile ? { points: syllablePoints(words, audio), profile } : undefined;
       if (probe) options = { ...options, probe: cardProbe };

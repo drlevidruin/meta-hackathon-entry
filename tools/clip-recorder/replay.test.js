@@ -109,6 +109,15 @@ test('a probe replay reproduces the saved runner output and keeps recordings unc
   }
 });
 
+test('a probe replay accepts an empty phoneme token list for a reading', async t => {
+  const run = await savedRun(t, { probe: true,
+    readings: readingFixtures.map((reading, index) => index === 0 ? { ...reading, tokens: [] } : reading) });
+  const result = await replay(run, { probe: true });
+  assert.equal(result.code, 0);
+  assert.deepEqual(result.rows, run.rows);
+  assert.equal(result.output.at(-1), 'Replay matches the run on 3 of 3 readings.');
+});
+
 test('an altered heard answer reports the clip mismatch and exits 1', async t => {
   const run = await savedRun(t);
   const result = await replay(run, { text: changeRow(run.text, 'sal_clean', 2, 'sul') });
