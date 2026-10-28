@@ -72,7 +72,13 @@ To turn the referee off for a run:
 npm run ear-test -- --no-referee
 ```
 
-This prints `Phoneme referee: off (--no-referee)`. The flag is independent of `--no-meter` and `--no-card`. The referee can use the recorded voice check even when both are off. With `--no-meter` the referee does not ask the meter either; where its rules would, the ear's vowel stands.
+This prints `Phoneme referee: off (--no-referee)`. The flag is independent of `--no-meter` and `--no-card`. The referee can use the recorded voice check even when both are off. With `--no-meter` the referee does not ask the meter either; where its rules would, the ear's vowel stands unless the probe chooses a vowel.
+
+The `--probe` flag enables a per-reader vowel probe and is off by default. Run `npm run ear-test -- --probe` to compare the phoneme model's hidden states with the recorded voice card before asking the meter at open ends, before final l and in the middle band. The probe works with `--no-meter` and requires the referee to be on. After the referee status, `Card probe:` reports whether the probe is on and how many a and o card vowels it used. The TSV columns stay the same.
+
+`--probe` needs the phoneme service started from this version. If the service answers the voice card without the probe but does not return probe vectors, the run stops before sending any reading to the ear and asks you to restart the service from this checkout.
+
+With `--probe` and the referee on, the final `Probe chose N syllables and changed M.` line counts every syllable where the probe chose a or o, including choices that kept the vowel, and how many of those choices changed it.
 
 Each row has seven columns: `clip`, `said`, `heard`, `result`, `ear`, `metered` and `votes`. `ear` is the ear's answer after the vote, and `votes` lists each call's answer, separated by ` | `, with `ERROR` for a call that did not answer. `metered` is the answer after the vowel meter, before the referee. `heard` is the final answer after the referee, and `result` is its `PASS` or `MISS`. When the referee is off or changes nothing, `metered` and `heard` are equal. Comparison ignores case and spaces within each word. It preserves syllable boundaries, word boundaries, order and count. Only audio reaches the ear. The phoneme service runs on this computer and never sees the printed text. The runner does not call the grader. It exits with status 1 if any clip misses, a call fails, or no clips are recorded.
 

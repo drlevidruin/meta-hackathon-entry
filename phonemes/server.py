@@ -90,11 +90,18 @@ def load_inference():
     with open(vocab_path, encoding='utf-8') as vocab_file:
         id_to_token = {index: token for token, index in json.load(vocab_file).items()}
 
-    def infer(samples):
+    def infer(samples, probe=False):
         with torch.no_grad():
             inputs = extractor(samples, sampling_rate=16000, return_tensors='pt')
-            probs = model(**inputs).logits.softmax(dim=-1)[0].cpu().numpy()
-            return decode(probs, id_to_token, model.config.pad_token_id)
+            output = model(**inputs, output_hidden_states=True) if probe else model(**inputs)
+            probs = output.logits.softmax(dim=-1)[0].cpu().numpy()
+            if not probe:
+                return decode(probs, id_to_token, model.config.pad_token_id)
+            hidden = output.hidden_states[6][0].cpu().numpy()
+            del output
+            tokens = decode(probs, id_to_token, model.config.pad_token_id, hidden=hidden)
+            del hidden
+            return tokens
 
     return infer
 
@@ -132,7 +139,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         give_up = deadline(self.headers, time.monotonic())
         try:
-            if self.path != '/phonemes':
+            if self.path not in ('/phonemes', '/phonemes?probe=1'):
                 self.reply(404, {'error': 'not found'})
                 return
             if self.headers.get('Content-Type', '').split(';')[0].strip().lower() != 'audio/wav':
@@ -168,7 +175,8 @@ class Handler(BaseHTTPRequestHandler):
                     if give_up is not None and time.monotonic() > give_up:
                         self.reply(503, {'error': 'too late'})
                         return
-                    tokens = self.server.infer(samples)
+                    tokens = self.server.infer(samples, probe=True) if self.path == '/phonemes?probe=1' \
+                        else self.server.infer(samples)
             finally:
                 self.server.admission.release()
             self.reply(200, {'tokens': tokens})
