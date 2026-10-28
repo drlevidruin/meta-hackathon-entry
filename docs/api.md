@@ -169,7 +169,7 @@ syllable it measures but cannot place becomes `?` on a word's last open
 syllable, and so does an o before a final l or in the middle band. The grader
 marks `?` uncertain. An e never becomes a, and nothing becomes e.
 Other vowels and diphthongs stay unchanged. A changed or cleared calibration,
-vowel counts too far apart to line up, or any phoneme failure leaves the
+vowels that cannot be lined up, or any phoneme failure leaves the
 metered answer.
 
 The clip runner's `--probe` flag enables a per-reader vowel probe, off by
