@@ -199,6 +199,29 @@ test('the replay scores exactly like a saved run with the same rows', async t =>
   assert.match(scored.stdout, /plants caught 1 of 1/u);
 });
 
+for (const [cellCount, cut] of [[1, 'clip name'], [2, 'second cell']]) {
+  for (const position of ['before the header', 'between readings', 'after the summary']) {
+    test(`replay stops with a reading cut off after its ${cut} ${position}`, async t => {
+      const run = await savedRun(t);
+      const lines = run.text.trimEnd().split('\n');
+      const index = lines.findIndex(line => line.startsWith('diro_clean\t'));
+      const [row] = lines.splice(index, 1);
+      const at = position === 'before the header' ? lines.indexOf(header)
+        : position === 'after the summary' ? lines.length : index;
+      lines.splice(at, 0, row.split('\t').slice(0, cellCount).join('\t'));
+      const text = lines.join('\n');
+      const file = join(run.directory, 'cut-off-run.tsv');
+      const message = `${file}:${at + 1}: Expected seven tab-separated cells.`;
+      await assert.rejects(replay(run, { text, file, phonemes: async () => assert.fail('no service call') }), { message });
+      await writeFile(file, text);
+      const result = spawnSync(process.execPath, [join(here, 'replay.js'), '--probe', 'on', file], { encoding: 'utf8' });
+      assert.equal(result.status, 1, result.stderr);
+      assert.equal(result.stdout, '');
+      assert.equal(result.stderr, `${message}\n`);
+    });
+  }
+}
+
 for (const [name, change, message] of [
   ['no voice card line', text => text.replace(/^Voice card:.*\n/mu, ''), /exactly one Voice card:/u],
   ['two voice card lines', text => `Voice card: voice-check-2\n${text}`, /exactly one Voice card:/u],

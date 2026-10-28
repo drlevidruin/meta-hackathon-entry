@@ -56,11 +56,13 @@ function parseRun(text, file, clips) {
       foundHeader = true;
       continue;
     }
+    const cells = line.split('\t');
+    const reading = clips.some(clip => clip.name === cells[0] && clip.kind === 'reading');
+    if (reading && cells.length !== columns.length) throw new Error(`${at}: Expected seven tab-separated cells.`);
     if (!line.includes('\t')) continue;
     if (!foundHeader || line.startsWith('clip\t')) throw new Error(`${at}: Expected the seven-column run header once.`);
-    const cells = line.split('\t');
     if (cells.length !== columns.length) throw new Error(`${at}: Expected seven tab-separated cells.`);
-    if (!clips.some(clip => clip.name === cells[0] && clip.kind === 'reading')) {
+    if (!reading) {
       throw new Error(`${at}: Unknown adult reading clip: ${cells[0]}.`);
     }
     rows.push(Object.fromEntries(columns.map((column, i) => [column, cells[i]])));
