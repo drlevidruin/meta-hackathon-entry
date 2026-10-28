@@ -530,6 +530,55 @@ Over the ten saved sets at minimal reasoning, 460 readings:
 
 The 10 uncertain marks are toy-ro, once per set: the ear, the phoneme model and the meter all missed its o. Eight of the ten sets are left with 3 false marks: the tzere of yis-ro-eyl heard as e, in two clips, which stays marked, and yi heard as ye. One set has a fourth, where the ear split o-meyn into two words, and one has five, where it wrote a-do-ney for a-do-noy both times on the Shema line. The rules were designed on these clips, so these numbers are not a test. Round 1f tries them on fresh words, and Round 1g is the sealed test.
 
+## The ear compares with the card, October 27
+
+The ear already hears the reader's card before each reading. A trial prompt asked it to compare every a, aw or o it wrote with the card's first and second vowels, kamatz and patach, and to tag the syllable 1 or 2. On the 46 design clips, three calls each at minimal reasoning:
+
+| Prompt | Ear alone: plants caught of 22 | Ear alone: false marks | After the meter and referee: caught | False marks | Uncertain |
+| --- | --- | --- | --- | --- | --- |
+| Shipped | 20 | 29 | 22 | 3 | 1 |
+| Compare with the card | 17 | 34 | 22 | 6 | 0 |
+
+In 23 of 204 a and o syllables the tag disagreed with the vowel the ear wrote. Reading the tag as the vowel hid one plant and left 5 false marks. The shipped prompt stays.
+
+## Vowel probe, October 27
+
+Written before any Round 1f clip was recorded.
+
+In three places the referee stops trusting the phoneme model's back score and asks the vowel meter: a word's last open syllable, a vowel before a final l, and an ear o in the middle band. The meter is weak for this reader there, because it reads formants and Levi's a and o sit close together. In one design set, the card vowel nearest to the measured vowel was the one Levi said in 46 of 64 a and o syllables, and in 42 when only the first half of the vowel was measured.
+
+The probe asks the phoneme model a second way. Behind its letters, the model computes a vector for every 20 milliseconds of audio at each of its 24 layers. For each vowel it heard, the probe averages the sixth layer's vectors from the end of the sound before it to the start of the sound after it, at most 120 milliseconds on each side. It does the same for the reader's voice card, takes the card's three a syllables and three o syllables, each measured from the centre of all fifteen card vowels, and answers with whichever is nearer by cosine distance. It works from the reading's audio and the reader's own card only. It never sees the printed text, and the vectors are never written to disk. The clip runner's `--probe` flag turns it on. It is off by default.
+
+### Design evidence
+
+On the 59 to 61 a and o syllables of each design set, the phoneme model's back score was right on 53 to 55 and the probe on 51 to 53. The probe is worse overall, but every one of its errors falls where the back score is confident, and there the referee does not ask it.
+
+In the three places where the referee does ask, the design clips hold nine syllables: the bo of bo-ruch and of bo-nim, the planted ga of ga-doyl, the vo of mitz-vo, the o of o-meyn, the ma of she-ma, the ro of toy-ro, the mol of go-mol and the chal of no-chal. The probe placed all nine right. Its answer depends only on the audio and the card, so the 69 times the saved sets sent it one of these syllables are nine decisions, not 69.
+
+Over nine saved sets of the design clips, 414 readings: the four Round 1d sets and five from the vote test, two of them at medium reasoning.
+
+| Referee | Plants caught of 198 | Hidden | False marks | Uncertain |
+| --- | --- | --- | --- | --- |
+| The rules above | 198 | 0 | 30 | 12 |
+| The same rules, probe first | 198 | 0 | 30 | 3 |
+
+The probe removes the nine uncertain toy-ro marks, one per set, and hears its o. The 3 left are the ear's own `?` on one clip. The repo's code, run against the phoneme service, gives these answers row for row, with and without the probe.
+
+This rests on nine syllables, and the setting was chosen on them. Of nine layer and window settings tried, only this one added no false mark: the sixth layer with narrower windows left 47, and layers 9 to 24 left 39 to 65. The design clips cannot settle it.
+
+### The rule for Round 1g, fixed now
+
+Before any round runs, a card check reads Voice check 2: the meter's a and o, the referee's calibration, and the probe's own test on the card, placing each of its six a and o syllables against a card built without it. If the referee is off on Voice check 2, or its line is above 0.55, the card is read again.
+
+Round 1f runs three times with `--probe`. Each run's answers are then replayed through the same referee with the probe off, on the same phoneme answers. The probe joins the Round 1g rules only if, over the three runs, it catches as many planted mistakes, marks no more correct readings wrong, and leaves no more syllables uncertain than the rules without it. Otherwise Round 1g runs without it. The decision is written here before any Round 1g clip is run.
+
+### What could go wrong, written down before the runs
+
+- With the probe on, those three places almost always get an a or an o, so a syllable the meter would have left uncertain is decided, right or wrong.
+- In ba-al, in Round 1g, and its twin na-al, in Round 1f, the two vowels run together across a weak ayin, so the meter may find one sound island where there are two syllables. Then it measures nothing in that clip. The word stays in the test.
+- The planted dol in Round 1g, and tol in Round 1f: if the ear writes dal and neither the probe nor the meter turns it to o, the plant is hidden, because an ear a before a final l never becomes `?`.
+- The tzere of cha-vey-ro may come back e, as the tzere of yis-ro-eyl did. That stays a false mark, and no tzere rule is built for it.
+
 ## Voice check 2
 
 Read this card first, in the sitting for Rounds 1f and 1g. Those two rounds use it in place of the first card, so the card and the words come from the same sitting.
