@@ -133,6 +133,21 @@ const expectedRound1g = [
   ['dom_patach-for-kamatz', 'dam'],
   ['suko_clean', 'su-ko'],
 ];
+const expectedRound1h = [
+  ['mazol_clean', 'ma-zol'],
+  ['migdol_patach-for-kamatz', 'mig-dal'],
+  ['botzol_patach-for-kamatz', 'bo-tzal'],
+  ['shuro_clean', 'shu-ro'],
+  ['simcho_clean', 'sim-cho'],
+  ['gam_kamatz-for-patach', 'gom'],
+  ['sulom_clean', 'su-lom'],
+  ['paam_clean', 'pa-am'],
+  ['bono_patach-for-kamatz', 'ba-no'],
+  ['kad_clean', 'kad'],
+  ['galgal_clean', 'gal-gal'],
+  ['naaro_clean', 'na-a-ro'],
+  ['matono_clean', 'ma-to-no'],
+];
 const wav = Buffer.from(encodeWav(new Float32Array([0, .25, -.25, 0])));
 
 function earAnswer(words, answers = [words]) {
@@ -250,17 +265,19 @@ test('loadClips returns both voice checks and all rounds with their sections in 
     ['voice-check-2', 'voice', 'Voice check 2'],
     ...expectedRound1f.map(([name]) => [name, 'reading', 'Round 1f']),
     ...expectedRound1g.map(([name]) => [name, 'reading', 'Round 1g']),
+    ...expectedRound1h.map(([name]) => [name, 'reading', 'Round 1h']),
+    ['voice-check-3', 'voice', 'Voice check 3'],
     ...expectedClips.map(([name]) => [name, 'reading', 'Round 1']),
   ]);
   assert.deepEqual(clips.filter(clip => clip.kind !== 'voice').map(({ name, say }) => [name, say]),
     [...expectedNewClips, ...expectedSealedClips, ...expectedCardTests, ...expectedRound1d, ...expectedRound1e,
-      ...expectedRound1f, ...expectedRound1g, ...expectedClips]);
+      ...expectedRound1f, ...expectedRound1g, ...expectedRound1h, ...expectedClips]);
   assert.deepEqual(clips.find(clip => clip.name === 'voice-check-2'), {
     ...clips[0], name: 'voice-check-2', section: 'Voice check 2',
   });
   for (const clip of clips) {
     if (clip.kind === 'voice') assert.equal(Object.hasOwn(clip, 'card'), false);
-    else assert.equal(clip.card, ['Round 1f', 'Round 1g'].includes(clip.section) ? 'voice-check-2' : 'voice-check');
+    else assert.equal(clip.card, ['Round 1f', 'Round 1g', 'Round 1h'].includes(clip.section) ? 'voice-check-2' : 'voice-check');
   }
   const markdown = await readFile(new URL('../../docs/ear-test.md', import.meta.url), 'utf8');
   assert.deepEqual(parseClips(markdown, 'Round 1c').map(({ name, say }) => [name, say]), expectedSealedClips);
@@ -304,13 +321,13 @@ test('parser selects the voice check section, escapes heading names and names er
 test('name validation accepts only exact table names in the selected set', async () => {
   const adult = await loadClips();
   const child = await loadClips('child');
-  assert.equal(adult.length, 101);
+  assert.equal(adult.length, 115);
   assert.equal(adult[0].name, 'voice-check');
   assert.equal(adult[0].kind, 'voice');
-  assert.deepEqual(adult.filter(clip => clip.kind === 'voice').map(clip => clip.name), ['voice-check', 'voice-check-2']);
+  assert.deepEqual(adult.filter(clip => clip.kind === 'voice').map(clip => clip.name), ['voice-check', 'voice-check-2', 'voice-check-3']);
   assert.ok(adult.filter(clip => clip.kind !== 'voice').every((clip) =>
     clip.kind === (expectedCardTests.some(([name]) => name === clip.name) ? 'card' : 'reading')));
-  assert.equal(new Set(adult.map((clip) => clip.name)).size, 101);
+  assert.equal(new Set(adult.map((clip) => clip.name)).size, 115);
   assert.deepEqual(child, adult.map((clip) => ({ ...clip, name: `child_${clip.name}`,
     ...(clip.card ? { card: `child_${clip.card}` } : {}),
   })));
@@ -351,7 +368,7 @@ test('server writes a posted WAV, lists completion, and reads it back from the s
   const server = await createRecorderServer({ directory });
   let list = await request(server, '/clips');
   assert.equal(list.json.set, 'adult');
-  assert.equal(list.json.clips.length, 101);
+  assert.equal(list.json.clips.length, 115);
   assert.ok(list.json.clips.every((clip) => !clip.done));
   const response = await post(server, 'baruch_clean');
   assert.equal(response.status, 200);
@@ -373,12 +390,13 @@ test('server lists, saves and plays both adult and child voice checks like other
   const directory = await fixtureDirectory(t);
   for (const set of ['adult', 'child']) {
     const server = await createRecorderServer({ set, directory });
-    const names = ['voice-check', 'voice-check-2'].map(name => `${set === 'child' ? 'child_' : ''}${name}`);
+    const names = ['voice-check', 'voice-check-2', 'voice-check-3'].map(name => `${set === 'child' ? 'child_' : ''}${name}`);
     const list = await request(server, '/clips');
-    assert.equal(list.json.clips.length, 101);
+    assert.equal(list.json.clips.length, 115);
     const cards = list.json.clips.filter(clip => clip.kind === 'voice');
     assert.deepEqual(cards.map(clip => clip.name), names);
-    assert.ok(cards.every(clip => clip.hebrew === VOICE_CARD.join(' ') && clip.say.split(' ').length === 15));
+    assert.ok(cards.slice(0, 2).every(clip => clip.hebrew === VOICE_CARD.join(' ') && clip.say.split(' ').length === 15));
+    assert.ok(cards[2].hebrew.startsWith(`${VOICE_CARD.join(' ')} `) && cards[2].say.split(' ').length === 21);
     for (const name of names) {
       assert.equal((await post(server, name)).status, 200);
       assert.deepEqual((await request(server, `/clip?name=${name}`)).body, wav);
@@ -387,8 +405,8 @@ test('server lists, saves and plays both adult and child voice checks like other
   }
   const server = await createRecorderServer({ directory });
   assert.deepEqual((await request(server, '/clips?set=child', { method: 'DELETE' })).json.deleted.sort(),
-    ['child_voice-check-2.wav', 'child_voice-check.wav']);
-  assert.deepEqual((await readdir(directory)).sort(), ['voice-check-2.wav', 'voice-check.wav']);
+    ['child_voice-check-2.wav', 'child_voice-check-3.wav', 'child_voice-check.wav']);
+  assert.deepEqual((await readdir(directory)).sort(), ['voice-check-2.wav', 'voice-check-3.wav', 'voice-check.wav']);
 });
 
 test('server rejects traversal, unknown names, wrong sets, wrong MIME, and cross-origin writes', async (t) => {

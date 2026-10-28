@@ -49,6 +49,8 @@ export async function loadClips(set = 'adult') {
     ['Voice check 2', 'voice'],
     ['Round 1f', 'reading', 'voice-check-2'],
     ['Round 1g', 'reading', 'voice-check-2'],
+    ['Round 1h', 'reading', 'voice-check-2'],
+    ['Voice check 3', 'voice'],
     ['Round 1', 'reading', 'voice-check'],
   ].flatMap(([section, kind, card]) => parseClips(markdown, section)
     .map((clip) => ({ ...clip, kind, section, ...(card ? { card } : {}) })));

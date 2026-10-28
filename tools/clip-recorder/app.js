@@ -30,9 +30,10 @@ function setLatinText(element, text) {
   }));
 }
 
-// The 15 syllable voice check reads as rows of five, one consonant per row. Shorter cards read as one row.
+// A voice check reads as rows of five, one consonant per row, and Voice check 3's closed syllables as one more
+// row. Shorter cards read as one row.
 const cardRows = (text) => text.split(/\s+/).reduce((rows, syllable, index, all) =>
-  `${rows}${all.length === 15 && index && index % 5 === 0 ? '\n' : index ? ' ' : ''}${syllable}`, '');
+  `${rows}${all.length >= 15 && index && index % 5 === 0 && index <= 15 ? '\n' : index ? ' ' : ''}${syllable}`, '');
 
 function render() {
   byId('child-actions').hidden = set !== 'child';

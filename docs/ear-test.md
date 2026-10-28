@@ -584,6 +584,34 @@ npm run -s ear-score -- --round "Round 1g" --max-uncertain 2 --runs-needed 3 run
 | dom_patach-for-kamatz | דָּם | dam | kamatz read as patach | dam |
 | suko_clean | סֻכָּה | su-ko | nothing | su-ko |
 
+## Round 1h: spare sealed test
+
+Read each clip once, right after Round 1g, in the same sitting. These thirteen words are held back: they run only if Round 1g fails, and then only once new rules are frozen, so a second sealed test needs no new sitting. Nobody reads the ear's or the phoneme model's answers on them before that. Their pass rule is set before their first run. `npm run ear-test -- --round "Round 1h"` grades them against Voice check 2.
+
+| File name | Hebrew | Say | Planted | The ear should write |
+| --- | --- | --- | --- | --- |
+| mazol_clean | מַזָּל | ma-zol | nothing | ma-zol |
+| migdol_patach-for-kamatz | מִגְדָּל | mig-dal | kamatz read as patach | mig-dal |
+| botzol_patach-for-kamatz | בָּצָל | bo-tzal | the second kamatz read as patach | bo-tzal |
+| shuro_clean | שׁוּרָה | shu-ro | nothing | shu-ro |
+| simcho_clean | שִׂמְחָה | sim-cho | nothing | sim-cho |
+| gam_kamatz-for-patach | גַּם | gom | patach read as kamatz | gom |
+| sulom_clean | סֻלָּם | su-lom | nothing | su-lom |
+| paam_clean | פַּעַם | pa-am | nothing | pa-am |
+| bono_patach-for-kamatz | בָּנָה | ba-no | the first kamatz read as patach | ba-no |
+| kad_clean | כַּד | kad | nothing | kad |
+| galgal_clean | גַּלְגַּל | gal-gal | nothing | gal-gal |
+| naaro_clean | נַעֲרָה | na-a-ro | nothing | na-a-ro |
+| matono_clean | מַתָּנָה | ma-to-no | nothing | ma-to-no |
+
+## Voice check 3
+
+Read this card last, in the same sitting. It is Voice check 2 with six closed syllables added, ending in l or m, for later work on this reader's a and o before a final consonant. No rule uses it yet.
+
+| File name | Hebrew | Say | Planted | The ear should write |
+| --- | --- | --- | --- | --- |
+| voice-check-3 | בָּ בַּ בֶּ בִּ בֹּ דָ דַ דֶ דִ דֹ מָ מַ מֶ מִ מֹ בָּל בַּל פָּל פַּל תָּם תַּם | bo ba be bi boy do da de di doy mo ma me mi moy bol bal pol pal tom tam | nothing | not graded |
+
 ## Round 2: a child's voice
 
 The adult round must pass first. Recording a child requires written parent consent. Turn Meta Model API free credits off and use a paid plan before sending children's audio. Meta's free-credit terms allow content to be used for product improvement.
