@@ -78,6 +78,8 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), votes =
     voices.set(voice?.name, voice);
   }
   let failed = false;
+  let readingSent = false;
+  let preserveClips = false;
   const rows = [];
   const outcomes = [];
   const cards = new Map();
@@ -159,6 +161,7 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), votes =
       try {
         // Only the audio reaches the ear, never the Hebrew, Say, or planted mistake.
         const audio = await store.read(clip.name);
+        readingSent = true;
         const answer = await ear({ data: audio, format: 'wav' }, {
           model, votes: earVotes, ...(reference ? { reference } : {}),
         });
@@ -216,8 +219,11 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), votes =
       if (probe) log(`Probe chose ${probeChose} syllables and changed ${probeChanged}.`);
     }
     return { rows, code: failed || !readings.length ? 1 : 0 };
+  } catch (error) {
+    preserveClips = error instanceof SelectionError && !readingSent;
+    throw error;
   } finally {
-    if (set === 'child' && !keep) await store.deleteChildren();
+    if (set === 'child' && !keep && !preserveClips) await store.deleteChildren();
   }
 }
 

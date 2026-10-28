@@ -1424,6 +1424,42 @@ test('--probe stops before the ear when the phoneme service only answers plain c
   assert.equal(reads, 0);
 });
 
+test('a child --probe selection error before the ear preserves the recorded clips', async t => {
+  const directory = await fixtureDirectory(t);
+  const store = recordingStore(await loadClips('child'), directory);
+  const reading = Buffer.from('reading fixture');
+  await store.save('child_voice-check', wav);
+  await store.save('child_kal_clean', reading);
+  let reads = 0;
+  await assert.rejects(runEar({ ...parseOptions(['--set', 'child', '--probe', '--no-meter', '--no-card'], 'ear'), directory,
+    phonemes: async (_audio, options) => options?.probe ? null : phonemeCard(),
+    ear: async () => { reads += 1; return earAnswer([['kal']]); }, log: () => {} }), error => {
+    assert.equal(error.constructor.name, 'SelectionError');
+    assert.match(error.message, /--probe needs a phoneme service that returns probe vectors/);
+    return true;
+  });
+  assert.equal(reads, 0);
+  assert.deepEqual((await store.list()).filter(clip => clip.done).map(clip => clip.name),
+    ['child_voice-check', 'child_kal_clean']);
+  assert.deepEqual(await store.read('child_voice-check'), wav);
+  assert.deepEqual(await store.read('child_kal_clean'), reading);
+});
+
+test('a child --probe run still deletes the clips when the phoneme service supports probes', async t => {
+  const directory = await fixtureDirectory(t);
+  const store = recordingStore(await loadClips('child'), directory);
+  const reading = Buffer.from('reading fixture');
+  await store.save('child_voice-check', wav);
+  await store.save('child_kal_clean', reading);
+  let reads = 0;
+  const result = await runEar({ ...parseOptions(['--set', 'child', '--probe', '--no-meter', '--no-card'], 'ear'), directory,
+    phonemes: async audio => audio.equals(wav) ? probeCard() : [{ ...phonemeVowel(0.37), probe: [-1, 0] }],
+    ear: async () => { reads += 1; return earAnswer([['kal']]); }, log: () => {} });
+  assert.equal(reads, 1);
+  assert.equal(result.code, 0);
+  assert.deepEqual(await readdir(directory), []);
+});
+
 test('--probe keeps the referee off and continues when every phoneme request gets no answer', async t => {
   const directory = await fixtureDirectory(t);
   const store = recordingStore(await loadClips(), directory);
