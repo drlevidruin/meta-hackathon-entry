@@ -207,6 +207,16 @@ export function align(heard, expected, options = {}) {
     lineCache.set(key, spans);
     return spans;
   }
+  // After a repeat, the reader goes on to the skipped word when the next heard
+  // word fits it better than the word that would follow the repeat.
+  function goesOn(start, skipped) {
+    for (let count = 1; count <= 3 && start + count <= heard.length; count += 1) {
+      if (!attempts[skipped]?.[start]?.[count - 1]) continue;
+      if (skipped + 2 >= expected.length) return true;
+      if (match(start, skipped, count).cost < match(start, skipped + 2, count).cost) return true;
+    }
+    return false;
+  }
   const cache = new Map();
   function match(i, j, count) {
     const key = `${i}:${j}:${count}`;
@@ -260,10 +270,7 @@ export function align(heard, expected, options = {}) {
         lineRestarted = true;
         lineContinuesText ||= later.some((attempt, count) => attempt
           && (attempts[j + span.words]?.[span.end]?.[count]
-            || (attempts[j + span.words + 1]?.[span.end]?.[count]
-              && !attempts[j + span.words]?.[span.end + count + 1]?.some(Boolean)
-              && match(span.end, j + span.words + 1, count + 1).cost
-                <= match(span.end, j, count + 1).cost)));
+            || attempts[j + span.words + 1]?.[span.end]?.[count]));
         update(span.end, j, cell, { type: 'restart' }, 0.05 * span.words);
       }
       // A repeated span may follow one skipped printed word.
@@ -273,13 +280,16 @@ export function align(heard, expected, options = {}) {
       // available as separate matches, including repeated printed phrases.
       let continuesText = spans.length > 0;
       for (let count = 1; count <= 3 && i + count < heard.length; count += 1) {
-        const later = attempts[j][i + count];
-        if (attempts[j][i][count - 1] && later.some(Boolean)) {
+        // A try spread over several heard words cannot hold more sounds than the word.
+        const fits = (start, words) => words === 1
+          || heardTokens.slice(start, start + words).reduce((sum, tokens) => sum + tokens.length, 0) <= wordLengths[j];
+        const later = attempts[j][i + count].map((attempt, span) => attempt && fits(i + count, span + 1));
+        if (attempts[j][i][count - 1] && fits(i, count) && later.some(Boolean)) {
           restarted = true;
           continuesText ||= later.some((attempt, span) => attempt
             && (attempts[j + 1]?.[i + count][span]
               || (attempts[j + 2]?.[i + count][span]
-                && !attempts[j + 1]?.[i + count + span + 1]?.some(Boolean)
+                && !goesOn(i + count + span + 1, j + 1)
                 && match(i + count, j + 2, span + 1).cost <= match(i + count, j, span + 1).cost)));
           update(i + count, j, cell, { type: 'restart' }, 0.05);
         }
