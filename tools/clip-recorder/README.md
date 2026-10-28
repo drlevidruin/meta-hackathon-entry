@@ -106,6 +106,16 @@ For each reading it grades the said sounds and each answer with the Ashkenazi pr
 
 `--max-uncertain N --runs-needed K` applies a pass rule to the final answers. A run passes when every clip of each round it scores appears once, with no ear error, every plant caught, no false mark and at most N uncertain marks. The rule passes when K runs pass, and the exit status is 1 when it fails. A row cut short is an error and a missing clip fails the run, so an interrupted run cannot pass. Naming one file twice is an error, so one run cannot count as two.
 
+## Replay a run
+
+```bash
+npm run -s ear-replay -- --probe off run-1.tsv > run-1.off.tsv
+npm run -s ear-replay -- --probe on run-1.tsv > run-1.on.tsv
+```
+
+With the same probe setting as the saved run, the faithfulness check requires every replayed heard answer to match and exits 1 if any differ.
+The off replay shows what the referee would have heard without the probe on the same metered words, so the scorer can check whether the probe catches as many plants with no more false or uncertain marks.
+
 ## Offline checks
 
 ```bash
