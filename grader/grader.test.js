@@ -8,6 +8,13 @@ const wordsHeard = (heard) => heard.trim() ? heard.trim().split(/\s+/u).map((wor
 const grade = (text, preset, heard, options) => gradeLine({ text, preset, heard: wordsHeard(heard) }, options);
 const verdicts = (word) => word.pairs.map((pair) => pair.verdict);
 const extras = (result) => result.verdicts.filter((entry) => entry.verdict === 'extra');
+const formatResult = (result) => result.words.map((word) => {
+  if (word.verdict === 'extra') return `+${word.text}`;
+  return word.pairs.filter((pair) => pair.verdict !== 'ok').map((pair) => {
+    const verdict = pair.verdict.replace('wrong_', 'w').replace('not_decoded', 'nd').replace('skipped', 's');
+    return verdict + (pair.heard ? `:${pair.heard}` : '');
+  }).join(' ') || '-';
+}).join(' | ');
 
 test('sha-vos puts the wrong consonant on bet and consumes vo', () => {
   const result = grade('שַׁבָּת', 'ashkenazi', 'sha-vos');
@@ -233,6 +240,63 @@ test('Shema skips eloheinu and grades the misread second divine name separately'
   assert.equal(result.summary.not_decoded, 0);
   assert.equal(result.summary.extra, 0);
 });
+
+const shema = 'שְׁמַע יִשְׂרָאֵל יְהֹוָה אֱלֹהֵינוּ יְהֹוָה אֶחָד';
+const ein = 'אֵין כֵּאלֹהֵינוּ אֵין כַּאדוֹנֵינוּ';
+const avos = 'אֲבוֹתֵינוּ אֱלֹהֵי אַבְרָהָם אֱלֹהֵי יִצְחָק';
+const adon = 'אֲדוֹן לְבַדּוֹ אֶחָד בְּיָדוֹ';
+const zokef = 'בָּרוּךְ אַתָּה יְהֹוָה אֱלֹהֵינוּ מֶלֶךְ הָעוֹלָם זוֹקֵף כְּפוּפִים';
+const lidey = 'לִידֵי נִסָּיוֹן וְלֹא לִידֵי בִזָּיוֹן';
+const someych = 'סוֹמֵךְ יְהֹוָה לְכָל־הַנֹּפְלִים וְזוֹקֵף לְכָל־הַכְּפוּפִים';
+
+for (const [name, text, heard, ok, pairs, formatted] of [
+  ['Avos repeats elohei and continues', avos,
+    'a-vo-sey-nu e-lo-hey e-lo-hey av-ro-hom e-lo-hey yitz-chok',
+    19, 19, '- | - | - | - | -'],
+  ['Zokef repeats eloheinu with a wrong vowel', zokef,
+    'bo-ruch a-to a-do-noy e-lo-hey-nu e-lo-hey-no me-lech ho-o-lom zo-keyf ke-fu-fim',
+    26, 27, '- | - | - | wvowel:no | - | - | - | -'],
+  ['Adon repeats levado and continues', adon,
+    'a-don le-va-do le-va-do e-chod be-yo-do',
+    12, 12, '- | - | - | -'],
+  ['Lidey rereads two words with a wrong vowel', lidey,
+    'li-dey ni-so-yon li-diy ni-so-yon ve-lo li-dey vi-zo-yon',
+    13, 14, 'wvowel:diy | - | - | - | -'],
+  ['Someych rereads two words with a wrong vowel', someych,
+    'so-meych a-do-noy le-chol ha-no-fe-lim le-chal ha-no-fe-lim ve-zo-keyf le-chol ha-ke-fu-fim',
+    26, 27, '- | - | wvowel:cha | - | - | - | -'],
+  ['Shema skips eloheinu and repeats echad', shema,
+    'she-ma yis-ro-eyl a-do-noy a-do-noy e-chod e-chod',
+    18, 22, '- | - | - | s s s s | - | -'],
+  ['Shema skips eloheinu and retries echad', shema,
+    'she-ma yis-ro-eyl a-do-noy a-do-noy e-cho e-chod',
+    18, 22, '- | - | - | s s s s | - | -'],
+  ['Ein skips keloheinu and repeats ein', ein,
+    'eyn eyn ka-do-ney-nu',
+    8, 12, '- | s s s s | - | -'],
+  ['Lidey skips nisayon and continues', lidey,
+    'li-dey ve-lo li-dey vi-zo-yon',
+    10, 14, '- | s s s s | - | - | -'],
+  ['Zokef skips melech and continues', zokef,
+    'bo-ruch a-to a-do-noy e-lo-hey-nu ho-o-lom zo-keyf ke-fu-fim',
+    24, 27, '- | - | - | - | s s s | - | - | -'],
+  ['Shema skips eloheinu between divine names', shema,
+    'she-ma yis-ro-eyl a-do-noy a-do-noy e-chod',
+    18, 22, '- | - | - | s s s s | - | -'],
+  ['Ein rereads ein with a wrong vowel and repeats keloheinu', ein,
+    'eyn iyn key-loy-hey-nu key-loy-hey-nu eyn ka-do-ney-nu',
+    11, 12, 'wvowel:iy | - | - | -'],
+  ['Ein repeats keloheinu with a wrong vowel and stops', ein,
+    'eyn key-loy-hey-nu key-loy-hey-no',
+    5, 12, '- | wvowel:no | s s | s s s s'],
+]) {
+  test(name, () => {
+    const result = grade(text, 'ashkenazi', heard);
+    assert.equal(formatResult(result), formatted);
+    assert.equal(result.summary.ok, ok);
+    assert.equal(result.summary.pairs, pairs);
+  });
+}
 
 test('an extra heard word stays between its neighboring expected words', () => {
   const result = grade('שְׁמַע יִשְׂרָאֵל', 'ashkenazi', 'she-ma ba yis-ro-eyl');

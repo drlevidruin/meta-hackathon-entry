@@ -516,7 +516,7 @@ Every rule here was designed on one adult reading in Ashkenazi pronunciation. No
 
 ### A grader fix on the Shema line
 
-The replay also turned up a grader bug. When the reader skips אֱלֹהֵינוּ, the second a-do-noy can be read two ways: as a restart of the first יְהֹוָה, or as a separate read of the second. The grader chose the restart, so it marked the first יְהֹוָה skipped and אֱלֹהֵינוּ not decoded, instead of marking אֱלֹהֵינוּ skipped. The Shema plant in every earlier section was scored against those misplaced marks: it counted as caught when the grader's marks matched them. `19a6665` keeps the separate read open when the repeated word follows one skipped word. The counts below use the fixed grader.
+The replay also turned up a grader bug. When the reader skips אֱלֹהֵינוּ, the second a-do-noy can be read two ways: as a restart of the first יְהֹוָה, or as a separate read of the second. The grader chose the restart, so it marked the first יְהֹוָה skipped and אֱלֹהֵינוּ not decoded, instead of marking אֱלֹהֵינוּ skipped. The Shema plant in every earlier section was scored against those misplaced marks: it counted as caught when the grader's marks matched them. `19a6665` keeps the separate read open when the repeated word follows one skipped word. The counts below use the fixed grader. Two later grader fixes, `cf8ee3e` and `ed82cfa`, grade every saved reading the same way, so the counts hold for them too.
 
 ### Replay
 
@@ -571,6 +571,13 @@ This rests on nine syllables, and the setting was chosen on them. Of nine layer 
 Before any round runs, a card check reads Voice check 2: the meter's a and o, the referee's calibration, and the probe's own test on the card, placing each of its six a and o syllables against a card built without it. If the referee is off on Voice check 2, or its line is above 0.55, the card is read again.
 
 Round 1f runs three times with `--probe`. Each run's answers are then replayed through the same referee with the probe off, on the same phoneme answers. The probe joins the Round 1g rules only if, over the three runs, it catches as many planted mistakes, marks no more correct readings wrong, and leaves no more syllables uncertain than the rules without it. Otherwise Round 1g runs without it. The decision is written here before any Round 1g clip is run.
+
+The replay is `npm run ear-replay`, added in `f5881c7` after this rule was written and before Round 1f was recorded. For each run, the replay with the probe on must reproduce the run, and the replay with it off gives the answers without the probe. Both are scored with `npm run ear-score`:
+
+```
+npm run -s ear-replay -- --probe on run-1.tsv > run-1.on.tsv
+npm run -s ear-replay -- --probe off run-1.tsv > run-1.off.tsv
+```
 
 ### What could go wrong, written down before the runs
 
