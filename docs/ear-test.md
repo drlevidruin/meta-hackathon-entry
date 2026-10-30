@@ -889,9 +889,9 @@ In the runs' own records, line 3 shows MISS. That column compares the letters wi
 
 The raw records are in [runs/round-1k](runs/round-1k/).
 
-### Two fixes, measured on Round 1k
+### Fixes measured on Round 1k
 
-Both fixes are text-blind, and both lean on Meta's phoneme model. They are on main at `38a40d2`.
+The fixes are text-blind, and they lean on Meta's phoneme model. The first two are on main at `38a40d2`.
 
 - **The meter works on whole lines.** When the silences do not line up with the syllables, it places each vowel by the phoneme model's vowel timing instead. The model marks a vowel as a 20 ms blip, too short to measure, so the meter measures up to 60 ms either side of it, stopping halfway to the next sound.
 - **The referee lines up more lines.** It leaves out sound that comes a second or more before or after the reading, which the ear leaves out too, and it accepts a line-up that needs up to two more skips, using only the pairings that every best line-up agrees on. On line 6 Levi said a few words about two seconds after the line. The phoneme model kept them, their vowels stopped the line-up, and the referee skipped the line, which hid the planted non.
@@ -906,7 +906,9 @@ Replayed on the same three runs' saved ear answers, with no new calls to the ear
 
 The planted non is now caught in every run. The meter fixed the first בָ of לְבָבֶךָ, but it turned the she of שְׁמַע into shi in every run, and nothing undid it. So the three false marks left in each run are that sheva, the el of יִשְׂרָאֵל, and the soft h of לִהְיוֹת. Round 1f, the other design set with saved runs, replays exactly as it did before the fixes.
 
-Round 1k is a design set, and these fixes were found on it. The numbers show the fixes do what they were built to do; they prove nothing about new readings. That takes a sealed round. The replays are in [runs/round-1k/fixes](runs/round-1k/fixes/).
+A third fix followed at `d5b95e8`: on whole lines the meter now applies only a change from a to o, the confusion it was built for. It still weighs a, o and e, but it no longer turns an e into i or an a into e there. Replayed again, the false marks after the meter are 5, 4 and 7, the final false marks are 2, 2 and 2, and every plant is still caught. The two left in each run are the el of יִשְׂרָאֵל and the soft h of לִהְיוֹת. Both are questions for Levi about what counts as a mistake, not something to tune. Round 1f again replays exactly as before.
+
+Round 1k is a design set, and these fixes were found on it. The numbers show the fixes do what they were built to do; they prove nothing about new readings. That takes a sealed round. The replays are in [runs/round-1k/fixes](runs/round-1k/fixes/) and, after the third fix, [runs/round-1k/fixes-3](runs/round-1k/fixes-3/).
 
 ## Round 2: a child's voice
 
