@@ -113,9 +113,9 @@ main > section { animation: screen-arrive .3s ease-out both; }
 .avatar.small { width: 56px; height: 56px; }
 
 .home-page h1 { margin-bottom: 28px; }
-.children-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
-.child-tile { display: flex; align-items: center; gap: 24px; min-width: 0; min-height: 140px; border-radius: var(--radius); border: 1px solid var(--edge); padding: 20px 24px; font-size: 27px; color: var(--navy); background: var(--card); box-shadow: var(--shadow); }
-.child-tile .avatar { width: 96px; height: 96px; }
+.children-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.child-tile { display: flex; flex-direction: column; align-items: center; justify-content: center; aspect-ratio: 1; gap: 8px; min-width: 0; min-height: 56px; border-radius: var(--radius); border: 1px solid var(--edge); padding: 12px; font-size: clamp(20px, 4vw, 26px); line-height: 1.25; text-align: center; color: var(--navy); background: var(--card); box-shadow: var(--shadow); }
+.child-tile .avatar { width: clamp(64px, 18vw, 112px); height: clamp(64px, 18vw, 112px); }
 .child-tile strong { min-width: 0; overflow-wrap: anywhere; letter-spacing: -.04em; font-weight: 800; }
 .child-home { width: calc(100% - 40px); max-width: 1100px; margin: 28px auto 40px; padding: 32px 24px; display: flex; flex-direction: column; align-items: center; gap: 28px; text-align: center; background: var(--card); border: 1px solid var(--edge); border-radius: var(--radius); box-shadow: var(--shadow); }
 .child-portrait { min-width: 0; }
@@ -219,12 +219,12 @@ input:hover, select:hover { border-color: var(--navy); }
 .group-card h3 { color: var(--navy); }
 .group-avatars { display: flex; flex-wrap: wrap; gap: 6px; }
 .group-avatars .avatar { width: 40px; height: 40px; }
-.child-rows { display: flex; flex-direction: column; gap: 12px; }
-.child-row { border: 1px solid var(--edge); border-radius: var(--radius); padding: 20px; background: var(--card); box-shadow: var(--shadow); display: grid; align-items: center; grid-template-columns: 48px minmax(0, 1fr) auto; gap: 8px 12px; }
-.child-row > .avatar { width: 48px; height: 48px; }
-.child-row strong { color: var(--deep-navy); overflow-wrap: anywhere; }
+.child-rows { display: grid; grid-template-columns: max-content minmax(0, 1fr) max-content; gap: 12px; }
+.child-row { border: 1px solid var(--edge); border-radius: var(--radius); padding: 20px; background: var(--card); box-shadow: var(--shadow); display: grid; align-items: center; grid-column: 1 / -1; grid-template-columns: subgrid; gap: 8px 12px; }
+.child-row > .avatar { width: 48px; height: 48px; grid-row: 1 / 4; }
+.child-row strong { color: var(--deep-navy); white-space: nowrap; }
 .child-row .level-badge { font-size: 11px; padding: 8px 10px; border-radius: 10px; }
-.child-row > span:not(.level-badge) { grid-column: 2 / -1; font-size: 12px; overflow-wrap: anywhere; }
+.child-row > span:not(.level-badge) { grid-column: 2 / -1; font-size: 12px; white-space: nowrap; }
 .child-row .last-turn { color: var(--muted); }
 .child-title { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; min-width: 0; }
 .detail-layout > *, .class-layout > *, .roster-layout > * { min-width: 0; }
@@ -320,9 +320,6 @@ legend { font-weight: 700; font-size: 13px; color: var(--deep-navy); margin-bott
 
 @media (min-width: 640px) {
   .page { padding: 40px 32px 56px; }
-  .children-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
-  .child-tile { flex-direction: column; justify-content: center; min-height: 240px; padding: 28px 16px; text-align: center; font-size: 26px; }
-  .child-tile .avatar { width: 128px; height: 128px; }
   .child-home { width: calc(100% - 64px); padding: 44px; }
   .child-portrait .avatar { width: 192px; height: 192px; }
   .done-content { width: calc(100% - 64px); padding: 48px 36px; }
@@ -333,6 +330,12 @@ legend { font-weight: 700; font-size: 13px; color: var(--deep-navy); margin-bott
   .vowel-picker { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .voice-check { padding-inline: 32px; }
   .voice-card { padding: 20px; gap: 12px; }
+}
+
+@media (min-width: 768px) {
+  .children-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+  .child-tile { aspect-ratio: auto; gap: 24px; min-height: 240px; padding: 28px 16px; font-size: 26px; line-height: 1.6; }
+  .child-tile .avatar { width: 128px; height: 128px; }
 }
 
 @media (max-width: 1023px) {
@@ -380,8 +383,8 @@ legend { font-weight: 700; font-size: 13px; color: var(--deep-navy); margin-bott
   .stat dd { font-size: 32px; gap: 10px; }
   .stat .star { width: 28px; height: 28px; }
   .reading-content { min-height: calc(100svh - 56px); padding: 0 8px; grid-template-rows: auto auto minmax(300px, 1fr) auto; gap: 20px; }
-  .previous-line { font-size: clamp(48px, 4.4vw, 68px); }
-  .current-line { font-size: clamp(88px, 8.5vw, 144px); padding-inline: 28px; }
+  .previous-line { font-size: clamp(52px, 5vw, 72px); }
+  .current-line { font-size: clamp(96px, 10vw, 144px); padding-inline: 28px; }
   .turn-stars { min-height: 44px; gap: 12px; }
   .turn-stars .star { width: 32px; height: 32px; }
   .record-area { min-height: 164px; }
@@ -425,9 +428,9 @@ legend { font-weight: 700; font-size: 13px; color: var(--deep-navy); margin-bott
   .children-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
   .child-tile { min-height: 236px; padding: 28px 12px; }
   .child-tile .avatar { width: 124px; height: 124px; }
-  .child-row { grid-template-columns: 48px minmax(64px, 1fr) auto minmax(0, 1.2fr); }
+  .child-rows { grid-template-columns: max-content minmax(64px, 1fr) max-content max-content max-content; }
+  .child-row > .avatar { grid-row: auto; }
   .child-row > span:not(.level-badge) { grid-column: auto; }
-  .child-row > .last-turn { grid-column: 2 / -1; }
   .roster-row { grid-template-columns: 56px minmax(0, 1fr) auto; }
   .roster-actions { grid-column: auto; }
 }
@@ -435,8 +438,6 @@ legend { font-weight: 700; font-size: 13px; color: var(--deep-navy); margin-bott
 @media (max-width: 370px) {
   .page { padding-inline: 16px; }
   .child-home, .done-content { width: calc(100% - 32px); padding-inline: 20px; }
-  .child-tile { padding: 20px; gap: 20px; font-size: 24px; }
-  .child-tile .avatar { width: 80px; height: 80px; }
   .child-header, .teacher-header { padding-inline: 16px; gap: 8px; flex-wrap: nowrap; }
   .child-header .wordmark, .teacher-header .wordmark { font-size: 13px; gap: 8px; }
   .child-header .brand-mark, .teacher-header .brand-mark { width: 32px; height: 40px; font-size: 30px; }
