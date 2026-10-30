@@ -150,15 +150,16 @@ main > section { animation: screen-arrive .3s ease-out both; }
 .reading-content { display: grid; grid-template-rows: auto auto minmax(220px, 1fr) auto; gap: 16px; width: 100%; min-height: calc(100svh - 230px); padding: 16px 20px 32px; text-align: center; }
 .turn-stars { position: relative; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; min-height: 36px; padding: 4px; }
 .turn-stars .star { width: 28px; height: 28px; }
-.previous-line { min-width: 0; font: 700 clamp(36px, 8vw, 48px)/2.3 var(--font-hebrew); color: var(--deep-navy); padding: .12em .15em; align-self: center; overflow-wrap: anywhere; }
+.previous-line { min-width: 0; font-family: var(--font-hebrew); font-size: clamp(36px, 8vw, 48px); font-weight: 700; line-height: 2.3; color: var(--deep-navy); padding: .12em .15em; align-self: center; overflow-wrap: anywhere; }
 .previous-line.empty { padding: 0; }
 .graded-word { display: inline-block; margin-inline: .18em; position: relative; }
-.pair { position: relative; animation: pair-light .3s ease-out both; }
+.pair { display: inline-block; position: relative; line-height: 1.5; animation: pair-light .3s ease-out both; }
 .pair-ok { color: var(--green); }
 .pair-wrong_letter, .pair-wrong_vowel, .pair-skipped, .word-skipped { text-decoration: underline; text-underline-offset: .4em; text-decoration-thickness: .065em; text-decoration-skip-ink: none; }
 .pair-wrong_letter { color: #c2410c; text-decoration-color: #c2410c; }
 .pair-wrong_vowel { display: inline-block; text-align: start; color: #7c3aed; text-decoration-color: #7c3aed; }
 .pair-letter { position: absolute; inset: 0; color: #1c2350; }
+.pair-heard { position: absolute; top: 100%; left: 50%; transform: translate(-50%, .25em); font-family: var(--font-latin); font-size: .3em; font-weight: 600; line-height: 1; color: inherit; direction: ltr; unicode-bidi: isolate; text-align: center; white-space: nowrap; }
 .pair-skipped, .word-skipped { color: #68736e; text-decoration-color: var(--gold); }
 .pair-uncertain, .pair-not_decoded, .word-not_decoded, .word-extra, .pair-extra { color: var(--deep-navy); }
 .extra-dot { display: inline-block; background: var(--gold); width: .17em; height: .17em; border-radius: 50%; position: absolute; top: .5em; inset-inline-end: -.14em; }
@@ -166,8 +167,10 @@ main > section { animation: screen-arrive .3s ease-out both; }
 .challenge-frame { border-color: var(--gold); }
 .challenge-badge { position: absolute; top: -18px; right: 18px; display: grid; place-items: center; background: var(--card); border: 1px solid var(--edge); border-radius: 50%; padding: 7px; }
 .challenge-badge .star { width: 24px; height: 24px; }
-.current-line { min-width: 0; width: 100%; font: 700 clamp(60px, 16vw, 88px)/2.15 var(--font-hebrew); color: var(--deep-navy); padding: .3em 16px .4em; overflow-wrap: anywhere; }
+.current-line { min-width: 0; width: 100%; max-height: 65svh; overflow: auto; font: 700 clamp(60px, 16vw, 88px)/2.15 var(--font-hebrew); color: var(--deep-navy); padding: .3em 16px .4em; overflow-wrap: anywhere; }
 .current-line > .star { width: 64px; height: 64px; vertical-align: middle; }
+.reading-word { display: inline-block; max-width: 100%; transform-origin: center; transition: transform .18s ease-out; scroll-margin: .3em; }
+.reading-word-current { transform: scale(1.15); }
 .record-area { display: flex; align-items: center; justify-content: center; min-height: 148px; padding-block: 12px; }
 .record-button { width: 112px; height: 112px; flex-shrink: 0; border-radius: 50%; background: var(--green); color: var(--card); border: 0; display: grid; place-items: center; box-shadow: 0 0 0 10px var(--green-tint), var(--green-shadow); }
 .record-button svg { width: 44px; height: 44px; fill: currentColor; }
@@ -392,7 +395,7 @@ legend { font-weight: 700; font-size: 13px; color: var(--deep-navy); margin-bott
   .stat dd { font-size: 32px; gap: 10px; }
   .stat .star { width: 28px; height: 28px; }
   .reading-content { min-height: calc(100svh - 56px); padding: 0 8px; grid-template-rows: auto auto minmax(300px, 1fr) auto; gap: 20px; }
-  .previous-line { font-size: clamp(52px, 5vw, 72px); }
+  .previous-line { font-size: 48px; }
   .current-line { font-size: clamp(96px, 10vw, 144px); padding-inline: 28px; }
   .turn-stars { min-height: 44px; gap: 12px; }
   .turn-stars .star { width: 32px; height: 32px; }
@@ -469,6 +472,7 @@ legend { font-weight: 700; font-size: 13px; color: var(--deep-navy); margin-bott
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
   .floating-letters, .bonus-burst { display: none; }
+  .reading-word-current { transform: none; color: var(--navy); }
 }
 
 @media print {

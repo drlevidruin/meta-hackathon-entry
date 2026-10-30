@@ -1,12 +1,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID, timingSafeEqual } from 'node:crypto';
-import { SKILLS } from '../rulebook/index.js';
+import { expectedSounds, formatReading, SKILLS, splitWords } from '../rulebook/index.js';
 import { cardLabels, voiceCardFor } from '../rulebook/voice-card.js';
 import { itemsForVowels, normalizeVowels, VOWEL_IDS } from '../rulebook/vowels.js';
 import { applyMeter, buildVoiceProfile, syllablePoints, VoiceCheckError } from '../ear/meter.js';
 import { voiceCardToEar } from '../ear/card-gate.js';
-import { applyReferee, cardCalibration, refereeSettings } from '../ear/referee.js';
+import { applyReferee, cardCalibration, nucleus, refereeSettings, vowelClass } from '../ear/referee.js';
 import { createStore, durable } from './store.js';
 import { buildMap, recordPairs, summaryOnly, totalSummary } from './progress.js';
 import { parentLine } from './hints.js';
@@ -436,6 +436,41 @@ export function createApp({
           decisions: [entry], checkpoint: 0, checkpointResponse: null, done: false, finished: false, pending: Promise.resolve(),
         });
         json(res, 200, { turnId, level: next.level, set });
+      } else if (req.method === 'POST' && pathname === '/api/follow') {
+        const turn = turns.get(url.searchParams.get('turn'));
+        if (!turn) throw new RequestError(404, 'Unknown turn');
+        checkTurn(turn);
+        const item = turn.set.find(candidate => candidate.id === url.searchParams.get('item'));
+        if (!item) throw new RequestError(404, 'Unknown item');
+        if (contentType(req) !== 'audio/wav') throw new RequestError(415, 'Use audio/wav');
+        if (turn.following) {
+          req.resume();
+          throw new RequestError(429, 'Already following');
+        }
+        turn.following = true;
+        let data;
+        try {
+          data = await body(req, AUDIO_LIMIT);
+          if (!data.length) throw new RequestError(400, 'Empty audio');
+          let tokens = null;
+          try { tokens = phonemes ? await phonemes(data) : null; } catch { /* Following is optional. */ }
+          checkTurn(turn);
+          let count = Array.isArray(tokens) ? tokens.filter(value => vowelClass(value?.token) !== null).length : 0;
+          let word = null;
+          if (count) {
+            const words = splitWords(item.text);
+            word = words.findIndex(({ word, maqaf }) => {
+              const reading = expectedSounds(word + (maqaf ? '־' : ''), turn.preset);
+              count -= formatReading(reading).split('-').filter(sound => nucleus(sound)).length;
+              return count <= 0;
+            });
+            if (word < 0) word = words.length ? words.length - 1 : null;
+          }
+          json(res, 200, { word });
+        } finally {
+          data = null;
+          turn.following = false;
+        }
       } else if (req.method === 'POST' && url.pathname === '/api/grade') {
         await turnOperation(url.searchParams.get('turn'), async turn => {
           const item = turn.set.find(candidate => candidate.id === url.searchParams.get('item'));

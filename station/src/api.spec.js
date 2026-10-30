@@ -80,3 +80,16 @@ it('uses mock voice functions without fetching', async () => {
   await expect(api.skipVoice('pippa')).resolves.toMatchObject({ id: 'pippa', voiceStatus: 'skipped', voiceCheck: true });
   expect(fetch).not.toHaveBeenCalled();
 });
+
+it('posts only raw WAV and encoded turn and item ids to follow without a PIN', async () => {
+  savePin('2468');
+  const audio = new Blob(['wav'], { type: 'audio/wav' });
+  fetch.mockResolvedValueOnce({ ok: true, json: async () => ({ word: 1 }) });
+  await expect(api.follow({ turnId: 't /1', itemId: 'i?2', audio, text: 'ignored' })).resolves.toEqual({ word: 1 });
+  expect(fetch).toHaveBeenCalledExactlyOnceWith('/api/follow?turn=t%20%2F1&item=i%3F2', expect.objectContaining({
+    method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: audio,
+  }));
+  window.history.replaceState(null, '', '/?mock');
+  await expect(api.follow({ turnId: 't', itemId: 'i', audio })).resolves.toEqual({ word: null });
+  expect(fetch).toHaveBeenCalledOnce();
+});

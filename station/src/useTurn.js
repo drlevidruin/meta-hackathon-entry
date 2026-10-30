@@ -21,6 +21,7 @@ export function useTurn() {
   const [startError, setStartError] = useState(false);
   const current = useRef(turn);
   const startingRef = useRef(false);
+  const uploads = useRef(Promise.resolve());
 
   function store(value) {
     current.current = value;
@@ -69,8 +70,16 @@ export function useTurn() {
     }], lineIndex: snapshot.lineIndex + 1, phase: last ? 'checkpoint' : 'reading' });
     let result, status = 'graded';
     try {
-      const audio = api.isMockMode() ? null : await recordingToWav(blob);
-      result = await api.grade({ turnId: snapshot.turnId, itemId: item.id, audio });
+      if (api.isMockMode()) result = await api.grade({ turnId: snapshot.turnId, itemId: item.id, audio: null });
+      else {
+        // Decode and dispatch in reading order without waiting for a grade.
+        const sent = uploads.current.then(async () => {
+          const audio = await recordingToWav(blob);
+          return { grade: api.grade({ turnId: snapshot.turnId, itemId: item.id, audio }) };
+        });
+        uploads.current = sent.then(() => {}, () => {});
+        result = await (await sent).grade;
+      }
       if (result.itemId !== item.id || !Array.isArray(result.words) || !result.summary) throw new Error('Invalid grade');
     } catch (error) {
       if (unknownTurn(error, snapshot.turnId)) return;
