@@ -185,7 +185,7 @@ it.each([true, false])('waits through hum and ends after speech in continuous mo
   const mic = microphone(), onStop = vi.fn();
   const { result } = renderHook(() => useRecorder(onStop, false, { continuous, lineKey: 'one' }));
   await act(async () => result.current.toggle());
-  act(() => mic.audio(.03, 25000));
+  act(() => mic.audio(.03, 15000));
   expect(onStop).not.toHaveBeenCalled();
   expect(result.current.status).toBe('recording');
   act(() => mic.audio(.1, 1000));
@@ -195,9 +195,19 @@ it.each([true, false])('waits through hum and ends after speech in continuous mo
   expect(onStop).toHaveBeenCalledOnce();
 });
 
-it.each([true, false])('counts the safety limit from speech after hum in continuous mode %s', async continuous => {
+it('stops a single recording 20 seconds after it starts, even in steady hum', async () => {
   const mic = microphone(), onStop = vi.fn();
-  const { result } = renderHook(() => useRecorder(onStop, false, { continuous, lineKey: 'one' }));
+  const { result } = renderHook(() => useRecorder(onStop, false));
+  await act(async () => result.current.toggle());
+  act(() => mic.audio(.03, 19950));
+  expect(onStop).not.toHaveBeenCalled();
+  act(() => mic.audio(.03, 50));
+  expect(onStop).toHaveBeenCalledOnce();
+});
+
+it('counts the line safety limit from speech after hum', async () => {
+  const mic = microphone(), onStop = vi.fn();
+  const { result } = renderHook(() => useRecorder(onStop, false, { continuous: true, lineKey: 'one' }));
   await act(async () => result.current.toggle());
   act(() => mic.audio(.03, 10000));
   act(() => mic.audio(.1, 20000));

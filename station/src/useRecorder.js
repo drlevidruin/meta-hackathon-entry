@@ -190,17 +190,14 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, fin
           session.recorder.start();
           session.meter = setInterval(() => {
             session.analyser.getFloatTimeDomainData(samples);
-            const heardSpeech = silent.heardSpeech;
-            const quiet = silent(rms(samples), performance.now());
-            if (!heardSpeech && silent.heardSpeech) session.timer = setTimeout(stop, MAX_LINE_MS);
-            if (quiet) stop();
+            if (silent(rms(samples), performance.now())) stop();
           }, 50);
         }
       } else if (continuous) {
         resetLine(session, options.current.lineKey);
       }
       setStatus('recording');
-      if (!continuous && mockMode) session.timer = setTimeout(stop, MAX_LINE_MS);
+      if (!continuous) session.timer = setTimeout(stop, MAX_LINE_MS);
     } catch {
       session.discard = true;
       release(session);

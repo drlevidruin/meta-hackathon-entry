@@ -20,7 +20,9 @@ export function createSilenceDetector({ quietMs = QUIET_MS, threshold = SPEECH_T
       : loudness < Math.max(threshold, floor * START_RATIO);
     if (noise) recentNoise.push({ loudness, now });
     if (recentNoise.length) floor = Math.min(...recentNoise.map(sample => sample.loudness));
-    const speaking = silent.heardSpeech ? loudness > floor + (speechLevel - floor) * QUIET_RATIO
+    // A pause under the old fixed level still counts as quiet, so no line waits longer than it used to.
+    const speaking = silent.heardSpeech ? loudness >= threshold
+      && loudness > floor + (speechLevel - floor) * QUIET_RATIO
       : loudness >= Math.max(threshold, floor * START_RATIO);
     if (speaking) {
       silent.heardSpeech = true;

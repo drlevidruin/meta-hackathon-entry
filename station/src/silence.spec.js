@@ -72,3 +72,21 @@ it('keeps a line open through repeated .4 second pauses between words', () => {
   expect(play(.002, 1200)).toBe(false);
   expect(play(.002, 50)).toBe(true);
 });
+
+it('ends a soft line when gain raises the pause to just under the old fixed level', () => {
+  const silent = createSilenceDetector(), play = audio(silent);
+  expect(play(.003, 1000)).toBe(false);
+  expect(play(.03, 1000)).toBe(false);
+  expect(silent.heardSpeech).toBe(true);
+  expect(play(.02, 1200)).toBe(false);
+  expect(play(.02, 50)).toBe(true);
+});
+
+it('starts soft speech read from the first moment at the first pause between words', () => {
+  const silent = createSilenceDetector(), play = audio(silent);
+  play(.03, 400);
+  expect(silent.heardSpeech).toBe(false);
+  play(.003, 200);
+  expect(play(.03, 400)).toBe(false);
+  expect(silent.heardSpeech).toBe(true);
+});
