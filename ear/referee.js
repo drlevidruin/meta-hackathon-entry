@@ -173,7 +173,7 @@ export function alignVowels(syllables, vowels) {
     }
   }
   const best = forward[ears.length][phones.length];
-  if (best.gaps > difference) return null;
+  if (best.gaps > difference + 2) return null;
   const matches = [];
   let i = ears.length, j = phones.length;
   while (i || j) {
@@ -215,12 +215,30 @@ function hasFiniteFormants(point) {
   return Number.isFinite(point?.f1) && Number.isFinite(point?.f2);
 }
 
+// Sound the ear left out, a second or more before or after the reading, is not part of the line.
+function trimEdges(tokens, syllableCount) {
+  const groups = [];
+  for (const token of tokens) {
+    const last = groups.at(-1);
+    if (last && Number.isFinite(token?.start) && token.start - last.at(-1).end < 1) last.push(token);
+    else groups.push([token]);
+  }
+  const vowelsIn = group => group.filter(value => vowelClass(value?.token) !== null).length;
+  let total = groups.reduce((sum, group) => sum + vowelsIn(group), 0);
+  while (groups.length > 1 && total > syllableCount) {
+    const edge = vowelsIn(groups[0]) <= vowelsIn(groups.at(-1)) ? 0 : groups.length - 1;
+    if (total - vowelsIn(groups[edge]) < syllableCount - 1) break;
+    total -= vowelsIn(groups[edge]);
+    groups.splice(edge, 1);
+  }
+  return groups.flat();
+}
+
 export function applyReferee(words, tokens, calibration, options = {}) {
   const result = { words: words.map(word => [...word]), changes: [], status: 'off' };
   if (options.probe) result.probed = 0;
   const { on, line, low } = refereeSettings(calibration);
   if (!on || !Array.isArray(tokens)) return result;
-  const vowels = tokens.filter(value => vowelClass(value?.token) !== null);
   const syllables = [];
   let index = 0;
   result.words.forEach((word, w) => word.forEach((from, s) => {
@@ -228,6 +246,7 @@ export function applyReferee(words, tokens, calibration, options = {}) {
     if (sound) syllables.push({ word: w, syllable: s, from, sound, index });
     index++;
   }));
+  const vowels = trimEdges(tokens, syllables.length).filter(value => vowelClass(value?.token) !== null);
   const equalCounts = syllables.length === vowels.length;
   const matches = equalCounts ? syllables.map((_, i) => [i, i]) : alignVowels(syllables, vowels);
   if (!matches) return { ...result, status: 'count' };
