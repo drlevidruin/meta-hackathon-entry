@@ -614,6 +614,25 @@ Read each clip once, in Ashkenazi pronunciation, right after Voice check 2 and i
 | chom_patach-for-kamatz | חָם | cham | kamatz read as patach | cham |
 | shulchon_clean | שֻׁלְחָן | shul-chon | nothing | shul-chon |
 
+## Round 1f results, October 30
+
+The first take of Voice check 2 failed the card check: its vowels did not line up, so the referee and the probe were off. It was read again at 8:44 AM. On the new take the meter keeps a and o apart, the referee calibrated at a 0.19 and o 0.94 and is on with its line at 0.50, and the probe placed all six of the card's a and o syllables against a card built without each one. It passed the check written above.
+
+Round 1f then ran three times with `--probe` at `309f79e`, from 8:45 to 8:50 AM, and each run was replayed with the probe off on the same answers. The ear answered every clip and the phoneme service never failed, so no run was void. Each faithful replay matched its run on 13 of 13 readings.
+
+| Run | Probe on: plants caught | False marks | Uncertain | Probe off: plants caught | False marks | Uncertain |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | 4 of 4 | 1 | 0 | 4 of 4 | 0 | 1 |
+| 2 | 4 of 4 | 1 | 0 | 4 of 4 | 0 | 1 |
+| 3 | 4 of 4 | 0 | 0 | 4 of 4 | 0 | 0 |
+| All three | 12 of 12 | 2 | 0 | 12 of 12 | 0 | 2 |
+
+The probe changed one reading, the same one in runs 1 and 2: so-ro, read correctly. The ear wrote so-ra both times. Without the probe, the referee doubts that last a and leaves it uncertain, so-?. With it, the probe hears an a too, and the false so-ra stands. This is the first risk written down before the runs: in a word's last open syllable the probe decides what would have been left uncertain, and here it decided wrong.
+
+The decision, written before any Round 1g clip is run: the probe caught as many planted mistakes and left fewer syllables uncertain, but it marked two correct readings wrong where the rules without it marked none. It fails the rule, so Round 1g runs without `--probe`.
+
+Round 1f is a design round and has no pass rule of its own. Scored against Round 1g's rule, all three runs pass without the probe, and one of three passes with it.
+
 ## Round 1g: sealed test
 
 Read each clip once, in the same sitting as Round 1f. Round 1e has been read, so these thirteen words take its place as the sealed test. Nobody reads the ear's or the phoneme model's answers on them until the rules are frozen, and the pass rule is set before the first run. Once they are, `npm run ear-test -- --round "Round 1g"` runs three times, against Voice check 2.
