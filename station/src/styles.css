@@ -155,7 +155,7 @@ main > section { animation: screen-arrive .3s ease-out both; }
 .graded-word { display: inline-block; margin-inline: .18em; position: relative; }
 .pair { position: relative; animation: pair-light .3s ease-out both; }
 .pair-ok { color: var(--green); }
-.pair-wrong_letter, .pair-wrong_vowel, .pair-skipped, .word-skipped { text-decoration: underline; text-underline-offset: .18em; text-decoration-thickness: .065em; text-decoration-skip-ink: none; }
+.pair-wrong_letter, .pair-wrong_vowel, .pair-skipped, .word-skipped { text-decoration: underline; text-underline-offset: .4em; text-decoration-thickness: .065em; text-decoration-skip-ink: none; }
 .pair-wrong_letter { color: #c2410c; text-decoration-color: #c2410c; }
 .pair-wrong_vowel { display: inline-block; text-align: start; color: #7c3aed; text-decoration-color: #7c3aed; }
 .pair-letter { position: absolute; inset: 0; color: #1c2350; }
