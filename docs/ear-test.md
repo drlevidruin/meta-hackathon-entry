@@ -875,7 +875,7 @@ Round 1k is a design set: it shows what still goes wrong on connected reading, a
 What each stage did:
 
 - **Muse Wonder** carries its a against o confusion into connected reading, and more of it: 12 to 19 false marks a run on ten lines, against 5 or 6 on Round 1i's thirteen single words.
-- **The vowel meter** changed nothing on these lines, in any run. On Round 1i's single words it fixed most of the ear's a's. Finding out why is the next step.
+- **The vowel meter** changed nothing on these lines, in any run. It measures each vowel inside a stretch of sound bounded by silence, and it only acts when there is one stretch per syllable. In connected reading the syllables run together: the ten lines gave 8 to 18 stretches for 11 to 21 syllables, so the meter stood aside on every line. On Round 1i's single words the counts matched and it fixed most of the ear's a's.
 - **The phoneme referee**, Meta's wav2vec2 phoneme model, removed three quarters of the false marks, from 13, 12 and 19 to 3, 3 and 5. In run 3 it also raised the plants caught from 3 to 4.
 
 What is still wrong after all three checks:
