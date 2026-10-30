@@ -698,6 +698,27 @@ Read each clip once, right after Round 1g, in the same sitting. These thirteen w
 | naaro_clean | נַעֲרָה | na-a-ro | nothing | na-a-ro |
 | matono_clean | מַתָּנָה | ma-to-no | nothing | ma-to-no |
 
+### The rules for Round 1h, fixed before its first run
+
+Written on October 30, after Round 1g failed and before any Round 1h clip ran. Round 1h runs with Round 1g's rules and one change.
+
+- **The same ear and referee.** Muse Wonder 1.0, asked three times per clip, hears Voice check 2 before each clip, and the vowel meter and the phoneme referee check its answer. The probe stays off, as Round 1f decided.
+- **One grader fix, merged in `df71237`.** A word the ear splits into two heard words is no longer taken for a restart when the two parts together read the whole word. It was found on Round 1g's oy-lom. On the practice bank, with each line's correct reading split inside one word at every syllable boundary, it grades 10,120 of 11,643 split readings exactly right, against 9,101 before, with none worse, and every unsplit line is still right. Every split of every one-word clip in the adult rounds grades as the whole word does, apart from a planted extra syllable the grader already misses. Codex's review asked for one narrowing: a split reading counts only when it runs past the point where a later try begins. It changed none of these numbers.
+- **Nothing else changes.** No rule was tuned on Round 1g's answers. All three checks heard an a at the end of su-ko, and Levi, listening afterwards, heard it too, so no vowel rule changes for it.
+- **The pass rule** is Round 1g's, outage rule included: all three runs must pass. A run passes when all thirteen clips are graded once, the ear answers every one, all four planted mistakes are caught, no correct reading is marked wrong, and at most two syllables are marked uncertain.
+- **The clips.** Before any run, Levi listened to the thirteen clips and judged them good. None was read again. Nobody has read the ear's or the phoneme model's answers on them.
+
+```bash
+npm run -s ear-score -- --round "Round 1h" --max-uncertain 2 --runs-needed 3 run-1.tsv run-2.tsv run-3.tsv
+```
+
+What could go wrong, written down before the runs:
+
+- sim-cho may come back sim-cha, as su-ko did: a word familiar from English, whose final kamatz is often said as an a.
+- Before a final l the meter decides between a and o. mig-dal and bo-tzal are planted a's, hidden if it hears an o; ma-zol and gal-gal are clean words, marked wrong if it hears the other vowel. Round 1g's sho-lal and Round 1f's o-mal were caught in every run.
+- pa-am, like ba-al and na-al, runs two vowels together across a weak ayin, so the meter may measure nothing in it.
+- kad, gal-gal and the first syllables of ma-zol, pa-am and ma-to-no are patachs, where Round 1e's ear wrote o for a said a. Round 1g had one such o, ba-ol in run 3, and the referee fixed it.
+
 ## Voice check 3
 
 Read this card last, in the same sitting. It is Voice check 2 with six closed syllables added, ending in l or m, for later work on this reader's a and o before a final consonant. No rule uses it yet.
