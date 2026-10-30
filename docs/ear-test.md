@@ -733,7 +733,7 @@ Runs 1 and 3 are clean: every planted mistake caught, no correct reading marked 
 
 - **The one false mark.** In run 2 all three of the ear's answers wrote sem-cha for sim-cho. The meter made the end cho, as it did in every run, but the first vowel stayed e, so שִׂ was marked a wrong vowel. Across the nine answers, five heard sim and four heard sem. The meter and the referee check a against o; nothing checks i against e.
 - **What was written down before the runs.** sim-cho's final kamatz came back a in every answer and o in every final reading; the miss was its first vowel instead. mig-dal and bo-tzal were caught in every run, and ma-zol and gal-gal were right in every run. pa-am was right in every run. Every patach came back right.
-- **The grader fix.** The ear wrote gal-gal as two words in every run and ma-zol once. Each was graded as one word, correctly. Before `df71237`, a split like this could be graded as a restart.
+- **The grader fix.** The ear wrote gal-gal as two words in every run, and the grader graded it as one word, correctly. Before `df71237`, a split like this could be graded as a restart.
 
 ## Voice check 3
 
