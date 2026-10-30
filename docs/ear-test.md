@@ -862,6 +862,33 @@ Read each line once at a normal reading pace in Ashkenazi pronunciation, in the 
 | line09_venasati_clean | וְנָתַתִּי מְטַר־אַרְצְכֶם בְּעִתּוֹ יוֹרֶה | ve-no-sa-ti me-tar ar-tze-chem be-i-toy yoy-re | none |
 | line10_levavecha_final-patach-for-kamatz | מְצַוְּךָ הַיּוֹם עַל־לְבָבֶךָ | me-tza-ve-cho ha-yoym al le-vo-ve-cha | לְבָבֶךָ, word-final kamatz read as patach |
 
+## Round 1k results, October 30
+
+Round 1k is a design set: it shows what still goes wrong on connected reading, and it does not count toward a pass. Voice check 5, read in the same sitting, could not be used: the meter heard 16 sounds where 15 were read, which switches the meter and the referee off. These runs grade Round 1k against Voice check 4, from the earlier sitting, instead. They ran three times without `--probe` at `2838c12`, from 1:53 to 1:58 PM. The ear answered every clip and the phoneme service never failed.
+
+| Run | Plants caught | False marks: ear | After the meter | Final | Uncertain |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 4 of 5 | 13 | 13 | 3 | 0 |
+| 2 | 4 of 5 | 12 | 12 | 3 | 0 |
+| 3 | 4 of 5 | 19 | 19 | 5 | 0 |
+
+What each stage did:
+
+- **Muse Wonder** carries its a against o confusion into connected reading, and more of it: 12 to 19 false marks a run on ten lines, against 5 or 6 on Round 1i's thirteen single words.
+- **The vowel meter** changed nothing on these lines, in any run. On Round 1i's single words it fixed most of the ear's a's. Finding out why is the next step.
+- **The phoneme referee**, Meta's wav2vec2 phoneme model, removed three quarters of the false marks, from 13, 12 and 19 to 3, 3 and 5. In run 3 it also raised the plants caught from 3 to 4.
+
+What is still wrong after all three checks:
+
+- **Kamatz heard as patach.** The first בָ of לְבָבֶךָ in every run; the בָ of לְבָנֶיךָ and the final תָּ of שֶׁהֶחֱזַרְתָּ in run 3.
+- **Tzere heard without its y.** The ear wrote el for the eyl of יִשְׂרָאֵל in every run, and nothing corrected it.
+- **A soft h.** The ear wrote li-yoys for לִהְיוֹת in every run, so the grader marked the silent ה as skipped. Whether a quiet h in fast reading counts as a mistake is a rule for Levi to decide, not something to tune.
+- **One hidden plant.** The ear wrote nan for the planted non in וְשִׁנַּנְתָּם in every run. The referee skipped that line because its vowels did not line up with the ear's, so the mistake went unmarked.
+
+In the runs' own records, line 3 shows MISS. That column compares the letters with the Say text, which has a-do-noy where Levi read a-doy-noy; the grader marks nothing on that line.
+
+The raw records are in [runs/round-1k](runs/round-1k/).
+
 ## Round 2: a child's voice
 
 The adult round must pass first. Recording a child requires written parent consent. Turn Meta Model API free credits off and use a paid plan before sending children's audio. Meta's free-credit terms allow content to be used for product improvement.
