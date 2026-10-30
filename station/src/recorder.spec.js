@@ -162,6 +162,7 @@ it('counts the 20-second limit from the first sound, so a quiet start is never c
   const mic = microphone(), onStop = vi.fn();
   const { result } = renderHook(() => useRecorder(onStop, false, { continuous: true, lineKey: 'one' }));
   await act(async () => result.current.toggle());
+  expect(mic.getUserMedia).toHaveBeenCalledWith({ audio: expect.objectContaining({ echoCancellation: false, noiseSuppression: false }) });
   act(() => mic.audio(0, 25000));
   expect(onStop).not.toHaveBeenCalled();
   await mic.line();

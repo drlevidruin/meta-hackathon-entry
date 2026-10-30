@@ -95,7 +95,11 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, fin
     setStatus('requesting');
     try {
       if (!mockMode) {
-        session.stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1 } });
+        // Noise suppression and echo cancellation reshape vowels, so the ear hears the voice
+        // as the sealed rounds recorded it. Automatic gain stays on: it changes loudness only.
+        session.stream = await navigator.mediaDevices.getUserMedia({
+          audio: { channelCount: 1, echoCancellation: false, noiseSuppression: false },
+        });
         if (!mounted.current || session.discard) { release(session); return; }
         if (continuous) session.stream.getTracks().forEach(track => {
           track.onended = () => {
