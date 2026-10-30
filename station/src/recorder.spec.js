@@ -27,6 +27,7 @@ const deferred = () => {
 
 function microphone(sampleRate = 16000) {
   const tracks = [], processors = [], contexts = [];
+  let level = 0;
   const getUserMedia = vi.fn(async () => {
     const track = { stop: vi.fn(), onended: null };
     tracks.push(track);
@@ -39,17 +40,28 @@ function microphone(sampleRate = 16000) {
     close = vi.fn(async () => {});
     constructor() { contexts.push(this); }
     createMediaStreamSource() { return { connect: vi.fn(), disconnect: vi.fn() }; }
+    createAnalyser() {
+      return { fftSize: 2048, disconnect: vi.fn(), getFloatTimeDomainData: samples => samples.fill(level) };
+    }
     createScriptProcessor() {
       const processor = { connect: vi.fn(), disconnect: vi.fn(), onaudioprocess: null };
       processors.push(processor);
       return processor;
     }
   }
+  class Recorder {
+    static isTypeSupported() { return true; }
+    state = 'inactive'; mimeType = 'audio/webm';
+    start() { this.state = 'recording'; }
+    stop() { this.state = 'inactive'; this.ondataavailable({ data: new MemoryBlob(['clip']) }); this.onstop(); }
+  }
   vi.stubGlobal('navigator', { mediaDevices: { getUserMedia } });
   vi.stubGlobal('AudioContext', Context);
+  vi.stubGlobal('MediaRecorder', Recorder);
   vi.stubGlobal('Blob', MemoryBlob);
   function audio(loudness, ms = 50) {
     for (let elapsed = 0; elapsed < ms; elapsed += 50) {
+      level = loudness;
       vi.advanceTimersByTime(50);
       const input = new Float32Array(sampleRate / 20).fill(loudness);
       const output = new Float32Array(sampleRate / 20).fill(1);
@@ -167,6 +179,71 @@ it('counts the 20-second limit from the first sound, so a quiet start is never c
   expect(onStop).not.toHaveBeenCalled();
   await mic.line();
   expect(onStop).toHaveBeenCalledOnce();
+});
+
+it.each([true, false])('waits through hum and ends after speech in continuous mode %s', async continuous => {
+  const mic = microphone(), onStop = vi.fn();
+  const { result } = renderHook(() => useRecorder(onStop, false, { continuous, lineKey: 'one' }));
+  await act(async () => result.current.toggle());
+  act(() => mic.audio(.03, 25000));
+  expect(onStop).not.toHaveBeenCalled();
+  expect(result.current.status).toBe('recording');
+  act(() => mic.audio(.1, 1000));
+  act(() => mic.audio(.03, 1200));
+  expect(onStop).not.toHaveBeenCalled();
+  act(() => mic.audio(.03, 50));
+  expect(onStop).toHaveBeenCalledOnce();
+});
+
+it.each([true, false])('counts the safety limit from speech after hum in continuous mode %s', async continuous => {
+  const mic = microphone(), onStop = vi.fn();
+  const { result } = renderHook(() => useRecorder(onStop, false, { continuous, lineKey: 'one' }));
+  await act(async () => result.current.toggle());
+  act(() => mic.audio(.03, 10000));
+  act(() => mic.audio(.1, 20000));
+  expect(onStop).not.toHaveBeenCalled();
+  act(() => mic.audio(.1, 50));
+  expect(onStop).toHaveBeenCalledOnce();
+});
+
+it('keeps only one second of hum before actual speech in the graded audio', async () => {
+  const mic = microphone(), onStop = vi.fn();
+  const { result } = renderHook(() => useRecorder(onStop, false, { continuous: true, lineKey: 'one' }));
+  await act(async () => result.current.toggle());
+  act(() => mic.audio(.03, 5000));
+  act(() => mic.audio(.1, 200));
+  act(() => mic.audio(.03, 1250));
+  expect(onStop).toHaveBeenCalledOnce();
+  expect(onStop.mock.calls[0][0].size).toBe(44 + 2450 * 16 * 2);
+});
+
+it('preserves the room floor across lines while waiting for the next reader sound', async () => {
+  const mic = microphone(), onStop = vi.fn();
+  const { result, rerender } = renderHook(({ lineKey }) => useRecorder(onStop, false, { continuous: true, lineKey }),
+    { initialProps: { lineKey: 'one' } });
+  await act(async () => result.current.toggle());
+  act(() => { mic.audio(.03, 1000); mic.audio(.1, 200); mic.audio(.03, 1250); });
+  expect(onStop).toHaveBeenCalledOnce();
+  rerender({ lineKey: 'two' });
+  act(() => mic.audio(.03, 25000));
+  expect(onStop).toHaveBeenCalledOnce();
+  act(() => { mic.audio(.1, 200); mic.audio(.03, 1250); });
+  expect(onStop).toHaveBeenCalledTimes(2);
+});
+
+it('resumes the same speech and room levels without counting time spent paused as quiet', async () => {
+  const mic = microphone(), onStop = vi.fn();
+  const { result } = renderHook(() => useRecorder(onStop, false, { continuous: true, lineKey: 'one' }));
+  await act(async () => result.current.toggle());
+  act(() => { mic.audio(.03, 1000); mic.audio(.1, 200); mic.audio(.03, 500); });
+  act(() => result.current.toggle());
+  act(() => vi.advanceTimersByTime(5000));
+  await act(async () => result.current.toggle());
+  act(() => mic.audio(.03, 1200));
+  expect(onStop).not.toHaveBeenCalled();
+  act(() => mic.audio(.03, 50));
+  expect(onStop).toHaveBeenCalledOnce();
+  expect(onStop.mock.calls[0][0].size).toBe(44 + 2950 * 16 * 2);
 });
 
 it('drops partial audio and releases the session when the microphone track ends, then retries the same line', async () => {

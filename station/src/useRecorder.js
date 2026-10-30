@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { createSilenceDetector, rms, SPEECH_THRESHOLD } from './silence.js';
+import { createSilenceDetector, rms } from './silence.js';
 import { encodeWav, resample, SAMPLE_RATE } from './wav.js';
+
+const MAX_LINE_MS = 20000; // Keep the existing safety limit for a line with no quiet ending.
+const LEAD_IN_SECONDS = 1; // Retain a quiet first consonant before the detected speech.
 
 export function useRecorder(onStop, mockMode, { continuous = false, lineKey, finished = false, onFollow } = {}) {
   const [status, setStatus] = useState('ready');
@@ -49,7 +52,6 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, fin
     if (!reading(session)) return;
     const blob = session.mock ? null : clip(session);
     session.chunks = [];
-    session.heardSpeech = false;
     session.lineKey = null;
     clearTimeout(session.timer);
     callback.current(blob);
@@ -59,16 +61,16 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, fin
     clearTimeout(session.timer);
     session.lineKey = key;
     session.chunks = [];
-    session.heardSpeech = false;
-    session.silent = createSilenceDetector();
-    if (session.mock && key != null) session.timer = setTimeout(() => endLine(session), 20000);
+    session.silent ??= createSilenceDetector();
+    session.silent.reset();
+    if (session.mock && key != null) session.timer = setTimeout(() => endLine(session), MAX_LINE_MS);
   }
 
   function pause() {
     const session = capture.current;
     if (!session) return;
     paused.current = reading(session) ? { lineKey: session.lineKey, chunks: session.chunks,
-      heardSpeech: session.heardSpeech, sampleRate: session.context?.sampleRate } : null;
+      silent: session.silent, sampleRate: session.context?.sampleRate } : null;
     session.chunks = [];
     session.discard = true;
     release(session);
@@ -119,10 +121,10 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, fin
           resetLine(session, options.current.lineKey);
           if (paused.current?.lineKey === session.lineKey) {
             session.chunks = paused.current.chunks;
-            session.heardSpeech = paused.current.heardSpeech;
-            if (session.heardSpeech) {
-              session.silent(SPEECH_THRESHOLD, performance.now());
-              session.timer = setTimeout(() => endLine(session), 20000);
+            session.silent = paused.current.silent;
+            session.silent.resume();
+            if (session.silent.heardSpeech) {
+              session.timer = setTimeout(() => endLine(session), MAX_LINE_MS);
             }
           }
           paused.current = null;
@@ -133,26 +135,25 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, fin
             event.outputBuffer.getChannelData(0).fill(0);
             if (!reading(session)) return;
             const samples = event.inputBuffer.getChannelData(0);
-            const loudness = rms(samples);
-            if (!session.heardSpeech && loudness >= SPEECH_THRESHOLD) {
-              session.heardSpeech = true;
-              // The 20-second limit counts from the first sound, so a reader who looks
-              // before reading is never cut off, and steady noise still ends the line.
-              session.timer = setTimeout(() => endLine(session), 20000);
+            const heardSpeech = session.silent.heardSpeech;
+            const silent = session.silent(rms(samples), performance.now());
+            if (!heardSpeech && session.silent.heardSpeech) {
+              // Count from speech so looking at the line or room hum cannot use up the limit.
+              session.timer = setTimeout(() => endLine(session), MAX_LINE_MS);
             }
             session.chunks.push(new Float32Array(samples));
-            if (!session.heardSpeech) {
+            if (!session.silent.heardSpeech) {
               // Keep a second of lead-in so a quiet first consonant reaches
               // grading, while an idle microphone uses bounded memory.
-              if (session.chunks.length > Math.ceil(session.context.sampleRate / samples.length)) session.chunks.shift();
+              if (session.chunks.length > Math.ceil(session.context.sampleRate * LEAD_IN_SECONDS / samples.length)) session.chunks.shift();
               return;
             }
-            if (session.silent(loudness, performance.now())) endLine(session);
+            if (silent) endLine(session);
           };
           session.source.connect(session.processor);
           session.processor.connect(session.context.destination);
           session.follow = setInterval(async () => {
-            if (following.current || !reading(session) || !session.heardSpeech || !options.current.onFollow) return;
+            if (following.current || !reading(session) || !session.silent.heardSpeech || !options.current.onFollow) return;
             following.current = true;
             const key = session.lineKey;
             try {
@@ -189,14 +190,17 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, fin
           session.recorder.start();
           session.meter = setInterval(() => {
             session.analyser.getFloatTimeDomainData(samples);
-            if (silent(rms(samples), performance.now())) stop();
+            const heardSpeech = silent.heardSpeech;
+            const quiet = silent(rms(samples), performance.now());
+            if (!heardSpeech && silent.heardSpeech) session.timer = setTimeout(stop, MAX_LINE_MS);
+            if (quiet) stop();
           }, 50);
         }
       } else if (continuous) {
         resetLine(session, options.current.lineKey);
       }
       setStatus('recording');
-      if (!continuous) session.timer = setTimeout(stop, 20000);
+      if (!continuous && mockMode) session.timer = setTimeout(stop, MAX_LINE_MS);
     } catch {
       session.discard = true;
       release(session);
