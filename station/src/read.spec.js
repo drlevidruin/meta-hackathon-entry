@@ -257,9 +257,9 @@ it.each([[0, '0 stars!'], [1, '1 star!'], [4, '4 stars!'], [10, '10 stars!'], [1
     expect(row.querySelector('.done-star-count')?.textContent).toBe(stars > 10 ? String(stars) : undefined);
     expect(screen.getByRole('heading', { name: heading })).toBeTruthy();
     expect([...celebration.children].map(element => element.tagName.toLowerCase()))
-      .toEqual(['svg', 'div', 'h1', 'p', 'p', 'button']);
+      .toEqual(['svg', 'div', 'h1', 'p', 'button']);
     expect(celebration.querySelector('.turn-message').textContent).toBe('You read so well today!');
-    expect(screen.getByText('Go get the next friend!')).toBeTruthy();
+    expect(screen.queryByText('Go get the next friend!')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Next friend' }));
     expect(onNext).toHaveBeenCalledOnce();
     expect(window.location.hash).toBe('#/');
@@ -277,7 +277,7 @@ it('finishes when the server says done, saves line and bonus stars, and replaces
     fireEvent.click(await screen.findByRole('button', { name: 'Stop recording' }));
   }
   expect(await screen.findByRole('heading', { name: '9 stars!' })).toBeTruthy();
-  expect(screen.getByText('Go get the next friend!')).toBeTruthy();
+  expect(screen.queryByText('Go get the next friend!')).toBeNull();
   expect(screen.getByText(/You nailed the bet with a dot/)).toBeTruthy();
   expect(replace).toHaveBeenLastCalledWith(null, '', '/?mock#/done');
   const saved = JSON.parse(sessionStorage.getItem(TURN_KEY));
