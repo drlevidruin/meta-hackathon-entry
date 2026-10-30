@@ -338,7 +338,8 @@ export function applyMeter(words, data, profile, options = {}) {
       const value = measureVowel(samples, rate, start, end);
       if (!value) continue;
       const vowel = meterDecision(earVowel, { f1: bark(value.f1), f2: bark(value.f2) }, profile, options);
-      if (vowel) {
+      // The decision weighs a, o and e; on whole lines only a change to o is applied.
+      if (vowel && candidates.includes(vowel)) {
         const to = from.slice(0, match.index) + vowel + from.slice(match.index + earVowel.length);
         word[s] = to;
         changes.push({ index, from, to });

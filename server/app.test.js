@@ -530,15 +530,15 @@ for (const [label, syllable, score, expected] of [
       { token: 'm', start: 0.5, end: 0.53, top: [['m', 1]] },
       { token: 'e', start: 0.53, end: 0.73, top: [['e', 1]] }];
     const phonemes = mock.fn(async () => phonemes.mock.callCount() === 0 ? phonemeCard() : tokens);
-    const { app, gradeLine } = setup({ phonemes, listen: async () => ({ words: [[syllable, 'me']] }) });
+    const { app, gradeLine } = setup({ phonemes, listen: async () => ({ words: [[syllable, 'ma']] }) });
     const child = await add(app, { preset: 'ashkenazi' });
     await voice(app, child);
     const turn = await start(app, child.id);
-    const data = wav(join([silence(0.25), tone(vowels[label]), tone(vowels.i), silence(0.25)]));
+    const data = wav(join([silence(0.25), tone(vowels[label]), tone(vowels.o), silence(0.25)]));
     assert.equal((await grade(app, turn.turnId, 'kamatz-0', { data })).status, 200);
     assert.equal(phonemes.mock.callCount(), 2);
     assert.deepEqual(phonemes.mock.calls[1].arguments, [data]);
-    assert.deepEqual(gradeLine.mock.calls[0].arguments[0].heard, [[expected, 'mi']]);
+    assert.deepEqual(gradeLine.mock.calls[0].arguments[0].heard, [[expected, 'mo']]);
   });
 }
 

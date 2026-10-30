@@ -112,15 +112,15 @@ test('a probe replay reproduces the saved runner output and keeps recordings unc
 });
 
 test('runner and replay share timed phonemes for meter corrections and referee points on connected audio', async t => {
-  const audio = wav(joinSamples([silence(0.25), tone(vowels.a), tone(vowels.i), silence(0.25)]));
+  const audio = wav(joinSamples([silence(0.25), tone(vowels.a), tone(vowels.o), silence(0.25)]));
   const tokens = [{ ...phonemeVowel(0.84), start: 0.28, end: 0.48 },
     { token: 'v', start: 0.5, end: 0.53, top: [['v', 1]] },
     { token: 'e', start: 0.53, end: 0.73, top: [['e', 1]] }];
   const run = await savedRun(t, { probe: false,
-    readings: [{ name: 'dovor_clean', audio, words: [['dol', 'ver']], tokens }] });
-  assert.equal(run.rows[0].ear, 'dol-ver');
-  assert.equal(run.rows[0].metered, 'dol-vir');
-  assert.equal(run.rows[0].heard, 'dal-vir');
+    readings: [{ name: 'dovor_clean', audio, words: [['dol', 'var']], tokens }] });
+  assert.equal(run.rows[0].ear, 'dol-var');
+  assert.equal(run.rows[0].metered, 'dol-vor');
+  assert.equal(run.rows[0].heard, 'dal-vor');
   assert.deepEqual(run.phonemeCalls.map(([data]) => data), [run.voice, audio]);
   const result = await replay(run, { probe: false });
   assert.equal(result.code, 0);
