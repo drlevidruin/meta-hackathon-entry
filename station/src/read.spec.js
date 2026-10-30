@@ -312,6 +312,53 @@ it('restores a turn after reload and leaves an interrupted upload plain', async 
   expect(start).not.toHaveBeenCalled();
 });
 
+it('shows every attempt in the turn newest first, including failed and repeated lines', () => {
+  const attempts = [
+    { itemId: items[0].id, text: items[0].text, status: 'graded', grade: grade(items[0]) },
+    { itemId: items[1].id, text: items[1].text, status: 'failed', grade: null },
+    { itemId: items[0].id, text: items[0].text, status: 'pending', grade: null },
+  ];
+  render(React.createElement(ReadScreen, { turn: turn({ attempts, completedSets: 1, setStart: 2 }), onRecord: vi.fn() }));
+  const lines = screen.getAllByLabelText('Previous line');
+  expect(lines.map(line => line.textContent)).toEqual([items[0].text, items[1].text, items[0].text]);
+  expect(lines[0].querySelector('.pair')).toBeNull();
+  expect(lines[1].querySelector('.pair')).toBeNull();
+  expect(lines[2].querySelector('.pair-ok')).toBeTruthy();
+  expect(attempts.map(attempt => attempt.status)).toEqual(['graded', 'failed', 'pending']);
+  expect(document.querySelector('.reading-results').querySelector('h1, h2, h3, p, label')).toBeNull();
+});
+
+it('keeps pending results in place while newer grades arrive and more lines are read', () => {
+  const attempts = items.slice(0, 2).map(item => ({ itemId: item.id, text: item.text, status: 'pending', grade: null }));
+  const view = render(React.createElement(ReadScreen, { turn: turn({ attempts }), onRecord: vi.fn() }));
+  const lines = screen.getAllByLabelText('Previous line');
+  expect(lines.map(line => line.textContent)).toEqual([items[1].text, items[0].text]);
+  const pending = lines[1].innerHTML;
+  const current = document.querySelector('.current-line'), button = screen.getByRole('button', { name: 'Record' });
+  const newerGrade = grade(items[1], 'wrong_letter');
+  newerGrade.words[0].pairs[0].heard = 'va';
+  const newer = { ...attempts[1], status: 'graded', grade: newerGrade };
+  view.rerender(React.createElement(ReadScreen, { turn: turn({ attempts: [attempts[0], newer] }), onRecord: vi.fn() }));
+  expect(screen.getAllByLabelText('Previous line')).toEqual(lines);
+  expect(lines[0].querySelector('.pair-wrong_letter')).toBeTruthy();
+  expect(lines[0].querySelector('.pair-heard').textContent).toBe('Heard va');
+  expect(lines[1].innerHTML).toBe(pending);
+  const marked = lines[0].innerHTML;
+  const latest = { itemId: items[2].id, text: items[2].text, status: 'pending', grade: null };
+  view.rerender(React.createElement(ReadScreen, { turn: turn({ attempts: [attempts[0], newer, latest] }), onRecord: vi.fn() }));
+  const latestLine = screen.getAllByLabelText('Previous line')[0];
+  expect(screen.getAllByLabelText('Previous line')).toEqual([latestLine, ...lines]);
+  expect(latestLine.textContent).toBe(items[2].text);
+  const older = { ...attempts[0], status: 'graded', grade: grade(items[0], 'wrong_vowel') };
+  view.rerender(React.createElement(ReadScreen, { turn: turn({ attempts: [older, newer, latest] }), onRecord: vi.fn() }));
+  expect(screen.getAllByLabelText('Previous line')).toEqual([latestLine, ...lines]);
+  expect(lines[1].querySelector('.pair-wrong_vowel')).toBeTruthy();
+  expect(lines[0].innerHTML).toBe(marked);
+  expect(latestLine.querySelector('.pair')).toBeNull();
+  expect(document.querySelector('.current-line')).toBe(current);
+  expect(screen.getByRole('button', { name: 'Record' })).toBe(button);
+});
+
 it('advances immediately, scores resolved grades in reading order, and sends no client grades to next', async () => {
   let first, second;
   vi.spyOn(api, 'grade').mockReturnValueOnce(new Promise(resolve => { first = resolve; }))

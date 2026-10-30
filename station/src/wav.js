@@ -1,5 +1,17 @@
 export const SAMPLE_RATE = 16000;
 
+export function resample(samples, sourceRate, targetRate = SAMPLE_RATE) {
+  if (sourceRate === targetRate) return samples;
+  const ratio = sourceRate / targetRate;
+  const output = new Float32Array(Math.round(samples.length / ratio));
+  for (let index = 0; index < output.length; index++) {
+    const position = index * ratio;
+    const left = Math.floor(position), right = Math.min(left + 1, samples.length - 1);
+    output[index] = samples[left] + (samples[right] - samples[left]) * (position - left);
+  }
+  return output;
+}
+
 export function encodeWav(samples, sampleRate = SAMPLE_RATE) {
   const buffer = new ArrayBuffer(44 + samples.length * 2);
   const view = new DataView(buffer);

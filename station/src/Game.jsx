@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { follow, isMockMode } from './api.js';
 import { Avatar } from './Avatar.jsx';
 import { Brand, Star } from './ui.jsx';
@@ -6,7 +6,6 @@ import { turnMessage } from './messages.js';
 import { navigate } from './router.js';
 import { useRecorder } from './useRecorder.js';
 import { pairLetter } from './pair.js';
-import { recordingToWav } from './wav.js';
 
 export function Stats({ turn }) {
   return <aside className="stats" aria-label="Your progress">
@@ -66,18 +65,35 @@ export function LevelUp({ level }) {
   </div>;
 }
 
+const MIN_LINE_SCALE = .45;
+
 export function CurrentLine({ item, word, checkpoint }) {
   const active = useRef(null);
+  const frame = useRef(null);
+  const [scale, setScale] = useState(1);
   useEffect(() => {
     active.current?.scrollIntoView?.({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
   }, [item?.id, word]);
+  useEffect(() => {
+    const refit = () => setScale(1);
+    window.addEventListener('resize', refit);
+    return () => window.removeEventListener('resize', refit);
+  }, []);
+  useLayoutEffect(() => setScale(1), [item?.id]);
+  // A long line shrinks until all of it fits on the card, so no word is hidden below the fold.
+  useLayoutEffect(() => {
+    const element = frame.current;
+    if (element && scale > MIN_LINE_SCALE && element.scrollHeight > element.clientHeight + 1) {
+      setScale(Math.max(MIN_LINE_SCALE, scale * .9));
+    }
+  }, [item?.id, scale]);
   let index = 0;
-  return <div className="current-line" dir="rtl" lang="he">{item ?
+  return <div ref={frame} className="current-line" dir="rtl" lang="he"><div className="current-line-text" style={scale < 1 ? { fontSize: `${scale}em` } : undefined}>{item ?
     item.text.split(/([א-ת][\u0591-\u05bd\u05bf-\u05c2\u05c4\u05c5\u05c7א-ת׳״'’]*)/u).map((part, partIndex) => {
       if (!/[א-ת]/u.test(part)) return part;
       const current = index++ === word;
       return <span key={partIndex} ref={current ? active : null} className={`reading-word${current ? ' reading-word-current' : ''}`}>{part}</span>;
-    }) : <Star filled filling={checkpoint} />}</div>;
+    }) : <Star filled filling={checkpoint} />}</div></div>;
 }
 
 export function ReadScreen({ turn, onRecord, onRetryNext }) {
@@ -87,11 +103,13 @@ export function ReadScreen({ turn, onRecord, onRetryNext }) {
   const recorder = useRecorder(onRecord, isMockMode(), { continuous: true, lineKey,
     finished: ['finish_pending', 'finishing', 'finish_error', 'finished'].includes(turn.phase)
       || (turn.phase === 'level_up' && turn.afterLevelUp === 'finish_pending'),
-    onFollow: async (blob, isCurrent) => {
-      const audio = await recordingToWav(blob);
+    onFollow: async (audio, isCurrent) => {
       if (!isCurrent()) return;
       const { word } = await follow({ turnId: turn.turnId, itemId: item.id, audio });
-      if (isCurrent()) setPosition({ lineKey, word: Number.isInteger(word) && word >= 0 ? word : null });
+      if (isCurrent() && Number.isInteger(word) && word >= 0) setPosition(previous => {
+        const current = previous?.lineKey === lineKey ? previous.word : -1;
+        return { lineKey, word: Math.max(current, Math.min(word, current + 1)) };
+      });
     },
   });
   if (recorder.status === 'off') return <section className="microphone-off">
@@ -100,22 +118,24 @@ export function ReadScreen({ turn, onRecord, onRetryNext }) {
   if (turn.phase === 'level_up') return <LevelUp level={turn.level} />;
   const checkpoint = ['checkpoint', 'choosing', 'finishing', 'finish_pending'].includes(turn.phase);
   const retry = ['next_error', 'finish_error'].includes(turn.phase);
-  const previous = turn.attempts.at(-1);
-  const waiting = turn.attempts.slice(0, -1).some(attempt => attempt.status === 'pending');
   return <section className="reading-content" aria-label="Reading">
-    <div className="turn-stars" role="img" aria-label={`${turn.stars} stars this turn`}>
-      {Array.from({ length: Math.max(3, turn.stars) }, (_, index) => <Star key={index} filled={index < turn.stars} />)}
-      {checkpoint && <Star filling />}
-      {!!turn.bonusBurst && <span key={turn.bonusBurst} className="bonus-burst" aria-hidden="true"><Star filled /><Star filled /><Star filled /></span>}
+    <div className="reading-controls">
+      <div className="turn-stars" role="img" aria-label={`${turn.stars} stars this turn`}>
+        {Array.from({ length: Math.max(3, turn.stars) }, (_, index) => <Star key={index} filled={index < turn.stars} />)}
+        {checkpoint && <Star filling />}
+        {!!turn.bonusBurst && <span key={turn.bonusBurst} className="bonus-burst" aria-hidden="true"><Star filled /><Star filled /><Star filled /></span>}
+      </div>
+      <div className={`line-frame ${item?.source?.challenge ? 'challenge-frame' : ''}`} aria-label={item?.source?.challenge ? 'Challenge' : undefined}>
+        {item?.source?.challenge && <span className="challenge-badge" aria-hidden="true"><Star filled /></span>}
+        <CurrentLine item={item} word={position?.lineKey === lineKey ? position.word : null} checkpoint={checkpoint} />
+      </div>
+      <div className="record-area">
+        {retry ? <button className="primary" onClick={onRetryNext}>Try again</button> :
+          <RecordButton recorder={recorder} continuous disabled={!item && recorder.status !== 'recording'} thinking={checkpoint} />}
+      </div>
     </div>
-    <GradedLine attempt={waiting && previous ? { ...previous, grade: null } : previous} />
-    <div className={`line-frame ${item?.source?.challenge ? 'challenge-frame' : ''}`} aria-label={item?.source?.challenge ? 'Challenge' : undefined}>
-      {item?.source?.challenge && <span className="challenge-badge" aria-hidden="true"><Star filled /></span>}
-      <CurrentLine item={item} word={position?.lineKey === lineKey ? position.word : null} checkpoint={checkpoint} />
-    </div>
-    <div className="record-area">
-      {retry ? <button className="primary" onClick={onRetryNext}>Try again</button> :
-        <RecordButton recorder={recorder} continuous disabled={!item && recorder.status !== 'recording'} thinking={checkpoint} />}
+    <div className="reading-results">
+      {turn.attempts.map((attempt, index) => <GradedLine key={index} attempt={attempt} />).reverse()}
     </div>
   </section>;
 }

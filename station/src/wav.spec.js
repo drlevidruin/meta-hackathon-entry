@@ -1,5 +1,30 @@
 import { describe, expect, it, vi } from 'vitest';
-import { encodeWav, recordingToWav } from './wav.js';
+import { encodeWav, recordingToWav, resample } from './wav.js';
+
+describe('resampling captured PCM', () => {
+  it.each([[48000, 48000, 16000], [44100, 44100, 16000], [48000, 24000, 8000], [44100, 22050, 8000]])
+    ('converts %i Hz with %i samples to %i constant samples at 16 kHz', (sampleRate, length, expectedLength) => {
+      const samples = new Float32Array(length).fill(.25);
+      const result = resample(samples, sampleRate);
+      expect(result).toBeInstanceOf(Float32Array);
+      expect(result).toHaveLength(expectedLength);
+      expect(result.every(sample => sample === .25)).toBe(true);
+      expect(samples.every(sample => sample === .25)).toBe(true);
+    });
+
+  it('interpolates fractional sample positions at 44.1 kHz', () => {
+    const result = resample(new Float32Array([0, 1, 2, 3, 4, 5, 6, 7]), 44100);
+    expect(result).toHaveLength(3);
+    expect(result[0]).toBe(0);
+    expect(result[1]).toBeCloseTo(2.75625);
+    expect(result[2]).toBeCloseTo(5.5125);
+  });
+
+  it('preserves 16 kHz samples and accepts an empty capture', () => {
+    expect(Array.from(resample(new Float32Array([-.5, 0, .5]), 16000))).toEqual([-.5, 0, .5]);
+    expect(resample(new Float32Array(), 48000)).toHaveLength(0);
+  });
+});
 
 describe('PCM WAV', () => {
   it('writes RIFF fields and exactly one 16-bit mono sample per input value', () => {

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createSilenceDetector, rms, SPEECH_THRESHOLD } from './silence.js';
-import { encodeWav } from './wav.js';
+import { encodeWav, resample, SAMPLE_RATE } from './wav.js';
 
 export function useRecorder(onStop, mockMode, { continuous = false, lineKey, finished = false, onFollow } = {}) {
   const [status, setStatus] = useState('ready');
@@ -32,11 +32,12 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, fin
     if (capture.current === session) capture.current = null;
   }
 
-  function clip(session) {
+  function clip(session, sampleRate = session.context.sampleRate) {
     const samples = new Float32Array(session.chunks.reduce((size, chunk) => size + chunk.length, 0));
     let offset = 0;
     for (const chunk of session.chunks) { samples.set(chunk, offset); offset += chunk.length; }
-    return new Blob([encodeWav(samples, session.context.sampleRate)], { type: 'audio/wav' });
+    const pcm = sampleRate === session.context.sampleRate ? samples : resample(samples, session.context.sampleRate, sampleRate);
+    return new Blob([encodeWav(pcm, sampleRate)], { type: 'audio/wav' });
   }
 
   function reading(session) {
@@ -151,10 +152,10 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, fin
             following.current = true;
             const key = session.lineKey;
             try {
-              await options.current.onFollow(clip(session), () => mounted.current && reading(session) && session.lineKey === key);
+              await options.current.onFollow(clip(session, SAMPLE_RATE), () => mounted.current && reading(session) && session.lineKey === key);
             } catch { /* Following must never interrupt a reading. */ }
             finally { following.current = false; }
-          }, 700);
+          }, 400);
         } else {
           session.analyser = session.context.createAnalyser();
           session.analyser.fftSize = 2048;
