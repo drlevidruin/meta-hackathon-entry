@@ -6,6 +6,8 @@ const openDiphthong = new RegExp(`^[ao][${vowelSymbols}]+$`);
 const tone = new RegExp(`([${vowelSymbols}])ɜ`, 'g');
 const specialTokens = new Set(['<pad>', '<s>', '</s>', '<unk>']);
 const round = value => Math.round(value * 1000) / 1000;
+const FRONT_MIN_GAP = 0.3;
+const FRONT_MARGIN = 0.1;
 
 function normalizeVowel(token) {
   return token.normalize('NFD').replace(/[1-5ː:.\u0303\u031e]/g, '')
@@ -32,6 +34,31 @@ export function backScore(top) {
   return total > 0 ? back / total : null;
 }
 
+function frontVowelClass(token) {
+  if (typeof token !== 'string' || specialTokens.has(token)) return null;
+  const sound = normalizeVowel(token);
+  if (/^[iɪ]$/.test(sound)) return 'high';
+  if (/^(e|ɛ|eɪ)$/.test(sound)) return 'mid';
+  return null;
+}
+
+// The phoneme model can hear a segol as a, so any front vowel on top is scored.
+function isFront(token) {
+  return typeof token === 'string' && !specialTokens.has(token) && /^(i|ɪ|e|ɛ|eɪ|a|æ)$/.test(normalizeVowel(token));
+}
+
+export function frontScore(top) {
+  if (!Array.isArray(top)) return null;
+  let high = 0;
+  let total = 0;
+  for (const [token, probability] of top) {
+    const kind = frontVowelClass(token);
+    if (kind === 'high') high += probability;
+    if (kind) total += probability;
+  }
+  return total > 0 ? high / total : null;
+}
+
 export function nucleus(syllable) {
   return /oy|ey|ay|a|e|i|o|u/.exec(syllable)?.[0] || '';
 }
@@ -40,13 +67,18 @@ export function cardCalibration(tokens, labels) {
   if (!Array.isArray(tokens) || !Array.isArray(labels)) return null;
   const vowels = tokens.filter(value => vowelClass(value?.token) !== null);
   if (vowels.length !== labels.length) return null;
-  const scores = { a: [], o: [] };
+  const scores = { a: [], o: [], i: [], e: [] };
   for (const [index, value] of vowels.entries()) {
     const label = labels[index];
     const kind = vowelClass(value.token);
-    if ((label !== 'a' && label !== 'o') || (kind !== 'front' && kind !== 'back')) continue;
-    const score = backScore(value.top);
-    if (score !== null) scores[label].push(score);
+    if ((label === 'a' || label === 'o') && (kind === 'front' || kind === 'back')) {
+      const score = backScore(value.top);
+      if (score !== null) scores[label].push(score);
+    }
+    if ((label === 'i' || label === 'e') && isFront(value.token)) {
+      const score = frontScore(value.top);
+      if (score !== null) scores[label].push(score);
+    }
   }
   if (scores.a.length < 2 || scores.o.length < 2) return null;
   const median = values => {
@@ -54,7 +86,15 @@ export function cardCalibration(tokens, labels) {
     const middle = Math.floor(values.length / 2);
     return round(values.length % 2 ? values[middle] : (values[middle - 1] + values[middle]) / 2);
   };
-  return { version: 1, a: median(scores.a), o: median(scores.o), n: { a: scores.a.length, o: scores.o.length } };
+  const calibration = { version: 1, a: median(scores.a), o: median(scores.o),
+    n: { a: scores.a.length, o: scores.o.length } };
+  if (scores.i.length >= 2 && scores.e.length >= 2) {
+    calibration.i = median(scores.i);
+    calibration.e = median(scores.e);
+    calibration.n.i = scores.i.length;
+    calibration.n.e = scores.e.length;
+  }
+  return calibration;
 }
 
 function finiteVector(value, length) {
@@ -113,6 +153,21 @@ export function refereeSettings(calibration) {
     // midpoint, or just above the card's a when the child's a leans back.
     const line = round(Math.max(0.5, calibration.a + 0.05));
     return { on: calibration.o >= line + 0.1, line, low: 0.15 };
+  } catch {
+    return off;
+  }
+}
+
+export function frontRefereeSettings(calibration) {
+  const off = { on: false, line: null };
+  try {
+    if (!calibration || typeof calibration !== 'object' || Array.isArray(calibration) || calibration.version !== 1
+      || ![calibration.i, calibration.e].every(value => Number.isFinite(value) && value >= 0 && value <= 1)
+      || !calibration.n || typeof calibration.n !== 'object' || Array.isArray(calibration.n)
+      || ![calibration.n.i, calibration.n.e].every(value => Number.isSafeInteger(value) && value >= 2)) return off;
+    // Rounded card medians can land just below an inclusive boundary in floating point.
+    return { on: calibration.i >= calibration.e + FRONT_MIN_GAP - Number.EPSILON,
+      line: (calibration.i + calibration.e) / 2 };
   } catch {
     return off;
   }
@@ -219,7 +274,8 @@ export function applyReferee(words, tokens, calibration, options = {}) {
   const result = { words: words.map(word => [...word]), changes: [], status: 'off' };
   if (options.probe) result.probed = 0;
   const { on, line, low } = refereeSettings(calibration);
-  if (!on || !Array.isArray(tokens)) return result;
+  const front = frontRefereeSettings(calibration);
+  if ((!on && !front.on) || !Array.isArray(tokens)) return result;
   const vowels = tokens.filter(value => vowelClass(value?.token) !== null);
   const syllables = [];
   let index = 0;
@@ -235,7 +291,7 @@ export function applyReferee(words, tokens, calibration, options = {}) {
   const meterReady = meterChoice(options.profile?.vowels?.a, options.profile, ['a', 'o']) === 'a';
   for (const [earIndex, tokenIndex] of matches) {
     const { word, syllable, from, sound, index } = syllables[earIndex];
-    if (!['a', 'o', 'e'].includes(sound)) continue;
+    if (!on || !['a', 'o', 'e'].includes(sound)) continue;
     const kind = vowelClass(vowels[tokenIndex].token);
     const score = kind === 'front' || kind === 'back' ? backScore(vowels[tokenIndex].top) : null;
     const finalL = from.slice(from.indexOf(sound) + sound.length).endsWith('l');
@@ -278,6 +334,22 @@ export function applyReferee(words, tokens, calibration, options = {}) {
     if (to === from) continue;
     result.words[word][syllable] = to;
     result.changes.push({ word, syllable, from, to, rule, ...(options.probe && judge ? { judge } : {}) });
+  }
+  if (!front.on) return result;
+  for (const [earIndex, tokenIndex] of matches) {
+    const { word, syllable, from, sound, index } = syllables[earIndex];
+    if (!['e', 'i'].includes(sound) || result.words[word][syllable] !== from) continue;
+    const value = vowels[tokenIndex];
+    const score = isFront(value.token) ? frontScore(value.top) : null;
+    if (score === null) continue;
+    const replacement = sound === 'e' && score >= front.line + FRONT_MARGIN - Number.EPSILON ? 'i'
+      : sound === 'i' && score <= front.line - FRONT_MARGIN + Number.EPSILON ? 'e' : null;
+    if (!replacement) continue;
+    const choice = meterChoice(options.points?.[index], options.profile, ['e', 'i']);
+    if (choice && choice !== replacement) continue;
+    const to = from.replace(sound, replacement);
+    result.words[word][syllable] = to;
+    result.changes.push({ word, syllable, from, to, rule: 'front-high' });
   }
   return result;
 }

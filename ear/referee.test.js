@@ -43,7 +43,7 @@ function cardTokens() {
 
 test('cardCalibration takes medians from the Ashkenazi card and skips consonants', () => {
   assert.deepEqual(cardCalibration([{ token: 'b', top: [['b', 1]] }, ...cardTokens()], cardLabels('ashkenazi')),
-    calibration);
+    { ...calibration, i: 1, e: 0, n: { ...calibration.n, i: 3, e: 3 } });
 });
 
 test('cardCalibration requires aligned vowels and two scores for each class', () => {
@@ -57,7 +57,7 @@ test('cardCalibration skips a labeled vowel heard as ɛ and averages the middle 
   const tokens = cardTokens();
   tokens[1] = { token: 'ɛ', top: [['ɛ', 0.8], ['a', 0.2]] };
   assert.deepEqual(cardCalibration(tokens, cardLabels('ashkenazi')),
-    { version: 1, a: 0.395, o: 0.91, n: { a: 2, o: 3 } });
+    { version: 1, a: 0.395, o: 0.91, i: 1, e: 0, n: { a: 2, o: 3, i: 3, e: 3 } });
 });
 
 const probeLabels = ['a', 'a', 'o', 'o', null];

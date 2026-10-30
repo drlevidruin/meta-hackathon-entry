@@ -3,7 +3,7 @@ import { defaultVotes, listen } from '../../ear/hear.js';
 import { applyMeter, buildVoiceProfile, pairsApart, syllablePoints, VoiceCheckError } from '../../ear/meter.js';
 import { voiceCardToEar } from '../../ear/card-gate.js';
 import { hearPhonemes } from '../../ear/phonemes.js';
-import { applyReferee, cardCalibration, probeCalibration, refereeSettings } from '../../ear/referee.js';
+import { applyReferee, cardCalibration, frontRefereeSettings, probeCalibration, refereeSettings } from '../../ear/referee.js';
 import { cardLabels } from '../../rulebook/voice-card.js';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -14,6 +14,18 @@ import { recordingStore } from './recordings.js';
 class SelectionError extends Error {}
 
 const formatWords = words => words.map(word => word.join('-')).join(' ');
+
+export function formatReferee(calibration) {
+  const settings = refereeSettings(calibration);
+  const front = frontRefereeSettings(calibration);
+  const status = !calibration ? 'off (card vowels did not line up)'
+    : settings.on ? `on (o ${calibration.o.toFixed(2)}, a ${calibration.a.toFixed(2)}, line ${settings.line.toFixed(2)})`
+    : front.on ? 'on (a/o off: card does not keep o and a apart)'
+    : 'off (card does not keep o and a apart)';
+  const frontStatus = front.line === null ? 'off (card i and e unavailable)'
+    : `${front.on ? 'on' : 'off'} (i ${calibration.i.toFixed(2)}, e ${calibration.e.toFixed(2)}, line ${front.line.toFixed(2)})`;
+  return `${status}; i/e ${frontStatus}`;
+}
 
 export function matchesSay(heard, say) {
   if (!Array.isArray(heard) || !heard.every((word) => Array.isArray(word)
@@ -131,17 +143,14 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), votes =
           else {
             calibration = cardCalibration(tokens, cardLabels(preset));
             if (probe) cardProbe = probeCalibration(tokens, cardLabels(preset));
-            const settings = refereeSettings(calibration);
-            refereeStatus = !calibration ? 'off (card vowels did not line up)'
-              : !settings.on ? 'off (card does not keep o and a apart)'
-              : `on (o ${calibration.o.toFixed(2)}, a ${calibration.a.toFixed(2)}, line ${settings.line.toFixed(2)})`;
+            refereeStatus = formatReferee(calibration);
           }
         } catch (error) {
           if (error instanceof SelectionError) throw error;
           refereeStatus = 'off (no answer from the phoneme service)';
         }
       }
-      const refereeOn = refereeSettings(calibration).on;
+      const refereeOn = refereeSettings(calibration).on || frontRefereeSettings(calibration).on;
       const probeStatus = !probe ? 'off (--probe not set)' : !refereeOn ? 'off (referee off)'
         : !cardProbe ? 'off (card vowels did not line up)' : `on (a ${cardProbe.n.a}, o ${cardProbe.n.o})`;
       cards.set(name, { profile, reference, calibration, refereeOn, probe: cardProbe });

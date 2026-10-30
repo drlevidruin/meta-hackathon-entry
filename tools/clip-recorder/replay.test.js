@@ -9,7 +9,7 @@ import { cardLabels } from '../../rulebook/voice-card.js';
 import { loadClips } from './clips.js';
 import { recordingStore } from './recordings.js';
 import { parseOptions, replayRun } from './replay.js';
-import { runEar } from './run-ear.js';
+import { formatReferee, runEar } from './run-ear.js';
 import { scoreRun } from './score.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -21,10 +21,11 @@ function phonemeVowel(score, probe) {
     top: [['ɑ', score], ['a', 1 - score]], probe };
 }
 
-function phonemeCard() {
+function phonemeCard(a = 0.43, o = 0.91, i = 1, e = 0) {
   return cardLabels('ashkenazi').map(label => label === 'a' || label === 'o'
-    ? phonemeVowel(label === 'a' ? 0.43 : 0.91, [label === 'a' ? -1 : 1, 0])
-    : { token: label || 'oɪ', start: 0, end: 0.02, top: [[label || 'oɪ', 1]], probe: [0, 0] });
+    ? phonemeVowel(label === 'a' ? a : o, [label === 'a' ? -1 : 1, 0])
+    : { token: label || 'oɪ', start: 0, end: 0.02, top: label === 'i' || label === 'e'
+      ? [['i', label === 'i' ? i : e], ['e', 1 - (label === 'i' ? i : e)]] : [[label || 'oɪ', 1]], probe: [0, 0] });
 }
 
 const readingFixtures = [
@@ -36,7 +37,7 @@ const readingFixtures = [
     tokens: [phonemeVowel(0.43, [-1, 0]), phonemeVowel(0.91, [1, 0])] },
 ];
 
-async function savedRun(t, { probe = true, meter = true, readings = readingFixtures } = {}) {
+async function savedRun(t, { probe = true, meter = true, readings = readingFixtures, cardTokens = phonemeCard() } = {}) {
   const directory = await realpath(await mkdtemp(join(here, '.replay-test-')));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const store = recordingStore(await loadClips('adult'), directory);
@@ -46,7 +47,7 @@ async function savedRun(t, { probe = true, meter = true, readings = readingFixtu
   for (const fixture of fixtures) await store.save(fixture.name, fixture.audio);
   const phonemes = async (audio, options) => {
     assert.ok(Buffer.isBuffer(audio));
-    const tokens = audio.equals(voice) ? phonemeCard() : fixtures.find(fixture => fixture.audio.equals(audio))?.tokens;
+    const tokens = audio.equals(voice) ? cardTokens : fixtures.find(fixture => fixture.audio.equals(audio))?.tokens;
     assert.ok(tokens, 'only recorded audio reaches the phoneme service');
     return options?.probe ? tokens : tokens.map(({ probe, ...token }) => token);
   };
@@ -76,6 +77,39 @@ function changeRow(text, name, column, value) {
   }).join('\n');
 }
 
+test('referee reporting keeps the a and o numbers for an older calibration without front scores', () => {
+  assert.equal(formatReferee({ version: 1, a: 0.43, o: 0.91, n: { a: 3, o: 3 } }),
+    'on (o 0.91, a 0.43, line 0.50); i/e off (card i and e unavailable)');
+});
+
+for (const [mode, cardTokens, status, heard] of [
+  ['on', phonemeCard(0.43, 0.91, 0.9, 0.1),
+    'on (o 0.91, a 0.43, line 0.50); i/e on (i 0.90, e 0.10, line 0.50)', 'di-re'],
+  ['too close', phonemeCard(0.43, 0.91, 0.55, 0.45),
+    'on (o 0.91, a 0.43, line 0.50); i/e off (i 0.55, e 0.45, line 0.50)', 'de-ri'],
+  ['unavailable', phonemeCard().map(value => value.token === 'i' ? { ...value, top: [] } : value),
+    'on (o 0.91, a 0.43, line 0.50); i/e off (card i and e unavailable)', 'de-ri'],
+  ['on with a and o off', phonemeCard(0.55, 0.6, 0.9, 0.1),
+    'on (a/o off: card does not keep o and a apart); i/e on (i 0.90, e 0.10, line 0.50)', 'di-re'],
+]) {
+  test(`the runner and replay report i/e ${mode} and apply the same front-high changes`, async t => {
+    const run = await savedRun(t, { probe: false, meter: false, cardTokens, readings: [
+      { name: 'diro_clean', sounds: ['i', 'e'], words: [['de', 'ri']], tokens: [
+        { token: 'i', top: [['i', 0.9], ['e', 0.1]] },
+        { token: 'e', top: [['i', 0.1], ['e', 0.9]] },
+      ] },
+    ] });
+    assert.ok(run.text.split('\n').includes(`Phoneme referee: ${status}`));
+    assert.equal(run.rows[0].heard, heard);
+    assert.equal(run.rows[0].metered, 'de-ri');
+    assert.equal(run.rows[0].ear, 'de-ri');
+    const result = await replay(run, { probe: false });
+    assert.equal(result.code, 0);
+    assert.deepEqual(result.rows, run.rows);
+    assert.ok(result.output.includes(`Phoneme referee: ${status}`));
+  });
+}
+
 test('a probe replay reproduces the saved runner output and keeps recordings unchanged', async t => {
   const run = await savedRun(t);
   const before = await readdir(run.directory);
@@ -91,7 +125,7 @@ test('a probe replay reproduces the saved runner output and keeps recordings unc
     'Voice card: voice-check-2',
     'Vowel meter: on (ashkenazi voice check)',
     'Voice card to the ear: on',
-    'Phoneme referee: on (o 0.91, a 0.43, line 0.50)',
+    'Phoneme referee: on (o 0.91, a 0.43, line 0.50); i/e on (i 1.00, e 0.00, line 0.50)',
     'Card probe: on (a 3, o 3)',
     header,
   ]);
@@ -276,7 +310,7 @@ for (const mode of ['misaligned', 'merged']) {
   test(`replay stops when the rebuilt referee card is ${mode}`, async t => {
     const run = await savedRun(t);
     await assert.rejects(replay(run, { phonemes: async () => mode === 'misaligned' ? phonemeCard().slice(1)
-      : phonemeCard().map(value => value.token === 'ɑ' ? phonemeVowel(0.45, value.probe) : value) }),
+      : phonemeCard(0.43, 0.91, 0.5, 0.5).map(value => value.token === 'ɑ' ? phonemeVowel(0.45, value.probe) : value) }),
     /Cannot replay with the phoneme referee off:/u);
   });
 }

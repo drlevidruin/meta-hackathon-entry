@@ -62,7 +62,9 @@ npm run ear-test -- --model fallback
 npm run ear-test -- --model primary
 ```
 
-After `Voice card to the ear:`, the runner prints `Phoneme referee:` and its status. The referee calibrates once from the recorded voice check using the local [phoneme service](../../phonemes/README.md). It is on only when the card's o and a stay apart in that model. An on line looks like `Phoneme referee: on (o 0.91, a 0.43, line 0.50)`. An off line explains whether the service gave no answer (not running, or slower than the time limit), the card is missing, its vowels did not line up, or its o and a did not stay apart. A phoneme failure leaves the metered answer.
+After `Voice card to the ear:`, the runner prints `Phoneme referee:` and its status. The referee calibrates once from the recorded voice check using the local [phoneme service](../../phonemes/README.md). Its a/o and i/e checks turn on separately when the card keeps those vowels apart in that model. An on line looks like `Phoneme referee: on (o 0.91, a 0.43, line 0.50); i/e on (i 0.90, e 0.10, line 0.50)`. An off line explains whether the service gave no answer (not running, or slower than the time limit), the card is missing, its vowels did not line up, or its vowels did not stay apart. A phoneme failure leaves the metered answer.
+
+The i/e check needs at least two usable card syllables of each vowel and an i score at least 0.30 above the e score. Its line is their midpoint. It changes e to i at least 0.10 above the line and i to e at least 0.10 below it, unless the vowel meter chooses the other vowel. It leaves ey alone. Older calibrations without i/e scores keep the a/o check and report `i/e off (card i and e unavailable)`.
 
 The runner tries a recording the phoneme service missed once more and prints which readings the referee checked.
 
@@ -115,6 +117,7 @@ npm run -s ear-replay -- --probe on run-1.tsv > run-1.on.tsv
 
 With the same probe setting as the saved run, the faithfulness check requires every replayed heard answer to match and exits 1 if any differ.
 The off replay shows what the referee would have heard without the probe on the same metered words, so the scorer can check whether the probe catches as many plants with no more false or uncertain marks.
+Both replays rebuild and report the i/e settings from the recorded card. Replaying a run made before the i/e check can change heard answers even with the same probe setting.
 
 ## Offline checks
 

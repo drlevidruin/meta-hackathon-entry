@@ -3,11 +3,11 @@ import { basename, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { buildVoiceProfile, syllablePoints } from '../../ear/meter.js';
 import { hearPhonemes } from '../../ear/phonemes.js';
-import { applyReferee, cardCalibration, probeCalibration, refereeSettings } from '../../ear/referee.js';
+import { applyReferee, cardCalibration, frontRefereeSettings, probeCalibration, refereeSettings } from '../../ear/referee.js';
 import { cardLabels } from '../../rulebook/voice-card.js';
 import { loadClips } from './clips.js';
 import { recordingStore } from './recordings.js';
-import { matchesSay } from './run-ear.js';
+import { formatReferee, matchesSay } from './run-ear.js';
 
 const usage = 'Usage: npm run -s ear-replay -- --probe on|off FILE';
 const columns = ['clip', 'said', 'heard', 'result', 'ear', 'metered', 'votes'];
@@ -132,7 +132,9 @@ export async function replayRun({ text, file = '<input>', probe, directory,
   const calibration = cardCalibration(cardTokens, labels);
   const settings = refereeSettings(calibration);
   if (!calibration) throw new Error('Cannot replay with the phoneme referee off: card vowels did not line up.');
-  if (!settings.on) throw new Error('Cannot replay with the phoneme referee off: card does not keep o and a apart.');
+  if (!settings.on && !frontRefereeSettings(calibration).on) {
+    throw new Error('Cannot replay with the phoneme referee off: card does not keep o and a apart.');
+  }
   const cardProbe = probe ? probeCalibration(cardTokens, labels) : undefined;
   if (probe && !cardProbe) throw new Error('Could not calibrate the card probe: card vowels did not line up.');
 
@@ -140,7 +142,7 @@ export async function replayRun({ text, file = '<input>', probe, directory,
   log(run.voiceLine);
   log(run.meterLine);
   log(run.cardLine);
-  log(`Phoneme referee: on (o ${calibration.o.toFixed(2)}, a ${calibration.a.toFixed(2)}, line ${settings.line.toFixed(2)})`);
+  log(`Phoneme referee: ${formatReferee(calibration)}`);
   log(`Card probe: ${probe ? `on (a ${cardProbe.n.a}, o ${cardProbe.n.o})` : 'off (--probe not set)'}`);
   log(header);
   const rows = [];

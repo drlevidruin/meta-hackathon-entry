@@ -627,12 +627,12 @@ test('each sitting prepares its own card once before any ear call and uses its m
       `Voice card: ${prefix}voice-check`,
       'Vowel meter: on (ashkenazi voice check)',
       'Voice card to the ear: on',
-      'Phoneme referee: on (o 0.91, a 0.43, line 0.50)',
+      'Phoneme referee: on (o 0.91, a 0.43, line 0.50); i/e on (i 1.00, e 0.00, line 0.50)',
       'Card probe: off (--probe not set)',
       `Voice card: ${prefix}voice-check-2`,
       'Vowel meter: on (ashkenazi voice check)',
       'Voice card to the ear: on',
-      'Phoneme referee: on (o 0.95, a 0.65, line 0.70)',
+      'Phoneme referee: on (o 0.95, a 0.65, line 0.70); i/e on (i 1.00, e 0.00, line 0.50)',
       'Card probe: off (--probe not set)',
       'clip\tsaid\theard\tresult\tear\tmetered\tvotes',
     ];
@@ -1382,10 +1382,11 @@ function phonemeVowel(score, token = score >= 0.5 ? 'ɑ' : 'a') {
   return { token, start: 0, end: 0.02, top: [['ɑ', score], ['a', 1 - score]] };
 }
 
-function phonemeCard(a = 0.43, o = 0.91) {
+function phonemeCard(a = 0.43, o = 0.91, i = 1, e = 0) {
   return cardLabels('ashkenazi').map(label => label === 'a' || label === 'o'
     ? phonemeVowel(label === 'a' ? a : o)
-    : { token: label || 'oɪ', start: 0, end: 0.02, top: [[label || 'oɪ', 1]] });
+    : { token: label || 'oɪ', start: 0, end: 0.02, top: label === 'i' || label === 'e'
+      ? [['i', label === 'i' ? i : e], ['e', 1 - (label === 'i' ? i : e)]] : [[label || 'oɪ', 1]] });
 }
 
 function probeCard() {
@@ -1409,7 +1410,7 @@ for (const [mode, expected] of [
     await runEar({ directory, probe: mode !== 'unset', referee: mode !== 'disabled', meter: false, card: false,
       phonemes: async (...args) => {
         calls.push(args);
-        return mode === 'unavailable' ? null : mode === 'merged' ? phonemeCard(0.55, 0.6)
+        return mode === 'unavailable' ? null : mode === 'merged' ? phonemeCard(0.55, 0.6, 0.5, 0.5)
           : mode === 'bad-vectors' ? phonemeCard() : probeCard();
       }, ear: async () => assert.fail('no readings'), log: line => output.push(line) });
     assert.equal(output[6], `Card probe: ${expected}`);
@@ -1641,9 +1642,9 @@ for (const [mode, expected] of [
   ['missing', 'off (no voice check recorded)'],
   ['unavailable', 'off (no answer from the phoneme service)'],
   ['throws', 'off (no answer from the phoneme service)'],
-  ['count', 'off (card vowels did not line up)'],
-  ['merged', 'off (card does not keep o and a apart)'],
-  ['on', 'on (o 0.91, a 0.43, line 0.50)'],
+  ['count', 'off (card vowels did not line up); i/e off (card i and e unavailable)'],
+  ['merged', 'off (card does not keep o and a apart); i/e off (i 0.50, e 0.50, line 0.50)'],
+  ['on', 'on (o 0.91, a 0.43, line 0.50); i/e on (i 1.00, e 0.00, line 0.50)'],
 ]) {
   test(`ear runner reports the ${mode} phoneme referee status after the voice card`, async t => {
     const directory = await fixtureDirectory(t);
@@ -1657,7 +1658,7 @@ for (const [mode, expected] of [
         calls.push(args);
         if (mode === 'throws') throw new Error('private failure');
         return mode === 'unavailable' ? null : mode === 'count' ? []
-          : mode === 'merged' ? phonemeCard(0.55, 0.6) : phonemeCard();
+          : mode === 'merged' ? phonemeCard(0.55, 0.6, 0.5, 0.5) : phonemeCard();
       }, ear: async () => assert.fail('no readings'), log: line => output.push(line) });
     assert.equal(output[4], 'Voice card to the ear: off (--no-card)');
     assert.equal(output[5], `Phoneme referee: ${expected}`);
@@ -1851,7 +1852,7 @@ for (const failure of ['null', 'throws']) {
     assert.equal(result.code, 1);
     assert.deepEqual(calls, [[card], [card]]);
     assert.strictEqual(calls[0][0], calls[1][0]);
-    assert.equal(output[5], 'Phoneme referee: on (o 0.91, a 0.43, line 0.50)');
+    assert.equal(output[5], 'Phoneme referee: on (o 0.91, a 0.43, line 0.50); i/e on (i 1.00, e 0.00, line 0.50)');
     assert.deepEqual(output.slice(8), ['Phoneme referee: checked 0 of 0 readings']);
   });
 }
