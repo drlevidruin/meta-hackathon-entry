@@ -28,6 +28,17 @@ function voiceProfile() {
   return profile;
 }
 
+const phone = (token, start, end) => ({ token, start, end, top: [[token, 1]] });
+
+function connectedReading() {
+  const data = wav(join([silence(0.25), ...['o', 'u', 'i', 'a'].map(label => tone(vowels[label])), silence(0.25)]));
+  const words = [['ba', 'ruch'], ['me', 'ta']];
+  const tokens = [phone('<pad>', 0, 0.25), phone('b', 0.25, 0.28), phone('a', 0.28, 0.48),
+    phone('r', 0.5, 0.53), phone('u', 0.53, 0.73), phone('m', 0.75, 0.78), phone('e', 0.78, 0.98),
+    phone('t', 1, 1.03), phone('ɑ', 1.03, 1.23), phone('<unk>', 1.25, 1.27)];
+  return { data, words, tokens };
+}
+
 test('decodeWav round trips signed PCM samples and Uint8Array views', () => {
   const input = new Float64Array([-1, -0.5, 0, 0.25, 32767 / 32768]);
   const data = wav(input);
@@ -601,6 +612,113 @@ test('applyMeter leaves a voices unchanged and corrects e heard on an i voice', 
   assert.deepEqual(applyMeter([['ba']], wav(utterance(['e'])), voiceProfile()), {
     words: [['be']], changes: [{ index: 0, from: 'ba', to: 'be' }], applied: true,
   });
+});
+
+test('meter placement keeps the island measurements when syllable counts match', () => {
+  const words = [['ba'], ['be']];
+  const data = wav(utterance(['o', 'i']));
+  const metered = applyMeter(words, data, voiceProfile());
+  const points = syllablePoints(words, data);
+  for (const tokens of [null, [], [phone('a', 0.02, 0.04)],
+    [phone('a', 0.02, 0.04), phone('b', 0.04, 0.06), phone('e', 0.06, 0.08)], [null]]) {
+    assert.deepEqual(applyMeter(words, data, voiceProfile(), { tokens }), metered);
+    assert.deepEqual(syllablePoints(words, data, tokens), points);
+  }
+  assert.deepEqual(metered.words, [['bo'], ['bi']]);
+});
+
+test('meter placement uses timed vowel nuclei on connected audio without using their vowel labels', () => {
+  const { data, words, tokens } = connectedReading();
+  words.forEach(Object.freeze);
+  Object.freeze(words);
+  tokens.forEach(Object.freeze);
+  Object.freeze(tokens);
+  const voice = structuredClone(voiceProfile());
+  const before = structuredClone(voice);
+  assert.equal(soundIslands(decodeWav(data).samples, rate).length, 1);
+  const result = applyMeter(words, data, voice, { tokens });
+  assert.deepEqual(result, { words: [['bo', 'ruch'], ['mi', 'ta']],
+    changes: [{ index: 0, from: 'ba', to: 'bo' }, { index: 2, from: 'me', to: 'mi' }], applied: true });
+  assert.deepEqual(words, [['ba', 'ruch'], ['me', 'ta']]);
+  assert.notEqual(result.words, words);
+  assert.notEqual(result.words[0], words[0]);
+  assert.deepEqual(voice, before);
+  assert.deepEqual(applyMeter(words, data, voice, { tokens, margin: 0 }), { words, changes: [], applied: true });
+  const points = syllablePoints(words, data, tokens);
+  assert.equal(points.length, 4);
+  for (const [index, label] of ['o', 'u', 'i', 'a'].entries()) {
+    near(points[index].f1, bark(vowels[label][0]), 0.5);
+    near(points[index].f2, bark(vowels[label][1]), 0.5);
+  }
+});
+
+test('meter placement returns count when both islands and vowel nuclei miss the syllable count', () => {
+  const { data, words, tokens } = connectedReading();
+  for (const supplied of [undefined, null, [], {}, tokens.slice(0, 7),
+    [...tokens, phone('i', 1.35, 1.4)]]) {
+    assert.deepEqual(applyMeter(words, data, voiceProfile(), { tokens: supplied }), {
+      words, changes: [], applied: false, reason: 'count',
+    });
+    assert.equal(syllablePoints(words, data, supplied), null);
+  }
+});
+
+test('meter placement skips a short nucleus without shifting later syllables or points', () => {
+  const data = wav(join([silence(0.25), tone(vowels.o), tone(vowels.i), silence(0.25)]));
+  const words = [['ba', 'me']];
+  const tokens = [phone('a', 0.28, 0.3), phone('m', 0.5, 0.53), phone('e', 0.53, 0.73)];
+  assert.equal(soundIslands(decodeWav(data).samples, rate).length, 1);
+  assert.deepEqual(applyMeter(words, data, voiceProfile(), { tokens }), {
+    words: [['ba', 'mi']], changes: [{ index: 1, from: 'me', to: 'mi' }], applied: true,
+  });
+  const points = syllablePoints(words, data, tokens);
+  assert.equal(points.length, 2);
+  assert.equal(points[0], null);
+  near(points[1].f2, bark(vowels.i[1]), 0.5);
+});
+
+test('meter placement merges consecutive vowel tokens across gaps up to 40 ms', () => {
+  const data = wav(join([silence(0.25), tone(vowels.o), tone(vowels.i), tone(vowels.a), silence(0.25)]));
+  const words = [['boy', 'me', 'ta']];
+  for (const pair of [['o', 'ɪ'], ['e', 'ɪ'], ['ɑ', 'ɑ']]) {
+    for (const gap of [0, 0.02, 0.04]) {
+      const tokens = [phone(pair[0], 0.27, 0.31), phone(pair[1], 0.31 + gap, 0.35 + gap),
+        phone('m', 0.5, 0.53), phone('i', 0.53, 0.73), phone('t', 0.75, 0.78), phone('a', 0.78, 0.98)];
+      assert.deepEqual(applyMeter(words, data, voiceProfile(), { tokens }), {
+        words: [['boy', 'mi', 'ta']], changes: [{ index: 1, from: 'me', to: 'mi' }], applied: true,
+      });
+      const points = syllablePoints(words, data, tokens);
+      assert.equal(points.length, 3);
+      near(points[0].f2, bark(vowels.o[1]), 0.5);
+      near(points[1].f2, bark(vowels.i[1]), 0.5);
+    }
+  }
+});
+
+test('meter placement keeps vowels separate across a consonant or a gap over 40 ms', () => {
+  const data = wav(join([silence(0.25), tone(vowels.o), tone(vowels.i), silence(0.25)]));
+  const words = [['ba', 'me']];
+  for (const tokens of [
+    [phone('a', 0.28, 0.48), phone('m', 0.48, 0.5), phone('e', 0.5, 0.73)],
+    [phone('a', 0.28, 0.46), phone('e', 0.52, 0.73)],
+  ]) {
+    assert.deepEqual(applyMeter(words, data, voiceProfile(), { tokens }), {
+      words: [['bo', 'mi']], changes: [{ index: 0, from: 'ba', to: 'bo' }, { index: 1, from: 'me', to: 'mi' }], applied: true,
+    });
+    assert.equal(syllablePoints(words, data, tokens).length, 2);
+  }
+});
+
+test('meter placement refuses vowel tokens with unusable timing', () => {
+  const { data, words, tokens } = connectedReading();
+  for (const timing of [{ start: undefined }, { end: NaN }, { end: Infinity }, { start: -1 },
+    { end: 0.28 }, { end: 0.27 }]) {
+    const supplied = tokens.map((token, index) => index === 2 ? { ...token, ...timing } : token);
+    assert.deepEqual(applyMeter(words, data, voiceProfile(), { tokens: supplied }), {
+      words, changes: [], applied: false, reason: 'count',
+    });
+    assert.equal(syllablePoints(words, data, supplied), null);
+  }
 });
 
 test('applyMeter leaves oy, ey, o, u, i and unknown syllables alone', () => {

@@ -148,7 +148,37 @@ function bark(hz) {
   return 26.81 * hz / (1960 + hz) - 0.53;
 }
 
-export function syllablePoints(words, data) {
+function syllableRanges(words, samples, rate, tokens) {
+  const count = words.flat().length;
+  const islands = soundIslands(samples, rate);
+  if (islands.length === count) return islands;
+  if (!Array.isArray(tokens)) return null;
+  const nuclei = [];
+  const vowel = /[aɑɔoɒʌæɐeɛəiɪuʊʉɵyʏøœɜɯɨɚɝ]/u;
+  let previous = null;
+  for (const token of tokens) {
+    if (typeof token?.token !== 'string') return null;
+    if (token.token.startsWith('<') || !vowel.test(token.token)) {
+      previous = null;
+      continue;
+    }
+    if (!Number.isFinite(token.start) || !Number.isFinite(token.end)
+      || token.start < 0 || token.end <= token.start) return null;
+    // Phoneme times are seconds; measurement ranges are sample indices.
+    const start = Math.min(samples.length, Math.round(token.start * rate));
+    const end = Math.min(samples.length, Math.round(token.end * rate));
+    // Merge consecutive vowel phones across at most two 20 ms model frames.
+    if (previous && start >= previous.start && start - previous.end <= 0.04 * rate) {
+      previous.end = Math.max(previous.end, end);
+    } else {
+      previous = { start, end };
+      nuclei.push(previous);
+    }
+  }
+  return nuclei.length === count ? nuclei : null;
+}
+
+export function syllablePoints(words, data, tokens) {
   let audio;
   try {
     audio = decodeWav(data);
@@ -157,9 +187,9 @@ export function syllablePoints(words, data) {
     throw error;
   }
   const { samples, rate } = audio;
-  const islands = soundIslands(samples, rate);
-  if (islands.length !== words.flat().length) return null;
-  return islands.map(({ start, end }) => {
+  const ranges = syllableRanges(words, samples, rate, tokens);
+  if (!ranges) return null;
+  return ranges.map(({ start, end }) => {
     const value = measureVowel(samples, rate, start, end);
     return value ? { f1: bark(value.f1), f2: bark(value.f2) } : null;
   });
@@ -277,8 +307,8 @@ export function applyMeter(words, data, profile, options = {}) {
     throw error;
   }
   const { samples, rate } = audio;
-  const islands = soundIslands(samples, rate);
-  if (islands.length !== words.flat().length) return unchanged('count');
+  const ranges = syllableRanges(words, samples, rate, options.tokens);
+  if (!ranges) return unchanged('count');
   const changes = [];
   let index = 0;
   for (const word of newWords) {
@@ -289,7 +319,7 @@ export function applyMeter(words, data, profile, options = {}) {
       const candidates = earVowel === 'a' ? ['a', 'o', 'e'] : earVowel === 'e' ? ['e', 'i'] : [];
       if (!Object.hasOwn(profile.vowels, earVowel)
         || !candidates.some(v => v !== earVowel && Object.hasOwn(profile.vowels, v))) continue;
-      const { start, end } = islands[index];
+      const { start, end } = ranges[index];
       const value = measureVowel(samples, rate, start, end);
       if (!value) continue;
       const vowel = meterDecision(earVowel, { f1: bark(value.f1), f2: bark(value.f2) }, profile, options);

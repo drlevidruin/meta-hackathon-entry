@@ -4,7 +4,7 @@ import { mkdtemp, readFile, readdir, realpath, rm, writeFile } from 'node:fs/pro
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { utterance, wav } from '../../ear/synth-for-tests.js';
+import { join as joinSamples, silence, tone, utterance, vowels, wav } from '../../ear/synth-for-tests.js';
 import { cardLabels } from '../../rulebook/voice-card.js';
 import { loadClips } from './clips.js';
 import { recordingStore } from './recordings.js';
@@ -42,9 +42,11 @@ async function savedRun(t, { probe = true, meter = true, readings = readingFixtu
   const store = recordingStore(await loadClips('adult'), directory);
   const voice = wav(utterance(cardLabels('ashkenazi').map(label => label ?? 'o')));
   await store.save('voice-check-2', voice);
-  const fixtures = readings.map(reading => ({ ...reading, audio: wav(utterance(reading.sounds)) }));
+  const fixtures = readings.map(reading => ({ ...reading, audio: reading.audio ?? wav(utterance(reading.sounds)) }));
   for (const fixture of fixtures) await store.save(fixture.name, fixture.audio);
+  const phonemeCalls = [];
   const phonemes = async (audio, options) => {
+    phonemeCalls.push([audio, options]);
     assert.ok(Buffer.isBuffer(audio));
     const tokens = audio.equals(voice) ? phonemeCard() : fixtures.find(fixture => fixture.audio.equals(audio))?.tokens;
     assert.ok(tokens, 'only recorded audio reaches the phoneme service');
@@ -58,7 +60,7 @@ async function savedRun(t, { probe = true, meter = true, readings = readingFixtu
       assert.ok(fixture);
       return { words: fixture.words, answers: [fixture.words, fixture.words], votes: { asked: 3, answered: 2 } };
     }, phonemes, log: line => output.push(line) });
-  return { directory, voice, fixtures, phonemes, rows: result.rows, text: `${output.join('\n')}\n` };
+  return { directory, voice, fixtures, phonemes, phonemeCalls, rows: result.rows, text: `${output.join('\n')}\n` };
 }
 
 async function replay(run, options = {}) {
@@ -107,6 +109,23 @@ test('a probe replay reproduces the saved runner output and keeps recordings unc
   for (const fixture of run.fixtures) {
     assert.deepEqual(await readFile(join(run.directory, `${fixture.name}.wav`)), fixture.audio);
   }
+});
+
+test('runner and replay share timed phonemes for meter corrections and referee points on connected audio', async t => {
+  const audio = wav(joinSamples([silence(0.25), tone(vowels.a), tone(vowels.i), silence(0.25)]));
+  const tokens = [{ ...phonemeVowel(0.84), start: 0.28, end: 0.48 },
+    { token: 'v', start: 0.5, end: 0.53, top: [['v', 1]] },
+    { token: 'e', start: 0.53, end: 0.73, top: [['e', 1]] }];
+  const run = await savedRun(t, { probe: false,
+    readings: [{ name: 'dovor_clean', audio, words: [['dol', 'ver']], tokens }] });
+  assert.equal(run.rows[0].ear, 'dol-ver');
+  assert.equal(run.rows[0].metered, 'dol-vir');
+  assert.equal(run.rows[0].heard, 'dal-vir');
+  assert.deepEqual(run.phonemeCalls.map(([data]) => data), [run.voice, audio]);
+  const result = await replay(run, { probe: false });
+  assert.equal(result.code, 0);
+  assert.deepEqual(result.rows, run.rows);
+  assert.deepEqual(run.phonemeCalls.map(([data]) => data), [run.voice, audio, run.voice, audio]);
 });
 
 test('a probe replay accepts an empty phoneme token list for a reading', async t => {

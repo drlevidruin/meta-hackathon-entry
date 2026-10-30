@@ -494,19 +494,19 @@ export function createApp({
               ? await listen({ data, format: 'wav' }, { ...GRADE_VOTES, reference: { data: card, format: 'wav' } })
               : await listen({ data, format: 'wav' }, GRADE_VOTES);
             words = heard.words;
+            const tokens = await phonemeResult;
             try {
-              words = applyMeter(words, data, getChild(turn.childId).voice).words;
+              words = applyMeter(words, data, getChild(turn.childId).voice, { tokens }).words;
             } catch {
               // A meter failure leaves the ear's words available for grading.
             }
             try {
-              const tokens = await phonemeResult;
               const current = getChild(turn.childId).voice?.phonemes;
               if (tokens != null && calibration && current
                 && ['version', 'a', 'o'].every(key => current[key] === calibration[key])
                 && ['a', 'o'].every(key => current.n?.[key] === calibration.n?.[key])) {
                 const profile = getChild(turn.childId).voice;
-                const options = profile ? { points: syllablePoints(words, data), profile } : undefined;
+                const options = profile ? { points: syllablePoints(words, data, tokens), profile } : undefined;
                 words = applyReferee(words, tokens, calibration, options).words;
               }
             } catch {

@@ -169,15 +169,15 @@ export async function runEar({ set = 'adult', model = defaultEarModel(), votes =
         earSounds = formatWords(earWords);
         const missingVotes = answer.votes ? answer.votes.asked - answer.votes.answered : 0;
         voteSounds = [...answer.answers.map(formatWords), ...Array(missingVotes).fill('ERROR')].join(' | ');
-        let words = meter && profile ? applyMeter(earWords, audio, profile).words : earWords;
+        const tokens = refereeOn ? await phonemesWithRetry(audio, phonemes, probe) : null;
+        let words = meter && profile ? applyMeter(earWords, audio, profile, { tokens }).words : earWords;
         metered = formatWords(words);
         if (refereeOn) {
           let status = 'failed';
           try {
-            const tokens = await phonemesWithRetry(audio, phonemes, probe);
             if (tokens == null) status = null;
             else {
-              let options = meter && profile ? { points: syllablePoints(words, audio), profile } : undefined;
+              let options = meter && profile ? { points: syllablePoints(words, audio, tokens), profile } : undefined;
               if (probe) options = { ...options, probe: cardProbe };
               const answer = applyReferee(words, tokens, calibration, options);
               probeChose += answer.probed ?? 0;

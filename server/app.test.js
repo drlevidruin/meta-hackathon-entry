@@ -12,7 +12,7 @@ import { SKILLS } from '../rulebook/index.js';
 import * as realCoach from '../coach/index.js';
 import { gradeLine as realGradeLine } from '../grader/index.js';
 import { cardLabels } from '../rulebook/voice-card.js';
-import { join, silence, utterance, wav } from '../ear/synth-for-tests.js';
+import { join, silence, tone, utterance, vowels, wav } from '../ear/synth-for-tests.js';
 import { applyMeter, buildVoiceProfile, measureVowel, pairsApart, soundIslands } from '../ear/meter.js';
 import { voiceCardToEar } from '../ear/card-gate.js';
 import { VOWEL_IDS, fitsVowels } from '../rulebook/vowels.js';
@@ -521,6 +521,45 @@ test('grading sends only the reading buffer to phonemes and corrects ka-tan to k
   assert.deepEqual(phonemes.mock.calls[1].arguments, [data]);
   assert.deepEqual(gradeLine.mock.calls[0].arguments[0].heard, [['ko', 'ton']]);
 });
+
+for (const [label, syllable, score, expected] of [
+  ['o', 'ba', 0.37, 'bo'], ['a', 'kol', 0.84, 'kal'],
+]) {
+  test(`connected grading shares one phoneme answer with the meter and referee for ${syllable}`, async () => {
+    const tokens = [{ ...phonemeVowel(score), start: 0.28, end: 0.48 },
+      { token: 'm', start: 0.5, end: 0.53, top: [['m', 1]] },
+      { token: 'e', start: 0.53, end: 0.73, top: [['e', 1]] }];
+    const phonemes = mock.fn(async () => phonemes.mock.callCount() === 0 ? phonemeCard() : tokens);
+    const { app, gradeLine } = setup({ phonemes, listen: async () => ({ words: [[syllable, 'me']] }) });
+    const child = await add(app, { preset: 'ashkenazi' });
+    await voice(app, child);
+    const turn = await start(app, child.id);
+    const data = wav(join([silence(0.25), tone(vowels[label]), tone(vowels.i), silence(0.25)]));
+    assert.equal((await grade(app, turn.turnId, 'kamatz-0', { data })).status, 200);
+    assert.equal(phonemes.mock.callCount(), 2);
+    assert.deepEqual(phonemes.mock.calls[1].arguments, [data]);
+    assert.deepEqual(gradeLine.mock.calls[0].arguments[0].heard, [[expected, 'mi']]);
+  });
+}
+
+for (const failure of ['null', 'throws']) {
+  test(`connected grading keeps the ear words when phonemes ${failure}`, async () => {
+    const phonemes = mock.fn(async () => {
+      if (phonemes.mock.callCount() === 0) return phonemeCard();
+      if (failure === 'throws') throw new Error('offline');
+      return null;
+    });
+    const words = [['ba', 'me']];
+    const { app, gradeLine } = setup({ phonemes, listen: async () => ({ words }) });
+    const child = await add(app, { preset: 'ashkenazi' });
+    await voice(app, child);
+    const turn = await start(app, child.id);
+    const data = wav(join([silence(0.25), tone(vowels.o), tone(vowels.i), silence(0.25)]));
+    assert.equal((await grade(app, turn.turnId, 'kamatz-0', { data })).status, 200);
+    assert.equal(phonemes.mock.callCount(), 2);
+    assert.deepEqual(gradeLine.mock.calls[0].arguments[0].heard, words);
+  });
+}
 
 for (const [measurement, data, expected] of [
   ['a', wav(utterance(['u', 'a', 'a', 'a'])), [["b'", 'chal'], ['kal', 'kam']]],

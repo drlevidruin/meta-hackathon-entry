@@ -157,7 +157,7 @@ export async function replayRun({ text, file = '<input>', probe, directory,
       if (tokens === null) throw new Error(`No answer from the phoneme service for reading: ${row.clip}.`);
       if (probe && tokens.length) requireProbeVectors(tokens);
       const words = row.metered.trim() ? row.metered.trim().split(/\s+/u).map(word => word.split('-')) : [];
-      let options = run.meter && profile ? { points: syllablePoints(words, audio), profile } : undefined;
+      let options = run.meter && profile ? { points: syllablePoints(words, audio, tokens), profile } : undefined;
       if (probe) options = { ...options, probe: cardProbe };
       const answer = applyReferee(words, tokens, calibration, options);
       readings += 1;
