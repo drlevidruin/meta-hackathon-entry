@@ -182,16 +182,16 @@ const expectedRound1j = [
   ['gil_clean', 'gil'],
 ];
 const expectedRound1k = [
-  ['line01_modeh-ani_clean', 'mo-de a-ni le-fo-ne-cho me-lech chay ve-ka-yom'],
+  ['line01_modeh-ani_clean', 'moy-de a-ni le-fo-ne-cho me-lech chay ve-ka-yom'],
   ['line02_shehechezarta_clean', 'she-he-che-zar-to bi nish-mo-si be-chem-lo'],
-  ['line03_blessing_clean', 'bo-ruch a-to a-do-noy e-lo-hey-nu me-lech ho-o-lom'],
-  ['line04_asher-nasan_patach-for-kamatz', 'ho-o-lom a-sher na-san la-sech-vi vi-no'],
-  ['line05_shema_clean', 'she-ma yis-ro-eyl a-do-noy e-lo-hey-nu a-do-noy e-chod'],
+  ['line03_blessing_clean', 'bo-ruch a-to a-do-noy e-loy-hey-nu me-lech ho-oy-lom'],
+  ['line04_asher-nasan_patach-for-kamatz', 'ho-oy-lom a-sher na-san la-sech-vi vi-no'],
+  ['line05_shema_clean', 'she-ma yis-ro-eyl a-do-noy e-loy-hey-nu a-do-noy e-chod'],
   ['line06_veshinantam_kamatz-for-patach', 've-shi-non-tom le-vo-ne-cho ve-di-bar-to bom be-shiv-te-cho be-vey-se-cho'],
-  ['line07_anochi_segol-for-chirik', 've-ho-yu ha-de-vo-rim ho-ey-le a-sher o-no-che'],
-  ['line08_meieretz_chirik-for-segol', 'es-chem mey-i-retz mitz-ra-yim lih-yos lo-chem'],
-  ['line09_venasati_clean', 've-no-sa-ti me-tar ar-tze-chem be-i-to yo-re'],
-  ['line10_levavecha_final-patach-for-kamatz', 'me-tza-ve-cho ha-yom al le-vo-ve-cha'],
+  ['line07_anochi_segol-for-chirik', 've-ho-yu ha-de-vo-rim ho-ey-le a-sher o-noy-che'],
+  ['line08_meieretz_chirik-for-segol', 'es-chem mey-i-retz mitz-ra-yim lih-yoys lo-chem'],
+  ['line09_venasati_clean', 've-no-sa-ti me-tar ar-tze-chem be-i-toy yoy-re'],
+  ['line10_levavecha_final-patach-for-kamatz', 'me-tza-ve-cho ha-yoym al le-vo-ve-cha'],
 ];
 const wav = Buffer.from(encodeWav(new Float32Array([0, .25, -.25, 0])));
 
@@ -371,7 +371,12 @@ test('Round 1k copies bank lines and changes exactly the named vowel in each pla
     assert.ok(item.level >= 5 && item.words.length >= 2 && item.words.length <= 8, clip.name);
     const readings = splitWords(clip.hebrew)
       .map(({ word, maqaf }) => expectedSounds(word + (maqaf ? '\u05be' : ''), 'ashkenazi'));
-    const clean = readings.map(formatReading);
+    // Levi reads a cholam as oy, as on his voice check; the Ashkenazi preset accepts o, oy and ey.
+    const clean = readings.map(reading => {
+      const pairs = reading.pairs.filter(pair => pair.sounds[0] && pair.vowels[0] !== '');
+      return formatReading(reading).split('-')
+        .map((syllable, index) => (/cholam/.test(pairs[index]?.vowel ?? '') ? syllable.replace('o', 'oy') : syllable)).join('-');
+    });
     if (clip.planted === 'none') {
       cleanCount++;
       assert.equal(clip.say, clean.join(' '), clip.name);

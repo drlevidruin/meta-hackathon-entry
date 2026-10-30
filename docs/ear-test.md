@@ -851,16 +851,16 @@ Read each line once at a normal reading pace in Ashkenazi pronunciation, in the 
 
 | File name | Hebrew | Say | Planted |
 | --- | --- | --- | --- |
-| line01_modeh-ani_clean | מוֹדֶה אֲנִי לְפָנֶיךָ מֶלֶךְ חַי וְקַיָּם | mo-de a-ni le-fo-ne-cho me-lech chay ve-ka-yom | none |
+| line01_modeh-ani_clean | מוֹדֶה אֲנִי לְפָנֶיךָ מֶלֶךְ חַי וְקַיָּם | moy-de a-ni le-fo-ne-cho me-lech chay ve-ka-yom | none |
 | line02_shehechezarta_clean | שֶׁהֶחֱזַרְתָּ בִּי נִשְׁמָתִי בְּחֶמְלָה | she-he-che-zar-to bi nish-mo-si be-chem-lo | none |
-| line03_blessing_clean | בָּרוּךְ אַתָּה יְהֹוָה אֱלֹהֵינוּ מֶלֶךְ הָעוֹלָם | bo-ruch a-to a-do-noy e-lo-hey-nu me-lech ho-o-lom | none |
-| line04_asher-nasan_patach-for-kamatz | הָעוֹלָם אֲשֶׁר נָתַן לַשֶּׂכְוִי בִינָה | ho-o-lom a-sher na-san la-sech-vi vi-no | נָתַן, kamatz read as patach |
-| line05_shema_clean | שְׁמַע יִשְׂרָאֵל יְהֹוָה אֱלֹהֵינוּ יְהֹוָה אֶחָד | she-ma yis-ro-eyl a-do-noy e-lo-hey-nu a-do-noy e-chod | none |
+| line03_blessing_clean | בָּרוּךְ אַתָּה יְהֹוָה אֱלֹהֵינוּ מֶלֶךְ הָעוֹלָם | bo-ruch a-to a-do-noy e-loy-hey-nu me-lech ho-oy-lom | none |
+| line04_asher-nasan_patach-for-kamatz | הָעוֹלָם אֲשֶׁר נָתַן לַשֶּׂכְוִי בִינָה | ho-oy-lom a-sher na-san la-sech-vi vi-no | נָתַן, kamatz read as patach |
+| line05_shema_clean | שְׁמַע יִשְׂרָאֵל יְהֹוָה אֱלֹהֵינוּ יְהֹוָה אֶחָד | she-ma yis-ro-eyl a-do-noy e-loy-hey-nu a-do-noy e-chod | none |
 | line06_veshinantam_kamatz-for-patach | וְשִׁנַּנְתָּם לְבָנֶיךָ וְדִבַּרְתָּ בָּם בְּשִׁבְתְּךָ בְּבֵיתֶךָ | ve-shi-non-tom le-vo-ne-cho ve-di-bar-to bom be-shiv-te-cho be-vey-se-cho | וְשִׁנַּנְתָּם, patach read as kamatz |
-| line07_anochi_segol-for-chirik | וְהָיוּ הַדְּבָרִים הָאֵלֶּה אֲשֶׁר אָנֹכִי | ve-ho-yu ha-de-vo-rim ho-ey-le a-sher o-no-che | אָנֹכִי, chirik read as segol |
-| line08_meieretz_chirik-for-segol | אֶתְכֶם מֵאֶרֶץ מִצְרַיִם לִהְיוֹת לָכֶם | es-chem mey-i-retz mitz-ra-yim lih-yos lo-chem | מֵאֶרֶץ, segol read as chirik |
-| line09_venasati_clean | וְנָתַתִּי מְטַר־אַרְצְכֶם בְּעִתּוֹ יוֹרֶה | ve-no-sa-ti me-tar ar-tze-chem be-i-to yo-re | none |
-| line10_levavecha_final-patach-for-kamatz | מְצַוְּךָ הַיּוֹם עַל־לְבָבֶךָ | me-tza-ve-cho ha-yom al le-vo-ve-cha | לְבָבֶךָ, word-final kamatz read as patach |
+| line07_anochi_segol-for-chirik | וְהָיוּ הַדְּבָרִים הָאֵלֶּה אֲשֶׁר אָנֹכִי | ve-ho-yu ha-de-vo-rim ho-ey-le a-sher o-noy-che | אָנֹכִי, chirik read as segol |
+| line08_meieretz_chirik-for-segol | אֶתְכֶם מֵאֶרֶץ מִצְרַיִם לִהְיוֹת לָכֶם | es-chem mey-i-retz mitz-ra-yim lih-yoys lo-chem | מֵאֶרֶץ, segol read as chirik |
+| line09_venasati_clean | וְנָתַתִּי מְטַר־אַרְצְכֶם בְּעִתּוֹ יוֹרֶה | ve-no-sa-ti me-tar ar-tze-chem be-i-toy yoy-re | none |
+| line10_levavecha_final-patach-for-kamatz | מְצַוְּךָ הַיּוֹם עַל־לְבָבֶךָ | me-tza-ve-cho ha-yoym al le-vo-ve-cha | לְבָבֶךָ, word-final kamatz read as patach |
 
 ## Round 2: a child's voice
 
