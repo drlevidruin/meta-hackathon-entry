@@ -673,7 +673,7 @@ Every planted mistake was caught, and no syllable was left uncertain. The meter 
 
 Two kinds of error were left:
 
-- **su-ko.** Read correctly, it came back su-ka in all three runs. All nine of the ear's answers wrote su-ka and the meter kept the a. On a word's last open syllable the referee hands the choice to the meter, so nothing changed it. This is the kind of error Round 1f showed on so-ro, where the referee left the vowel uncertain instead.
+- **su-ko.** Read correctly, it came back su-ka in all three runs. All nine of the ear's answers wrote su-ka and the meter kept the a. On a word's last open syllable the referee hands the choice to the meter, so nothing changed it. This is the kind of error Round 1f showed on so-ro, where the referee left the vowel uncertain instead. On listening afterwards, Levi said the end of his su-ko came out close to an a, as in the English word sukkah. The meter and the phoneme model never see a word, so the a was not only the ear knowing it. The mark may have been right and the label wrong, but the run still fails: it is scored against the label, which was fixed before the run.
 - **oy-lom, run 3.** Two of the ear's three answers split עוֹלָם into two words, oy and lam. The meter made lam lom, so every sound was right, but the grader took oy for a try the reader gave up on and graded lom alone, so עוֹ was marked skipped. This is a grader bug: a word read in two parts is graded as a restart when the second part, read alone, is close to the word. Split the same way, su ko, shi ro, bo sor and mal ko grade correctly.
 
 The grader bug was found on Round 1g, so any fix for it is checked on design readings and judged on Round 1h. Round 1h runs only once new rules are frozen, and its answers stay unread until then.
