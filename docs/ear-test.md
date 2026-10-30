@@ -719,6 +719,22 @@ What could go wrong, written down before the runs:
 - pa-am, like ba-al and na-al, runs two vowels together across a weak ayin, so the meter may measure nothing in it.
 - kad, gal-gal and the first syllables of ma-zol, pa-am and ma-to-no are patachs, where Round 1e's ear wrote o for a said a. Round 1g had one such o, ba-ol in run 3, and the referee fixed it.
 
+## Round 1h results, October 30
+
+Round 1h fails: two of its three runs pass, and the rule needs all three. It ran three times without `--probe` at `7cde730`, from 10:08 to 10:13 AM, on the rules above. The ear answered every clip and the phoneme service never failed, so no run was void.
+
+| Run | Plants caught | False marks: ear | After the meter | Final | Uncertain | Passes |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | 4 of 4 | 8 | 3 | 0 | 0 | yes |
+| 2 | 4 of 4 | 8 | 2 | 1 | 0 | no |
+| 3 | 4 of 4 | 8 | 3 | 0 | 0 | yes |
+
+Runs 1 and 3 are clean: every planted mistake caught, no correct reading marked wrong, nothing left uncertain. Over the three runs, the meter and the referee cut the ear's 24 false marks to 1.
+
+- **The one false mark.** In run 2 all three of the ear's answers wrote sem-cha for sim-cho. The meter made the end cho, as it did in every run, but the first vowel stayed e, so שִׂ was marked a wrong vowel. Across the nine answers, five heard sim and four heard sem. The meter and the referee check a against o; nothing checks i against e.
+- **What was written down before the runs.** sim-cho's final kamatz came back a in every answer and o in every final reading; the miss was its first vowel instead. mig-dal and bo-tzal were caught in every run, and ma-zol and gal-gal were right in every run. pa-am was right in every run. Every patach came back right.
+- **The grader fix.** The ear wrote gal-gal as two words in every run and ma-zol once. Each was graded as one word, correctly. Before `df71237`, a split like this could be graded as a restart.
+
 ## Voice check 3
 
 Read this card last, in the same sitting. It is Voice check 2 with six closed syllables added, ending in l or m, for later work on this reader's a and o before a final consonant. No rule uses it yet.

@@ -151,3 +151,5 @@ A second live run, with the Mac's Hebrew voice as an invented child, went throug
 `df71237` merged a grader fix built by Codex: a word the ear splits into two heard words is graded as one word, not as a try the reader gave up on. On the practice bank, split readings graded exactly right rose from 9,101 to 10,120 of 11,643, with none worse. Codex's review asked for one narrowing, `d962f2b`, which changed no result. The rules for Round 1h were written down before its first run. [Rules](ear-test.md#the-rules-for-round-1h-fixed-before-its-first-run).
 
 `51e67c3` fixed the clip recorder after Levi found himself scrolling the whole page between clips: the list now scrolls on its own, and the reading panel with Play, Again and Next stays in view, down to an 830 by 480 window and on a phone.
+
+Round 1h failed by one syllable: two of three runs passed clean, and in the third the ear heard the i of sim-cho as e in all three answers. The meter and the referee check a against o, so nothing caught it. [Results](ear-test.md#round-1h-results-october-30).
