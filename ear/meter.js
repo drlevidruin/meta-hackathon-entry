@@ -178,14 +178,15 @@ export function syllableRanges(words, samples, rate, tokens) {
   }
   if (nuclei.length !== count) return null;
   const tokenCenter = token => (token.start + token.end) / 2;
+  const timed = token => Number.isFinite(token?.start) && Number.isFinite(token?.end);
   const sampleIndex = seconds => Math.max(0, Math.min(samples.length, Math.round(seconds * rate)));
   return nuclei.map(({ first, last }) => {
     const center = (tokens[first].start + tokens[last].end) / 2;
     let start = center - 0.06;
     let end = center + 0.06;
     // Model vowel spans are too short to measure; stop widening at neighbouring token midpoints.
-    if (first > 0) start = Math.max(start, (tokenCenter(tokens[first - 1]) + tokenCenter(tokens[first])) / 2);
-    if (last + 1 < tokens.length) end = Math.min(end, (tokenCenter(tokens[last]) + tokenCenter(tokens[last + 1])) / 2);
+    if (first > 0 && timed(tokens[first - 1])) start = Math.max(start, (tokenCenter(tokens[first - 1]) + tokenCenter(tokens[first])) / 2);
+    if (last + 1 < tokens.length && timed(tokens[last + 1])) end = Math.min(end, (tokenCenter(tokens[last]) + tokenCenter(tokens[last + 1])) / 2);
     return { start: sampleIndex(start), end: sampleIndex(end) };
   });
 }

@@ -217,6 +217,8 @@ function hasFiniteFormants(point) {
 
 // Sound the ear left out, a second or more before or after the reading, is not part of the line.
 function trimEdges(tokens, syllableCount) {
+  // Untimed entries cannot be grouped by pause, so the list is left as it was.
+  if (!tokens.every(token => Number.isFinite(token?.start) && Number.isFinite(token?.end))) return tokens;
   const groups = [];
   for (const token of tokens) {
     const last = groups.at(-1);

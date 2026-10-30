@@ -755,3 +755,7 @@ for (const [syllable, examples] of [
     }
   });
 }
+
+test('trimEdges leaves a token list with an untimed entry as it was', () => {
+  assert.doesNotThrow(() => applyReferee([['ki']], [null, { token: 'i', start: 0, end: 0.02, top: [['i', 1]] }], calibration));
+});

@@ -896,3 +896,8 @@ test('pairsApart counts a damaged class as merged', () => {
     assert.equal(pairsApart({ ...apart, vowels: { ...apart.vowels, o: { ...apart.vowels.o, ...damage } } }), false);
   }
 });
+
+test('meter windows skip an untimed neighbour instead of returning NaN', () => {
+  const ranges = syllableRanges([['ba']], silence(1), rate, [{ token: 'b' }, phone('a', 0.2, 0.22)]);
+  assert.ok(ranges.every(({ start, end }) => Number.isFinite(start) && Number.isFinite(end)));
+});
