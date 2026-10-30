@@ -286,9 +286,10 @@ export function align(heard, expected, options = {}) {
         const later = attempts[j][i + count].map((attempt, span) => attempt && fits(i + count, span + 1));
         if (attempts[j][i][count - 1] && fits(i, count) && later.some(Boolean)) {
           restarted = true;
-          // A complete word split across heard words can also look like a restart.
+          // A complete word split across heard words can also look like a restart,
+          // but only when the split runs past the point where the later try begins.
           continuesText ||= completeAttempts[j][i].some((attempt, span) => span > 0
-            && attempt && fits(i, span + 1));
+            && span + 1 > count && attempt && fits(i, span + 1));
           continuesText ||= later.some((attempt, span) => attempt
             && (attempts[j + 1]?.[i + count][span]
               || (attempts[j + 2]?.[i + count][span]

@@ -73,6 +73,8 @@ for (const [name, text, heard, ok, pairs, formatted] of [
     2, 3, 'wvowel:la'],
   ['olam restart grades the wrong final attempt', 'עוֹלָם', 'oy oy-lam',
     2, 3, 'wvowel:la'],
+  ['a split reading then a whole restart grades the final attempt', 'עוֹלָם', 'oy lom oy-lam',
+    2, 3, 'wvowel:la'],
   ['split eloheinu keeps its first vowel', 'אֱלֹהֵינוּ', 'e lo-hey-nu',
     4, 4, '-'],
   ['a blessing joins the split final syllable of haolam',
