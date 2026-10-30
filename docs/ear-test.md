@@ -618,7 +618,7 @@ Read each clip once, in Ashkenazi pronunciation, right after Voice check 2 and i
 
 Read each clip once, in the same sitting as Round 1f. Round 1e has been read, so these thirteen words take its place as the sealed test. Nobody reads the ear's or the phoneme model's answers on them until the rules are frozen, and the pass rule is set before the first run. Once they are, `npm run ear-test -- --round "Round 1g"` runs three times, against Voice check 2.
 
-The pass rule, set by Levi on October 27, before any Round 1g clip was recorded: all three runs must pass. A run passes when all thirteen clips are graded once, the ear answers every one, all four planted mistakes are caught, no correct reading is marked wrong, and at most two syllables are marked uncertain. Two are allowed because shi-ro and di-ro end in ro after an r, where toy-ro came back uncertain in every design replay. The scorer checks it:
+The pass rule, set by Levi on October 27, before any Round 1g clip was recorded: all three runs must pass. A run passes when all thirteen clips are graded once, the ear answers every one, all four planted mistakes are caught, no correct reading is marked wrong, and at most two syllables are marked uncertain. Two are allowed because shi-ro and di-ro end in ro after an r, where toy-ro came back uncertain in every design replay. An outage rule, set by Levi on October 30, before any Round 1g run: if the ear gives no answer on a clip (an `ERROR` row) or the phoneme service gives no answer, that run is void and runs again, at most twice. Void runs are kept and reported with the results. The scorer checks the pass rule:
 
 ```bash
 npm run -s ear-score -- --round "Round 1g" --max-uncertain 2 --runs-needed 3 run-1.tsv run-2.tsv run-3.tsv
@@ -642,7 +642,7 @@ npm run -s ear-score -- --round "Round 1g" --max-uncertain 2 --runs-needed 3 run
 
 ## Round 1h: spare sealed test
 
-Read each clip once, right after Round 1g, in the same sitting. These thirteen words are held back: they run only if Round 1g fails, and then only once new rules are frozen, so a second sealed test needs no new sitting. Nobody reads the ear's or the phoneme model's answers on them before that. Their pass rule is set before their first run. `npm run ear-test -- --round "Round 1h"` grades them against Voice check 2.
+Read each clip once, right after Round 1g, in the same sitting. These thirteen words are held back: they run only if Round 1g fails, and then only once new rules are frozen, so a second sealed test needs no new sitting. Nobody reads the ear's or the phoneme model's answers on them before that. Their pass rule, set by Levi on October 30, before any Round 1h answer was read, is Round 1g's, outage rule included. `npm run ear-test -- --round "Round 1h"` grades them against Voice check 2.
 
 | File name | Hebrew | Say | Planted | The ear should write |
 | --- | --- | --- | --- | --- |
