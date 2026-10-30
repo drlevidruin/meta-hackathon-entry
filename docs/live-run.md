@@ -46,3 +46,21 @@ One turn through the station Levi's son will use, on the code at `309f79e`: the 
 The first try spoke each line with no pause between syllables, five syllables in about 1.1 seconds. The ear heard one or two of them, and the rest were marked skipped. With a pause between words, as a child sounds them out, the first three lines scored 5, 4 and 4 of 5.
 
 In the lines after that, most marks fell on a tzere without a yud or a sav without a dagesh. There the Mac's Israeli voice says e and t, where an Ashkenazi reader says ey and s, so the marks are what the Ashkenazi preset is for. A synthetic voice is still a poor stand-in for a child: this checks the path, not the ear's accuracy on a child's voice.
+
+## Third live run, 2026-10-30: the always-on station
+
+Levi read prayer lines at level 3 on the classroom station at his iMac, with the microphone always on: one tap, then line after line, each graded in the background while Meta's phoneme model followed his place. The station keeps no audio, so the marks below are as the screen showed them.
+
+**Before the microphone fix** (`60bfedf`).
+
+![The station before the microphone fix](images/live-2026-10-30-before-mic-fix.webp)
+
+Most kamatz syllables came back as patach, such as the la of הָעוֹלָם and the ta of אַתָּה, on lines Levi says he read with kamatz. The clip recorder, used for every design and sealed round, turns Chrome's noise suppression, echo cancellation and automatic gain off; the station left all three on. Its saved voice card showed the difference: Meta's phoneme model scored Levi's patach at 0.54 on its back-vowel scale, where 0 is a and 1 is o, against 0.12 on the clip recorder's Voice check 4. On the station his a and o sat much closer together than on the recordings the rules were built on.
+
+**After the microphone fix** (`cbd9f95`: noise suppression and echo cancellation off, then a new voice check).
+
+![The station after the microphone fix](images/live-2026-10-30-after-mic-fix.webp)
+
+Levi read some words wrong on purpose. The marks in אַתָּה, קִדְּשָׁנוּ and אֶחָד are on words he read wrong on purpose. He read לְפָנֶיךָ, נִשְׁמָתִי and אֱמוּנָתֶךָ correctly, and the station still marked four syllables in them: the נִ of נִשְׁמָתִי heard as ne, the final ךָ of לְפָנֶיךָ heard as cha, and the נָ and final ךָ of אֱמוּנָתֶךָ heard as na and cha. Those are the two confusions the sealed rounds found: a kamatz heard as patach, here most often at the end of a word, and a chirik heard as segol. The first line, which had three false marks before the fix, had none.
+
+In Levi's words the station was "much slower" after the change, "but it was more accurate". The likely cause, not yet measured: with noise suppression off, automatic gain lifts the room's hum between words, and a line ends only after 1.2 seconds below a fixed loudness, so lines end late.
