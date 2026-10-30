@@ -743,6 +743,54 @@ Read this card last, in the same sitting. It is Voice check 2 with six closed sy
 | --- | --- | --- | --- | --- |
 | voice-check-3 | בָּ בַּ בֶּ בִּ בֹּ דָ דַ דֶ דִ דֹ מָ מַ מֶ מִ מֹ בָּל בַּל פָּל פַּל תָּם תַּם | bo ba be bi boy do da de di doy mo ma me mi moy bol bal pol pal tom tam | nothing | not graded |
 
+## Voice check 4
+
+Read this card first, in a new sitting, before Rounds 1i and 1j. It is Voice check 2 again, so the meter and the referee are calibrated in the sitting they grade.
+
+| File name | Hebrew | Say | Planted | The ear should write |
+| --- | --- | --- | --- | --- |
+| voice-check-4 | בָּ בַּ בֶּ בִּ בֹּ דָ דַ דֶ דִ דֹ מָ מַ מֶ מִ מֹ | bo ba be bi boy do da de di doy mo ma me mi moy | nothing | not graded |
+
+## Round 1i: sealed test
+
+Read each clip once, right after Voice check 4, in the same sitting. Round 1h failed on an i heard as e, so these thirteen words lean on chirik and segol, with two planted mistakes between i and e and two between a and o. None of them was used in an earlier round. Nobody reads the ear's or the phoneme model's answers on them until the rules are frozen, and the pass rule is set before the first run. `npm run ear-test -- --round "Round 1i"` grades them against Voice check 4.
+
+| File name | Hebrew | Say | Planted | The ear should write |
+| --- | --- | --- | --- | --- |
+| shir_clean | שִׁיר | shir | nothing | shir |
+| mincho_segol-for-chirik | מִנְחָה | men-cho | chirik read as segol | men-cho |
+| mapo_clean | מַפָּה | ma-po | nothing | ma-po |
+| kisey_clean | כִּסֵּא | ki-sey | nothing | ki-sey |
+| yoshon_patach-for-kamatz | יָשָׁן | ya-shon | the first kamatz read as patach | ya-shon |
+| nohor_clean | נָהָר | no-hor | nothing | no-hor |
+| midbor_clean | מִדְבָּר | mid-bor | nothing | mid-bor |
+| kaf_kamatz-for-patach | כַּף | kof | patach read as kamatz | kof |
+| mayim_clean | מַיִם | ma-yim | nothing | ma-yim |
+| shemesh_chirik-for-segol | שֶׁמֶשׁ | she-mish | the second segol read as chirik | she-mish |
+| nisim_clean | נִסִּים | ni-sim | nothing | ni-sim |
+| oviv_clean | אָבִיב | o-viv | nothing | o-viv |
+| yeled_clean | יֶלֶד | ye-led | nothing | ye-led |
+
+## Round 1j: spare sealed test
+
+Read each clip once, right after Round 1i, in the same sitting. These thirteen words run only if Round 1i fails, and then only once new rules are frozen. Nobody reads the ear's or the phoneme model's answers on them before that. `npm run ear-test -- --round "Round 1j"` grades them against Voice check 4.
+
+| File name | Hebrew | Say | Planted | The ear should write |
+| --- | --- | --- | --- | --- |
+| ir_clean | עִיר | ir | nothing | ir |
+| kalo_clean | כַּלָּה | ka-lo | nothing | ka-lo |
+| limeyd_clean | לִמֵּד | li-meyd | nothing | li-meyd |
+| pesach_kamatz-for-patach | פֶּסַח | pe-soch | patach read as kamatz | pe-soch |
+| kito_clean | כִּתָּה | ki-to | nothing | ki-to |
+| geshem_clean | גֶּשֶׁם | ge-shem | nothing | ge-shem |
+| rino_segol-for-chirik | רִנָּה | re-no | chirik read as segol | re-no |
+| mokoym_clean | מָקוֹם | mo-koym | nothing | mo-koym |
+| tinoyk_clean | תִּינוֹק | ti-noyk | nothing | ti-noyk |
+| chesed_chirik-for-segol | חֶסֶד | che-sid | the second segol read as chirik | che-sid |
+| simlo_clean | שִׂמְלָה | sim-lo | nothing | sim-lo |
+| choson_patach-for-kamatz | חָתָן | cha-son | the first kamatz read as patach | cha-son |
+| gil_clean | גִּיל | gil | nothing | gil |
+
 ## Round 2: a child's voice
 
 The adult round must pass first. Recording a child requires written parent consent. Turn Meta Model API free credits off and use a paid plan before sending children's audio. Meta's free-credit terms allow content to be used for product improvement.
