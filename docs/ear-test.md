@@ -659,6 +659,25 @@ npm run -s ear-score -- --round "Round 1g" --max-uncertain 2 --runs-needed 3 run
 | dom_patach-for-kamatz | דָּם | dam | kamatz read as patach | dam |
 | suko_clean | סֻכָּה | su-ko | nothing | su-ko |
 
+## Round 1g results, October 30
+
+Round 1g fails: none of its three runs passes. It ran three times without `--probe` at `b045407`, from 8:56 to 9:01 AM. The ear answered every clip and the phoneme service never failed, so no run was void.
+
+| Run | Plants caught | False marks: ear | After the meter | Final | Uncertain | Passes |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | 4 of 4 | 6 | 2 | 1 | 0 | no |
+| 2 | 4 of 4 | 8 | 3 | 1 | 0 | no |
+| 3 | 4 of 4 | 9 | 5 | 2 | 0 | no |
+
+Every planted mistake was caught, and no syllable was left uncertain. The meter and the referee cut the ear's 23 false marks to 4. Among those they fixed were shi-ra and di-ra, the two words the pass rule allowed uncertain marks for: the ear wrote them in every run, and they came back shi-ro and di-ro every time.
+
+Two kinds of error were left:
+
+- **su-ko.** Read correctly, it came back su-ka in all three runs. All nine of the ear's answers wrote su-ka and the meter kept the a. On a word's last open syllable the referee hands the choice to the meter, so nothing changed it. This is the kind of error Round 1f showed on so-ro, where the referee left the vowel uncertain instead.
+- **oy-lom, run 3.** Two of the ear's three answers split עוֹלָם into two words, oy and lam. The meter made lam lom, so every sound was right, but the grader took oy for a try the reader gave up on and graded lom alone, so עוֹ was marked skipped. This is a grader bug: a word read in two parts is graded as a restart when the second part, read alone, is close to the word. Split the same way, su ko, shi ro, bo sor and mal ko grade correctly.
+
+The grader bug was found on Round 1g, so any fix for it is checked on design readings and judged on Round 1h. Round 1h runs only once new rules are frozen, and its answers stay unread until then.
+
 ## Round 1h: spare sealed test
 
 Read each clip once, right after Round 1g, in the same sitting. These thirteen words are held back: they run only if Round 1g fails, and then only once new rules are frozen, so a second sealed test needs no new sitting. Nobody reads the ear's or the phoneme model's answers on them before that. Their pass rule, set by Levi on October 30, before any Round 1h answer was read, is Round 1g's, outage rule included. `npm run ear-test -- --round "Round 1h"` grades them against Voice check 2.
