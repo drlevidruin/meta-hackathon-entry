@@ -66,6 +66,30 @@ test('a restart keeps the last attempt even if the earlier attempt was better', 
   assert.equal(extras(result).length, 0);
 });
 
+for (const [name, text, heard, ok, pairs, formatted] of [
+  ['split olam keeps its first vowel', 'עוֹלָם', 'oy lom',
+    3, 3, '-'],
+  ['split olam grades the wrong final vowel', 'עוֹלָם', 'oy lam',
+    2, 3, 'wvowel:la'],
+  ['olam restart grades the wrong final attempt', 'עוֹלָם', 'oy oy-lam',
+    2, 3, 'wvowel:la'],
+  ['split eloheinu keeps its first vowel', 'אֱלֹהֵינוּ', 'e lo-hey-nu',
+    4, 4, '-'],
+  ['a blessing joins the split final syllable of haolam',
+    'בָּרוּךְ אַתָּה יְהֹוָה אֱלֹהֵינוּ מֶלֶךְ הָעוֹלָם',
+    'bo-ruch a-to a-do-noy e-lo-hey-nu me-lech ho-o lom',
+    20, 20, '- | - | - | - | - | -'],
+  ['shema restart keeps only the final attempt', 'שְׁמַע', 'she she-ma',
+    2, 2, '-'],
+]) {
+  test(name, () => {
+    const result = grade(text, 'ashkenazi', heard);
+    assert.equal(formatResult(result), formatted);
+    assert.equal(result.summary.ok, ok);
+    assert.equal(result.summary.pairs, pairs);
+  });
+}
+
 test('Ein Keloheinu grades the wrong final ein before a repeated keloheinu', () => {
   const result = grade('אֵין כֵּאלֹהֵינוּ אֵין כַּאדוֹנֵינוּ', 'ashkenazi',
     'eyn iyn key-loy-hey-nu key-loy-hey-nu eyn ka-do-ney-nu');
