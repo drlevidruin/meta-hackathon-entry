@@ -1,4 +1,6 @@
-export function createSilenceDetector({ quietMs = 1200, threshold = 0.025 } = {}) {
+export const SPEECH_THRESHOLD = 0.025;
+
+export function createSilenceDetector({ quietMs = 1200, threshold = SPEECH_THRESHOLD } = {}) {
   let heardSpeech = false;
   let quietSince = null;
   return (loudness, now) => {

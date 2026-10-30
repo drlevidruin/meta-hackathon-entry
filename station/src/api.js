@@ -27,6 +27,10 @@ export const grade = ({ turnId, itemId, audio }) => isMockMode() ? mock.grade({ 
   request(`grade?turn=${encodeURIComponent(turnId)}&item=${encodeURIComponent(itemId)}`, {
     method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: audio,
   });
+export const follow = ({ turnId, itemId, audio }) => isMockMode() ? Promise.resolve({ word: null }) :
+  request(`follow?turn=${encodeURIComponent(turnId)}&item=${encodeURIComponent(itemId)}`, {
+    method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: audio,
+  });
 export const voice = ({ childId, audio }) => isMockMode() ? mock.voice({ childId }) :
   request(`voice?child=${encodeURIComponent(childId)}`, {
     method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: audio,

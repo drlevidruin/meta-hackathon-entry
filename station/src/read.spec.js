@@ -20,6 +20,8 @@ const turn = overrides => ({ turnId: 'test-turn', child, level: 1, set: items.sl
   resolvedThrough: 0, setStartedAt: Date.now(), phase: 'reading', ...overrides });
 const grade = (item, verdict = 'ok') => ({ itemId: item.id, words: [{ text: item.text, verdict: null,
   pairs: [{ text: item.text, verdict }] }], summary: { pairs: 1, ok: verdict === 'ok' ? 1 : 0 } });
+const findLine = text => screen.findByText((_, element) => element.classList.contains('current-line')
+  && element.textContent === text, {}, { timeout: 3500 });
 
 beforeEach(() => {
   sessionStorage.clear();
@@ -52,7 +54,7 @@ it.each(['none', 'done', 'skipped'])('starts a child with voiceStatus %s directl
   const start = vi.spyOn(api, 'start');
   render(React.createElement(App));
   fireEvent.click(await screen.findByRole('button', { name: 'Start' }));
-  expect(await screen.findByText(items[0].text, { selector: '.current-line' })).toBeTruthy();
+  expect(await findLine(items[0].text)).toBeTruthy();
   expect(start).toHaveBeenCalledExactlyOnceWith({ childId: 'bim' });
   expect(window.location.hash).toBe('#/read');
 });
@@ -87,7 +89,7 @@ it('records a successful mock voice check and starts the reading turn without an
   render(React.createElement(App));
   fireEvent.click(await screen.findByRole('button', { name: 'Record' }));
   fireEvent.click(screen.getByRole('button', { name: 'Stop recording' }));
-  expect(await screen.findByText(items[0].text, { selector: '.current-line' })).toBeTruthy();
+  expect(await findLine(items[0].text)).toBeTruthy();
   expect(voice).toHaveBeenCalledExactlyOnceWith({ childId: 'pippa', audio: null });
   expect(start).toHaveBeenCalledExactlyOnceWith({ childId: 'pippa' });
   expect(children).toHaveBeenCalledTimes(2);
@@ -132,7 +134,7 @@ it('uses the expected count from the server and lets the child record again befo
   expect(window.location.hash).toBe('#/child/plo/voice');
   fireEvent.click(screen.getByRole('button', { name: 'Record' }));
   fireEvent.click(screen.getByRole('button', { name: 'Stop recording' }));
-  expect(await screen.findByText('בָּ בַּ מָ', { selector: '.current-line' })).toBeTruthy();
+  expect(await findLine('בָּ בַּ מָ')).toBeTruthy();
 });
 
 it.each([
@@ -154,7 +156,7 @@ it('starts the turn after a 409 voice response', async () => {
   render(React.createElement(App));
   fireEvent.click(await screen.findByRole('button', { name: 'Record' }));
   fireEvent.click(screen.getByRole('button', { name: 'Stop recording' }));
-  expect(await screen.findByText(items[0].text, { selector: '.current-line' })).toBeTruthy();
+  expect(await findLine(items[0].text)).toBeTruthy();
   expect(start).toHaveBeenCalledExactlyOnceWith({ childId: 'pippa' });
   expect(window.location.hash).toBe('#/read');
   expect(screen.queryByRole('alert')).toBeNull();
@@ -234,15 +236,18 @@ it.each(['/', '/read', '/done', '/teacher'])('shows a gray Demo pill only in moc
 it('renders the Hebrew line and record button, then a gold frame for the last challenge', async () => {
   const fetch = vi.spyOn(globalThis, 'fetch');
   render(React.createElement(App));
-  const line = await screen.findByText(items[0].text);
+  const line = await findLine(items[0].text);
   expect(line.getAttribute('dir')).toBe('rtl');
   expect(line.getAttribute('lang')).toBe('he');
   expect(line.closest('.challenge-frame')).toBeNull();
   expect(screen.getByRole('button', { name: 'Record' })).toBeTruthy();
+  vi.useFakeTimers();
   fireEvent.click(screen.getByRole('button', { name: 'Record' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Stop recording' }));
-  const challenge = await screen.findByText(items[1].text, { selector: '.current-line' });
+  await act(async () => { vi.advanceTimersByTime(20000); });
+  const challenge = document.querySelector('.current-line');
+  expect(challenge.textContent).toBe(items[1].text);
   expect(challenge.closest('.challenge-frame')).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Pause listening' }).getAttribute('aria-pressed')).toBe('true');
   expect(fetch).not.toHaveBeenCalled();
 });
 
@@ -270,11 +275,15 @@ it('finishes when the server says done, saves line and bonus stars, and replaces
   const choose = vi.spyOn(api, 'next');
   const finish = vi.spyOn(api, 'finish');
   const replace = vi.spyOn(window.history, 'replaceState');
+  let endLine;
+  vi.spyOn(recorder, 'useRecorder').mockImplementation(callback => {
+    endLine = callback;
+    return { status: 'ready', toggle: vi.fn() };
+  });
   render(React.createElement(App));
   for (const item of items.filter(item => !item.source?.beginner)) {
-    await screen.findByText(item.text, { selector: '.current-line' }, { timeout: 3500 });
-    fireEvent.click(screen.getByRole('button', { name: 'Record' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Stop recording' }));
+    await findLine(item.text);
+    await act(async () => { await endLine(null); });
   }
   expect(await screen.findByRole('heading', { name: '9 stars!' })).toBeTruthy();
   expect(screen.queryByText('Go get the next friend!')).toBeNull();
@@ -297,10 +306,57 @@ it('restores a turn after reload and leaves an interrupted upload plain', async 
   ] })));
   const start = vi.spyOn(api, 'start');
   render(React.createElement(App));
-  expect(await screen.findByText(items[1].text)).toBeTruthy();
+  expect(await findLine(items[1].text)).toBeTruthy();
   expect(screen.getByLabelText('Previous line').textContent).toBe(items[0].text);
   expect(screen.getByLabelText('Previous line').querySelector('.pair-ok')).toBeNull();
   expect(start).not.toHaveBeenCalled();
+});
+
+it('shows every attempt in the turn newest first, including failed and repeated lines', () => {
+  const attempts = [
+    { itemId: items[0].id, text: items[0].text, status: 'graded', grade: grade(items[0]) },
+    { itemId: items[1].id, text: items[1].text, status: 'failed', grade: null },
+    { itemId: items[0].id, text: items[0].text, status: 'pending', grade: null },
+  ];
+  render(React.createElement(ReadScreen, { turn: turn({ attempts, completedSets: 1, setStart: 2 }), onRecord: vi.fn() }));
+  const lines = screen.getAllByLabelText('Previous line');
+  expect(lines.map(line => line.textContent)).toEqual([items[0].text, items[1].text, items[0].text]);
+  expect(lines[0].querySelector('.pair')).toBeNull();
+  expect(lines[1].querySelector('.pair')).toBeNull();
+  expect(lines[2].querySelector('.pair-ok')).toBeTruthy();
+  expect(attempts.map(attempt => attempt.status)).toEqual(['graded', 'failed', 'pending']);
+  expect(document.querySelector('.reading-results').querySelector('h1, h2, h3, p, label')).toBeNull();
+});
+
+it('keeps pending results in place while newer grades arrive and more lines are read', () => {
+  const attempts = items.slice(0, 2).map(item => ({ itemId: item.id, text: item.text, status: 'pending', grade: null }));
+  const view = render(React.createElement(ReadScreen, { turn: turn({ attempts }), onRecord: vi.fn() }));
+  const lines = screen.getAllByLabelText('Previous line');
+  expect(lines.map(line => line.textContent)).toEqual([items[1].text, items[0].text]);
+  const pending = lines[1].innerHTML;
+  const current = document.querySelector('.current-line'), button = screen.getByRole('button', { name: 'Record' });
+  const newerGrade = grade(items[1], 'wrong_letter');
+  newerGrade.words[0].pairs[0].heard = 'va';
+  const newer = { ...attempts[1], status: 'graded', grade: newerGrade };
+  view.rerender(React.createElement(ReadScreen, { turn: turn({ attempts: [attempts[0], newer] }), onRecord: vi.fn() }));
+  expect(screen.getAllByLabelText('Previous line')).toEqual(lines);
+  expect(lines[0].querySelector('.pair-wrong_letter')).toBeTruthy();
+  expect(lines[0].querySelector('.pair-heard').textContent).toBe('Heard va');
+  expect(lines[1].innerHTML).toBe(pending);
+  const marked = lines[0].innerHTML;
+  const latest = { itemId: items[2].id, text: items[2].text, status: 'pending', grade: null };
+  view.rerender(React.createElement(ReadScreen, { turn: turn({ attempts: [attempts[0], newer, latest] }), onRecord: vi.fn() }));
+  const latestLine = screen.getAllByLabelText('Previous line')[0];
+  expect(screen.getAllByLabelText('Previous line')).toEqual([latestLine, ...lines]);
+  expect(latestLine.textContent).toBe(items[2].text);
+  const older = { ...attempts[0], status: 'graded', grade: grade(items[0], 'wrong_vowel') };
+  view.rerender(React.createElement(ReadScreen, { turn: turn({ attempts: [older, newer, latest] }), onRecord: vi.fn() }));
+  expect(screen.getAllByLabelText('Previous line')).toEqual([latestLine, ...lines]);
+  expect(lines[1].querySelector('.pair-wrong_vowel')).toBeTruthy();
+  expect(lines[0].innerHTML).toBe(marked);
+  expect(latestLine.querySelector('.pair')).toBeNull();
+  expect(document.querySelector('.current-line')).toBe(current);
+  expect(screen.getByRole('button', { name: 'Record' })).toBe(button);
 });
 
 it('advances immediately, scores resolved grades in reading order, and sends no client grades to next', async () => {
@@ -396,7 +452,7 @@ it('stops a mock recording after twenty seconds', async () => {
   const onRecord = vi.fn();
   render(React.createElement(ReadScreen, { turn: turn(), onRecord, onRetryNext: vi.fn() }));
   fireEvent.click(screen.getByRole('button', { name: 'Record' }));
-  expect(screen.getByRole('button', { name: 'Stop recording' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Pause listening' })).toBeTruthy();
   await act(async () => { vi.advanceTimersByTime(20000); });
   expect(onRecord).toHaveBeenCalledOnce();
 });
@@ -412,7 +468,7 @@ it('allows retry after microphone denial', async () => {
   await waitFor(() => expect(getUserMedia).toHaveBeenCalledTimes(2));
 });
 
-it('uses an AnalyserNode to stop after speech and 1.2 seconds of quiet and releases audio', async () => {
+it('keeps the voice card recording finite after speech and 1.2 seconds of quiet', async () => {
   vi.useFakeTimers();
   window.history.replaceState(null, '', '/#/read');
   let loudness = 0;
@@ -431,8 +487,8 @@ it('uses an AnalyserNode to stop after speech and 1.2 seconds of quiet and relea
     stop() { this.state = 'inactive'; this.ondataavailable({ data: new Blob(['clip']) }); this.onstop(); }
   }
   vi.stubGlobal('AudioContext', Context); vi.stubGlobal('MediaRecorder', Recorder);
-  render(React.createElement(ReadScreen, { turn: turn(), onRecord, onRetryNext: vi.fn() }));
-  await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Record' })));
+  const { result } = renderHook(() => recorder.useRecorder(onRecord, false));
+  await act(async () => result.current.toggle());
   act(() => vi.advanceTimersByTime(3000));
   expect(onRecord).not.toHaveBeenCalled();
   loudness = .1;
@@ -445,7 +501,7 @@ it('uses an AnalyserNode to stop after speech and 1.2 seconds of quiet and relea
   expect(trackStop).toHaveBeenCalledOnce(); expect(close).toHaveBeenCalledOnce();
 });
 
-it('preserves Hebrew pairs and marks an extra word with a dot only, never what the ear heard', () => {
+it('preserves Hebrew pairs and marks an extra word with a dot only', () => {
   render(React.createElement(GradedLine, { attempt: { status: 'graded', grade: { words: [
     { text: 'בָּרָ', verdict: null, pairs: [{ text: 'בָּ', verdict: 'ok' }, { text: 'רָ', verdict: 'wrong_vowel' }] },
     { text: 'ba', verdict: 'extra', pairs: [] },
@@ -471,6 +527,52 @@ it('overlays only vowel mistakes and hides the repeated letter from screen reade
   expect(letter.textContent).toBe('בָּ');
   expect(letter.querySelector('.pair-letter')).toBeNull();
   expect(document.querySelectorAll('.pair-letter')).toHaveLength(1);
+});
+
+it('shows the heard sound once after wrong letter and vowel pairs only, excluding skipped and undecoded words', () => {
+  const verdicts = ['wrong_letter', 'wrong_vowel', 'ok', 'uncertain', 'not_decoded', 'extra', 'skipped'];
+  render(React.createElement(GradedLine, { attempt: { status: 'graded', grade: { words: [
+    { pairs: verdicts.map(verdict => ({ text: 'בָּ', verdict, heard: 'cha' })) },
+    { verdict: 'skipped', pairs: [{ text: 'בָּ', verdict: 'wrong_letter', heard: 'cha' }] },
+    { verdict: 'not_decoded', pairs: [{ text: 'בָּ', verdict: 'wrong_vowel', heard: 'cha' }] },
+    { verdict: 'extra', text: 'cha', pairs: [{ text: '', verdict: 'wrong_letter', heard: 'cha' }] },
+  ] } } }));
+  const labels = [...document.querySelectorAll('.pair-heard')];
+  expect(labels).toHaveLength(2);
+  expect(labels.map(label => label.parentElement.className)).toEqual(['pair pair-wrong_letter', 'pair pair-wrong_vowel']);
+  for (const label of labels) {
+    expect(label.textContent).toBe('Heard cha');
+    expect(label.getAttribute('dir')).toBe('ltr');
+    expect(label.getAttribute('lang')).toBe('en');
+    expect(label.getAttribute('aria-hidden')).toBeNull();
+    expect(label.previousSibling.textContent).toMatch(/ב/u);
+    expect(label.querySelector('.sr-only').textContent).toBe('Heard ');
+  }
+});
+
+it.each([36, 48])('positions heard labels within the previous line spacing at %ipx', fontSize => {
+  const style = document.createElement('style'); style.id = 'station-test-styles';
+  style.textContent = readFileSync('src/styles.css', 'utf8'); document.head.append(style);
+  render(React.createElement(GradedLine, { attempt: { status: 'graded', grade: { words: [
+    { pairs: [{ text: 'בָּ', verdict: 'wrong_letter', heard: 'cha' }, { text: 'רָ', verdict: 'wrong_vowel', heard: 'ra' }] },
+  ] } } }));
+  const line = document.querySelector('.previous-line');
+  line.style.fontSize = `${fontSize}px`;
+  expect(getComputedStyle(line).lineHeight).toBe('2.3');
+  for (const label of document.querySelectorAll('.pair-heard')) {
+    const css = getComputedStyle(label);
+    expect(css.position).toBe('absolute');
+    expect(css.top).toBe('100%');
+    expect(css.left).toBe('50%');
+    expect(css.transform).toBe('translate(-50%, .25em)');
+    expect(parseFloat(css.fontSize)).toBeCloseTo(fontSize * .3);
+    expect(css.color).toBe(getComputedStyle(label.parentElement).color);
+    expect(css.lineHeight).toBe('1');
+    expect(getComputedStyle(label.parentElement).lineHeight).toBe('1.5');
+    const leading = (Number(getComputedStyle(line).lineHeight) - Number(getComputedStyle(label.parentElement).lineHeight)) * fontSize / 2;
+    expect(parseFloat(css.fontSize) * 1.25).toBeLessThan(leading);
+  }
+  expect(style.textContent).toContain('.previous-line { font-size: 48px; }');
 });
 
 it('uses no error red on read, recording, marked pairs, or done', () => {
@@ -541,8 +643,11 @@ it.each(['grade', 'next', 'finish'])('clears an unknown saved turn on %s 404 and
   sessionStorage.setItem(TURN_KEY, JSON.stringify(turn({ phase })));
   render(React.createElement(App));
   if (call === 'grade') {
-    fireEvent.click(await screen.findByRole('button', { name: 'Record' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Stop recording' }));
+    const record = await screen.findByRole('button', { name: 'Record' });
+    vi.useFakeTimers();
+    fireEvent.click(record);
+    await act(async () => { vi.advanceTimersByTime(20000); });
+    vi.useRealTimers();
   }
   expect(await screen.findByRole('heading', { name: 'Who’s reading?' })).toBeTruthy();
   expect(sessionStorage.getItem(TURN_KEY)).toBeNull();

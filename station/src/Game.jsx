@@ -1,4 +1,5 @@
-import { isMockMode } from './api.js';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { follow, isMockMode } from './api.js';
 import { Avatar } from './Avatar.jsx';
 import { Brand, Star } from './ui.jsx';
 import { turnMessage } from './messages.js';
@@ -33,6 +34,8 @@ export function GradedLine({ attempt }) {
           return <span key={pairIndex} style={{ animationDelay: `${pairCount++ * 70}ms` }}
             className={`pair pair-${verdict}`}>
             {pair.text}{verdict === 'wrong_vowel' && <span className="pair-letter" aria-hidden="true">{pairLetter(pair.text)}</span>}
+            {['wrong_letter', 'wrong_vowel'].includes(verdict) && pair.heard &&
+              <span className="pair-heard" dir="ltr" lang="en"><span className="sr-only">Heard </span>{pair.heard}</span>}
             {pair.verdict === 'extra' && <span className="extra-dot" aria-label="Extra word" />}</span>;
         }) : <span>{word.text}</span>}
     </span>)}
@@ -43,12 +46,12 @@ export function MicrophoneIcon() {
   return <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="18" y="5" width="12" height="25" rx="6" /><path d="M12 23v2a12 12 0 0 0 24 0v-2M24 37v7M17 44h14" /></svg>;
 }
 
-export function RecordButton({ recorder, disabled = false, thinking = false }) {
+export function RecordButton({ recorder, disabled = false, thinking = false, continuous = false }) {
   const recording = recorder.status === 'recording';
   const busy = thinking || recorder.status === 'requesting';
   return <button className={`record-button ${recording ? 'recording' : ''} ${busy ? 'thinking' : ''}`}
     onClick={recorder.toggle} disabled={disabled || recorder.status === 'requesting'}
-    aria-label={recording ? 'Stop recording' : 'Record'} aria-pressed={recording} aria-busy={busy}>
+    aria-label={recording ? (continuous ? 'Pause listening' : 'Stop recording') : 'Record'} aria-pressed={recording} aria-busy={busy}>
     {busy ? <span className="thinking-icon" aria-hidden="true" /> :
       recording ? <span className="stop-icon" aria-hidden="true" /> : <MicrophoneIcon />}
   </button>;
@@ -62,29 +65,77 @@ export function LevelUp({ level }) {
   </div>;
 }
 
+const MIN_LINE_SCALE = .45;
+
+export function CurrentLine({ item, word, checkpoint }) {
+  const active = useRef(null);
+  const frame = useRef(null);
+  const [scale, setScale] = useState(1);
+  useEffect(() => {
+    active.current?.scrollIntoView?.({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
+  }, [item?.id, word]);
+  useEffect(() => {
+    const refit = () => setScale(1);
+    window.addEventListener('resize', refit);
+    return () => window.removeEventListener('resize', refit);
+  }, []);
+  useLayoutEffect(() => setScale(1), [item?.id]);
+  // A long line shrinks until all of it fits on the card, so no word is hidden below the fold.
+  useLayoutEffect(() => {
+    const element = frame.current;
+    if (element && scale > MIN_LINE_SCALE && element.scrollHeight > element.clientHeight + 1) {
+      setScale(Math.max(MIN_LINE_SCALE, scale * .9));
+    }
+  }, [item?.id, scale]);
+  let index = 0;
+  return <div ref={frame} className="current-line" dir="rtl" lang="he"><div className="current-line-text" style={scale < 1 ? { fontSize: `${scale}em` } : undefined}>{item ?
+    item.text.split(/([א-ת][\u0591-\u05bd\u05bf-\u05c2\u05c4\u05c5\u05c7א-ת׳״'’]*)/u).map((part, partIndex) => {
+      if (!/[א-ת]/u.test(part)) return part;
+      const current = index++ === word;
+      return <span key={partIndex} ref={current ? active : null} className={`reading-word${current ? ' reading-word-current' : ''}`}>{part}</span>;
+    }) : <Star filled filling={checkpoint} />}</div></div>;
+}
+
 export function ReadScreen({ turn, onRecord, onRetryNext }) {
-  const recorder = useRecorder(onRecord, isMockMode());
+  const item = turn.phase === 'reading' ? turn.set[turn.lineIndex] : null;
+  const lineKey = item ? `${turn.turnId}:${turn.completedSets}:${turn.lineIndex}` : null;
+  const [position, setPosition] = useState(null);
+  const recorder = useRecorder(onRecord, isMockMode(), { continuous: true, lineKey,
+    finished: ['finish_pending', 'finishing', 'finish_error', 'finished'].includes(turn.phase)
+      || (turn.phase === 'level_up' && turn.afterLevelUp === 'finish_pending'),
+    onFollow: async (audio, isCurrent) => {
+      if (!isCurrent()) return;
+      const { word } = await follow({ turnId: turn.turnId, itemId: item.id, audio });
+      if (isCurrent() && Number.isInteger(word) && word >= 0) setPosition(previous => {
+        const current = previous?.lineKey === lineKey ? previous.word : -1;
+        return { lineKey, word: Math.max(current, Math.min(word, current + 1)) };
+      });
+    },
+  });
   if (recorder.status === 'off') return <section className="microphone-off">
     <h1>Microphone is off</h1><button className="primary" onClick={recorder.retry}>Try again</button>
   </section>;
   if (turn.phase === 'level_up') return <LevelUp level={turn.level} />;
-  const item = turn.phase === 'reading' ? turn.set[turn.lineIndex] : null;
   const checkpoint = ['checkpoint', 'choosing', 'finishing', 'finish_pending'].includes(turn.phase);
   const retry = ['next_error', 'finish_error'].includes(turn.phase);
   return <section className="reading-content" aria-label="Reading">
-    <div className="turn-stars" role="img" aria-label={`${turn.stars} stars this turn`}>
-      {Array.from({ length: Math.max(3, turn.stars) }, (_, index) => <Star key={index} filled={index < turn.stars} />)}
-      {checkpoint && <Star filling />}
-      {!!turn.bonusBurst && <span key={turn.bonusBurst} className="bonus-burst" aria-hidden="true"><Star filled /><Star filled /><Star filled /></span>}
+    <div className="reading-controls">
+      <div className="turn-stars" role="img" aria-label={`${turn.stars} stars this turn`}>
+        {Array.from({ length: Math.max(3, turn.stars) }, (_, index) => <Star key={index} filled={index < turn.stars} />)}
+        {checkpoint && <Star filling />}
+        {!!turn.bonusBurst && <span key={turn.bonusBurst} className="bonus-burst" aria-hidden="true"><Star filled /><Star filled /><Star filled /></span>}
+      </div>
+      <div className={`line-frame ${item?.source?.challenge ? 'challenge-frame' : ''}`} aria-label={item?.source?.challenge ? 'Challenge' : undefined}>
+        {item?.source?.challenge && <span className="challenge-badge" aria-hidden="true"><Star filled /></span>}
+        <CurrentLine item={item} word={position?.lineKey === lineKey ? position.word : null} checkpoint={checkpoint} />
+      </div>
+      <div className="record-area">
+        {retry ? <button className="primary" onClick={onRetryNext}>Try again</button> :
+          <RecordButton recorder={recorder} continuous disabled={!item && recorder.status !== 'recording'} thinking={checkpoint} />}
+      </div>
     </div>
-    <GradedLine attempt={turn.attempts.at(-1)} />
-    <div className={`line-frame ${item?.source?.challenge ? 'challenge-frame' : ''}`} aria-label={item?.source?.challenge ? 'Challenge' : undefined}>
-      {item?.source?.challenge && <span className="challenge-badge" aria-hidden="true"><Star filled /></span>}
-      <div className="current-line" dir="rtl" lang="he">{item ? item.text : <Star filled filling={checkpoint} />}</div>
-    </div>
-    <div className="record-area">
-      {retry ? <button className="primary" onClick={onRetryNext}>Try again</button> :
-        <RecordButton recorder={recorder} disabled={!item} thinking={checkpoint} />}
+    <div className="reading-results">
+      {turn.attempts.map((attempt, index) => <GradedLine key={index} attempt={attempt} />).reverse()}
     </div>
   </section>;
 }

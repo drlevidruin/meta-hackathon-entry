@@ -115,6 +115,8 @@ async function start(app, childId) {
 }
 const grade = (app, turnId, item = 'kamatz-0', options = {}) => request(app, `/api/grade?turn=${turnId}&item=${item}`,
   { type: 'audio/wav', data: Buffer.from('FAKE_AUDIO_BYTES'), ...options });
+const follow = (app, turnId, item = 'kamatz-0', options = {}) => request(app, `/api/follow?turn=${turnId}&item=${item}`,
+  { type: 'audio/wav', data: Buffer.from('FOLLOW_AUDIO_BYTES'), ...options });
 const checkpoints = new WeakMap();
 async function next(app, turnId, elapsedMs = 1200) {
   if (!checkpoints.has(app)) checkpoints.set(app, new Map());
@@ -1287,6 +1289,103 @@ test('start loads the saved profile and returns a turn with only bank items', as
   assert.equal((await request(app, '/api/start', { data: {} })).status, 400);
   assert.equal((await request(app, '/api/start', { data: { childId: 'bad-id' } })).status, 400);
   assert.equal((await request(app, '/api/start', { data: { childId: randomUUID() } })).status, 404);
+});
+
+test('follow maps vowel counts to words with one, two and three syllables without reaching the ear or saving sounds', async () => {
+  const item = { ...items[0], id: 'phrase', text: 'בָּ בָּרָ בָּרָכָה' };
+  let count = 0;
+  const phonemes = mock.fn(async () => [{ token: '<s>' }, { token: 'b' },
+    ...Array.from({ length: count }, (_, index) => ({ token: ['a', 'ɔ', 'eɪ'][index % 3] })), { token: '</s>' }]);
+  const { app, dataDir, listen, gradeLine } = setup({ items: [item], phonemes,
+    chooseNextSet: async profile => selection(profile, { itemIds: [item.id] }) });
+  const child = await add(app, { preset: 'ashkenazi' });
+  const turn = await start(app, child.id);
+  const saved = disk(dataDir);
+  const audio = wav(utterance(['a']));
+  for (const expected of [null, 0, 1, 1, 2, 2, 2, 2]) {
+    const response = await follow(app, turn.turnId, item.id, { data: audio });
+    assert.equal(response.status, 200);
+    assert.deepEqual(response.json, { word: expected }, `vowels ${count}`);
+    assert.equal(response.headers['Cache-Control'], 'no-store');
+    assert.deepEqual(phonemes.mock.calls.at(-1).arguments, [audio]);
+    count++;
+  }
+  assert.equal(listen.mock.callCount(), 0);
+  assert.equal(gradeLine.mock.callCount(), 0);
+  assert.deepEqual(disk(dataDir), saved);
+});
+
+test('follow counts the first rulebook reading of a printed word, including a substituted Name', async () => {
+  const item = { ...items[0], id: 'name', text: 'מֶלֶךְ יְהוָה בָּ' };
+  let count = 0;
+  const { app } = setup({ items: [item], phonemes: async () => Array.from({ length: count }, () => ({ token: 'ə' })),
+    chooseNextSet: async profile => selection(profile, { itemIds: [item.id] }) });
+  const child = await add(app, { preset: 'chassidish' });
+  const turn = await start(app, child.id);
+  for (const [vowels, word] of [[1, 0], [2, 0], [3, 1], [5, 1], [6, 2], [20, 2]]) {
+    count = vowels;
+    assert.deepEqual((await follow(app, turn.turnId, item.id)).json, { word });
+  }
+});
+
+test('follow returns only a null word when the phoneme service is off, empty or fails', async () => {
+  for (const phonemes of [undefined, async () => null, async () => [], async () => [{ token: 'k' }],
+    async () => { throw new Error('private phoneme failure'); }]) {
+    const { app, listen, gradeLine } = setup({ phonemes });
+    const child = await add(app);
+    const turn = await start(app, child.id);
+    const response = await follow(app, turn.turnId);
+    assert.equal(response.status, 200);
+    assert.deepEqual(response.json, { word: null });
+    assert.equal(listen.mock.callCount(), 0);
+    assert.equal(gradeLine.mock.callCount(), 0);
+  }
+});
+
+test('follow rejects a second request per turn while leaving grading and other turns independent', async () => {
+  const entered = deferred(), release = deferred();
+  const phonemes = mock.fn(async () => {
+    if (phonemes.mock.callCount() === 0) { entered.resolve(); return release.promise; }
+    return [];
+  });
+  const { app, listen } = setup({ phonemes });
+  const child = await add(app);
+  const turn = await start(app, child.id);
+  const pending = follow(app, turn.turnId);
+  await entered.promise;
+  try {
+    assert.equal((await follow(app, turn.turnId, 'kamatz-1')).status, 429);
+    assert.equal(phonemes.mock.callCount(), 1);
+    const other = await start(app, (await add(app, { name: 'Cloud' })).id);
+    assert.equal((await follow(app, other.turnId)).status, 200);
+    assert.equal(listen.mock.callCount(), 0);
+    assert.equal((await grade(app, turn.turnId)).status, 200);
+    assert.equal(listen.mock.callCount(), 1);
+  } finally { release.resolve([{ token: 'a' }]); }
+  assert.deepEqual((await pending).json, { word: 0 });
+  assert.equal((await follow(app, turn.turnId)).status, 200);
+});
+
+test('follow validates turn, current item, WAV type and body size, and frees its slot after a bad body', async () => {
+  const phonemes = mock.fn(async () => []);
+  const { app, listen } = setup({ phonemes });
+  const child = await add(app);
+  const turn = await start(app, child.id);
+  for (const [turnId, item, options, status] of [
+    ['missing', 'kamatz-0', {}, 404], [turn.turnId, 'patach-0', {}, 404], [turn.turnId, 'missing', {}, 404],
+    [turn.turnId, 'kamatz-0', { data: Buffer.alloc(0) }, 400],
+    [turn.turnId, 'kamatz-0', { type: 'audio/webm' }, 415],
+    [turn.turnId, 'kamatz-0', { data: Buffer.alloc(25 * 1024 * 1024 + 1) }, 413],
+    [turn.turnId, 'kamatz-0', { headers: { 'content-length': 25 * 1024 * 1024 + 1 } }, 413],
+  ]) assert.equal((await follow(app, turnId, item, options)).status, status);
+  assert.equal(phonemes.mock.callCount(), 0);
+  assert.equal(listen.mock.callCount(), 0);
+  assert.equal((await follow(app, turn.turnId)).status, 200);
+  await finish(app, turn.turnId);
+  assert.equal((await follow(app, turn.turnId)).status, 404);
+  const older = await start(app, child.id);
+  await start(app, child.id);
+  assert.equal((await follow(app, older.turnId)).status, 404);
 });
 
 test('grade asks for five votes using three, passes audio, and uses the saved preset', async () => {
