@@ -322,6 +322,7 @@ export function applyMeter(words, data, profile, options = {}) {
   const { samples, rate } = audio;
   const ranges = syllableRanges(words, samples, rate, options.tokens);
   if (!ranges) return unchanged('count');
+  const byTiming = soundIslands(samples, rate).length !== words.flat().length;
   const changes = [];
   let index = 0;
   for (const word of newWords) {
@@ -329,7 +330,8 @@ export function applyMeter(words, data, profile, options = {}) {
       const from = word[s];
       const match = /oy|ey|a|e|i|o|u/.exec(from);
       const earVowel = match?.[0];
-      const candidates = earVowel === 'a' ? ['a', 'o', 'e'] : earVowel === 'e' ? ['e', 'i'] : [];
+      const candidates = byTiming ? (earVowel === 'a' ? ['a', 'o'] : [])
+        : earVowel === 'a' ? ['a', 'o', 'e'] : earVowel === 'e' ? ['e', 'i'] : [];
       if (!Object.hasOwn(profile.vowels, earVowel)
         || !candidates.some(v => v !== earVowel && Object.hasOwn(profile.vowels, v))) continue;
       const { start, end } = ranges[index];

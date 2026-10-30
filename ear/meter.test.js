@@ -640,8 +640,9 @@ test('meter placement uses timed vowel nuclei on connected audio without using t
   const before = structuredClone(voice);
   assert.equal(soundIslands(decodeWav(data).samples, rate).length, 1);
   const result = applyMeter(words, data, voice, { tokens });
-  assert.deepEqual(result, { words: [['bo', 'ruch'], ['mi', 'ta']],
-    changes: [{ index: 0, from: 'ba', to: 'bo' }, { index: 2, from: 'me', to: 'mi' }], applied: true });
+  // On whole lines the meter only chooses between a and o; the e of me stays, though it measures as i.
+  assert.deepEqual(result, { words: [['bo', 'ruch'], ['me', 'ta']],
+    changes: [{ index: 0, from: 'ba', to: 'bo' }], applied: true });
   assert.deepEqual(words, [['ba', 'ruch'], ['me', 'ta']]);
   assert.notEqual(result.words, words);
   assert.notEqual(result.words[0], words[0]);
