@@ -23,7 +23,7 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, fin
     session.source?.disconnect();
     session.analyser?.disconnect();
     session.context?.close().catch(() => {});
-    session.stream?.getTracks().forEach(track => track.stop());
+    session.stream?.getTracks().forEach(track => { track.onended = null; track.stop(); });
     session.source = null;
     session.processor = null;
     session.analyser = null;
@@ -96,6 +96,15 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, fin
       if (!mockMode) {
         session.stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1 } });
         if (!mounted.current || session.discard) { release(session); return; }
+        if (continuous) session.stream.getTracks().forEach(track => {
+          track.onended = () => {
+            session.discard = true;
+            session.chunks = [];
+            paused.current = null;
+            release(session);
+            if (mounted.current) setStatus('off');
+          };
+        });
         const AudioContextClass = globalThis.AudioContext || globalThis.webkitAudioContext;
         session.context = new AudioContextClass(paused.current?.sampleRate ? { sampleRate: paused.current.sampleRate } : undefined);
         await session.context.resume();
@@ -106,7 +115,10 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, fin
           if (paused.current?.lineKey === session.lineKey) {
             session.chunks = paused.current.chunks;
             session.heardSpeech = paused.current.heardSpeech;
-            if (session.heardSpeech) session.silent(SPEECH_THRESHOLD, performance.now());
+            if (session.heardSpeech) {
+              session.silent(SPEECH_THRESHOLD, performance.now());
+              session.timer = setTimeout(() => endLine(session), 20000);
+            }
           }
           paused.current = null;
           // PCM snapshots remain decodable while capture continues. The output
@@ -117,7 +129,12 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, fin
             if (!reading(session)) return;
             const samples = event.inputBuffer.getChannelData(0);
             const loudness = rms(samples);
-            session.heardSpeech ||= loudness >= SPEECH_THRESHOLD;
+            if (!session.heardSpeech && loudness >= SPEECH_THRESHOLD) {
+              session.heardSpeech = true;
+              // The 20-second limit counts from the first sound, so a reader who looks
+              // before reading is never cut off, and steady noise still ends the line.
+              session.timer = setTimeout(() => endLine(session), 20000);
+            }
             session.chunks.push(new Float32Array(samples));
             if (!session.heardSpeech) {
               // Keep a second of lead-in so a quiet first consonant reaches

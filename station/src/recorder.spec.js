@@ -28,7 +28,7 @@ const deferred = () => {
 function microphone() {
   const tracks = [], processors = [], contexts = [];
   const getUserMedia = vi.fn(async () => {
-    const track = { stop: vi.fn() };
+    const track = { stop: vi.fn(), onended: null };
     tracks.push(track);
     return { getTracks: () => [track] };
   });
@@ -132,6 +132,60 @@ it('one tap sends each spoken line once in order, waits for checkpoint grades, r
     const bytes = new DataView(await value.audio.arrayBuffer());
     expect(bytes.getUint32(24, true)).toBe(16000);
   }
+});
+
+it('ends a line of steady noise 20 seconds after its first sound, once, and keeps listening for the next line', async () => {
+  const mic = microphone(), onStop = vi.fn();
+  const { result, rerender } = renderHook(({ lineKey }) => useRecorder(onStop, false, { continuous: true, lineKey }),
+    { initialProps: { lineKey: 'one' } });
+  await act(async () => result.current.toggle());
+  act(() => mic.audio(.1, 19950));
+  expect(onStop).not.toHaveBeenCalled();
+  act(() => mic.audio(.1, 100));
+  expect(onStop).toHaveBeenCalledOnce();
+  expect(onStop.mock.calls[0][0]).toBeInstanceOf(MemoryBlob);
+  expect(onStop.mock.calls[0][0].size).toBeLessThanOrEqual(44 + 20000 * 16 * 2);
+  expect(result.current.status).toBe('recording');
+  act(() => mic.audio(.1, 2000));
+  expect(onStop).toHaveBeenCalledOnce();
+  rerender({ lineKey: 'two' });
+  await mic.line();
+  expect(onStop).toHaveBeenCalledTimes(2);
+  expect(mic.getUserMedia).toHaveBeenCalledOnce();
+  expect(mic.tracks[0].stop).not.toHaveBeenCalled();
+  expect(mic.contexts[0].close).not.toHaveBeenCalled();
+});
+
+it('counts the 20-second limit from the first sound, so a quiet start is never cut off', async () => {
+  const mic = microphone(), onStop = vi.fn();
+  const { result } = renderHook(() => useRecorder(onStop, false, { continuous: true, lineKey: 'one' }));
+  await act(async () => result.current.toggle());
+  act(() => mic.audio(0, 25000));
+  expect(onStop).not.toHaveBeenCalled();
+  await mic.line();
+  expect(onStop).toHaveBeenCalledOnce();
+});
+
+it('drops partial audio and releases the session when the microphone track ends, then retries the same line', async () => {
+  const mic = microphone(), onStop = vi.fn();
+  const { result } = renderHook(() => useRecorder(onStop, false, { continuous: true, lineKey: 'one' }));
+  await act(async () => result.current.toggle());
+  act(() => mic.audio(.1, 200));
+  act(() => mic.tracks[0].onended?.());
+  expect(result.current.status).toBe('off');
+  expect(onStop).not.toHaveBeenCalled();
+  expect(mic.tracks[0].stop).toHaveBeenCalledOnce();
+  expect(mic.contexts[0].close).toHaveBeenCalledOnce();
+  expect(mic.processors[0].disconnect).toHaveBeenCalledOnce();
+  expect(mic.processors[0].onaudioprocess).toBeNull();
+  act(() => vi.advanceTimersByTime(20000));
+  expect(onStop).not.toHaveBeenCalled();
+  await act(async () => result.current.retry());
+  expect(result.current.status).toBe('recording');
+  expect(mic.getUserMedia).toHaveBeenCalledTimes(2);
+  await mic.line();
+  expect(onStop).toHaveBeenCalledOnce();
+  expect(onStop.mock.calls[0][0].size).toBe(44 + 1350 * 16 * 2);
 });
 
 it('pauses without submitting, releases the track and resumes the same partial line with one new tap', async () => {
