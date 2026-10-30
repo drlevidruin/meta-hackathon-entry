@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { voiceCardFor } from '../../rulebook/voice-card.js';
 import * as api from './api.js';
 import { Avatar } from './Avatar.jsx';
-import { MicrophoneIcon } from './Game.jsx';
+import { RecordButton } from './Game.jsx';
 import { useRecorder } from './useRecorder.js';
 import { recordingToWav } from './wav.js';
 
@@ -52,11 +52,7 @@ export function VoiceCheck({ child, engine }) {
     <div className="voice-reading">
       <div className="voice-card" dir="rtl" lang="he" style={{ '--columns': card.length / 3 }}>{card.map((syllable, index) => <span key={index}>{syllable}</span>)}</div>
       <div className="record-area">
-        <button className={`record-button ${recorder.status === 'recording' ? 'recording' : ''}`} onClick={recorder.toggle}
-          disabled={sending || engine.starting || recorder.status === 'requesting'} aria-label={recorder.status === 'recording' ? 'Stop recording' : 'Record'}
-          aria-pressed={recorder.status === 'recording'}>
-          {recorder.status === 'recording' ? <span className="stop-icon" aria-hidden="true" /> : <MicrophoneIcon />}
-        </button>
+        <RecordButton recorder={recorder} disabled={sending || engine.starting} thinking={sending || engine.starting} />
       </div>
       {(error || engine.startError) && <p role="alert">{error || 'Try again'}</p>}
     </div>

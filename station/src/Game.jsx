@@ -7,12 +7,16 @@ import { useRecorder } from './useRecorder.js';
 
 export function Stats({ turn }) {
   return <aside className="stats" aria-label="Your progress">
-    <Brand />
-    <div className="reader-identity"><Avatar name={turn.child.avatar} small /><strong>{turn.child.name}</strong></div>
-    <div className="level-badge">Level {turn.level}</div>
-    <div className="stat"><span>Stars</span><strong><Star filled />{turn.stars}</strong></div>
-    <div className="stat"><span>Streak</span><strong>{turn.streak}</strong></div>
-    <div className="stat"><span>Best streak</span><strong>{turn.bestStreak}</strong></div>
+    <div className="reading-brand"><Brand /></div>
+    <div className="reader-profile">
+      <div className="reader-identity"><Avatar name={turn.child.avatar} small /><strong>{turn.child.name}</strong></div>
+      <div className="level-badge">Level {turn.level}</div>
+    </div>
+    <dl className="reader-stats">
+      <div className="stat"><dt>Stars</dt><dd><Star filled />{turn.stars}</dd></div>
+      <div className="stat"><dt>Streak</dt><dd>{turn.streak}</dd></div>
+      <div className="stat"><dt>Best streak</dt><dd>{turn.bestStreak}</dd></div>
+    </dl>
   </aside>;
 }
 
@@ -33,6 +37,17 @@ export function GradedLine({ attempt }) {
 
 export function MicrophoneIcon() {
   return <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="18" y="5" width="12" height="25" rx="6" /><path d="M12 23v2a12 12 0 0 0 24 0v-2M24 37v7M17 44h14" /></svg>;
+}
+
+export function RecordButton({ recorder, disabled = false, thinking = false }) {
+  const recording = recorder.status === 'recording';
+  const busy = thinking || recorder.status === 'requesting';
+  return <button className={`record-button ${recording ? 'recording' : ''} ${busy ? 'thinking' : ''}`}
+    onClick={recorder.toggle} disabled={disabled || recorder.status === 'requesting'}
+    aria-label={recording ? 'Stop recording' : 'Record'} aria-pressed={recording} aria-busy={busy}>
+    {busy ? <span className="thinking-icon" aria-hidden="true" /> :
+      recording ? <span className="stop-icon" aria-hidden="true" /> : <MicrophoneIcon />}
+  </button>;
 }
 
 export function LevelUp({ level }) {
@@ -65,11 +80,7 @@ export function ReadScreen({ turn, onRecord, onRetryNext }) {
     </div>
     <div className="record-area">
       {retry ? <button className="primary" onClick={onRetryNext}>Try again</button> :
-        <button className={`record-button ${recorder.status === 'recording' ? 'recording' : ''}`} onClick={recorder.toggle}
-          disabled={!item || recorder.status === 'requesting'} aria-label={recorder.status === 'recording' ? 'Stop recording' : 'Record'}
-          aria-pressed={recorder.status === 'recording'}>
-          {recorder.status === 'recording' ? <span className="stop-icon" aria-hidden="true" /> : <MicrophoneIcon />}
-        </button>}
+        <RecordButton recorder={recorder} disabled={!item} thinking={checkpoint} />}
     </div>
   </section>;
 }
@@ -84,7 +95,6 @@ export function DoneScreen({ turn, onNext }) {
     </div>
     <h1>{starsLabel}!</h1>
     <p className="turn-message">{turnMessage(turn.facts)}</p>
-    <p className="next-friend">Go get the next friend!</p>
     <button className="primary" onClick={() => { onNext(); navigate('/', { replace: true }); }}>Next friend</button>
   </section>;
 }
