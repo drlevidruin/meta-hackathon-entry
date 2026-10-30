@@ -1,0 +1,63 @@
+Started Fri Oct 30 08:44:54 EDT
+run 1 attempt 1: ear-test exit 1 (1 is normal when a clip misses)
+Ear model: primary (muse-wonder-1.0)
+Ear votes: 3
+Voice card: voice-check-2
+Vowel meter: on (ashkenazi voice check)
+Voice card to the ear: on
+Phoneme referee: on (o 0.94, a 0.19, line 0.50)
+Card probe: on (a 3, o 3)
+Phoneme referee: checked 13 of 13 readings
+Probe chose 7 syllables and changed 1.
+ERROR rows: 0
+run 1: faithful replay exit 0
+Replay matches the run on 13 of 13 readings.
+run 1: off replay exit 0
+Readings changed by the replay: 1 of 13.
+run 2 attempt 1: ear-test exit 1 (1 is normal when a clip misses)
+Ear model: primary (muse-wonder-1.0)
+Ear votes: 3
+Voice card: voice-check-2
+Vowel meter: on (ashkenazi voice check)
+Voice card to the ear: on
+Phoneme referee: on (o 0.94, a 0.19, line 0.50)
+Card probe: on (a 3, o 3)
+Phoneme referee: checked 13 of 13 readings
+Probe chose 7 syllables and changed 1.
+ERROR rows: 0
+run 2: faithful replay exit 0
+Replay matches the run on 13 of 13 readings.
+run 2: off replay exit 0
+Readings changed by the replay: 1 of 13.
+run 3 attempt 1: ear-test exit 0 (1 is normal when a clip misses)
+Ear model: primary (muse-wonder-1.0)
+Ear votes: 3
+Voice card: voice-check-2
+Vowel meter: on (ashkenazi voice check)
+Voice card to the ear: on
+Phoneme referee: on (o 0.94, a 0.19, line 0.50)
+Card probe: on (a 3, o 3)
+Phoneme referee: checked 13 of 13 readings
+Probe chose 6 syllables and changed 1.
+ERROR rows: 0
+run 3: faithful replay exit 0
+Replay matches the run on 13 of 13 readings.
+run 3: off replay exit 0
+Readings changed by the replay: 0 of 13.
+== Score, as run
+.lab/round-1f/run-1.tsv | Round 1f: clips 13 of 13, ear errors 0; final: plants caught 4 of 4, hidden 0, unsure 0, other 0, false marks 1, uncertain marks 0; metered: plants caught 4 of 4, hidden 0, unsure 0, other 0, false marks 3, uncertain marks 0; ear: plants caught 3 of 4, hidden 1, unsure 0, other 0, false marks 7, uncertain marks 0
+.lab/round-1f/run-1.tsv: FAIL; clips 13, ear errors 0; final: plants caught 4 of 4, hidden 0, unsure 0, other 0, false marks 1, uncertain marks 0; missing clips: none; repeated clips: none
+.lab/round-1f/run-2.tsv | Round 1f: clips 13 of 13, ear errors 0; final: plants caught 4 of 4, hidden 0, unsure 0, other 0, false marks 1, uncertain marks 0; metered: plants caught 4 of 4, hidden 0, unsure 0, other 0, false marks 3, uncertain marks 0; ear: plants caught 4 of 4, hidden 0, unsure 0, other 0, false marks 6, uncertain marks 0
+.lab/round-1f/run-2.tsv: FAIL; clips 13, ear errors 0; final: plants caught 4 of 4, hidden 0, unsure 0, other 0, false marks 1, uncertain marks 0; missing clips: none; repeated clips: none
+.lab/round-1f/run-3.tsv | Round 1f: clips 13 of 13, ear errors 0; final: plants caught 4 of 4, hidden 0, unsure 0, other 0, false marks 0, uncertain marks 0; metered: plants caught 4 of 4, hidden 0, unsure 0, other 0, false marks 2, uncertain marks 0; ear: plants caught 4 of 4, hidden 0, unsure 0, other 0, false marks 5, uncertain marks 0
+.lab/round-1f/run-3.tsv: PASS; clips 13, ear errors 0; final: plants caught 4 of 4, hidden 0, unsure 0, other 0, false marks 0, uncertain marks 0; missing clips: none; repeated clips: none
+Round 1f: 1 of 3 runs pass; 3 needed: FAIL
+== Score, probe off replays
+.lab/round-1f/run-1.off.tsv | Round 1f: clips 13 of 13, ear errors 0; final: plants caught 4 of 4, hidden 0, unsure 0, other 0, false marks 0, uncertain marks 1; metered: plants caught 4 of 4, hidden 0, unsure 0, other 0, false marks 3, uncertain marks 0; ear: plants caught 3 of 4, hidden 1, unsure 0, other 0, false marks 7, uncertain marks 0
+.lab/round-1f/run-1.off.tsv: PASS; clips 13, ear errors 0; final: plants caught 4 of 4, hidden 0, unsure 0, other 0, false marks 0, uncertain marks 1; missing clips: none; repeated clips: none
+.lab/round-1f/run-2.off.tsv | Round 1f: clips 13 of 13, ear errors 0; final: plants caught 4 of 4, hidden 0, unsure 0, other 0, false marks 0, uncertain marks 1; metered: plants caught 4 of 4, hidden 0, unsure 0, other 0, false marks 3, uncertain marks 0; ear: plants caught 4 of 4, hidden 0, unsure 0, other 0, false marks 6, uncertain marks 0
+.lab/round-1f/run-2.off.tsv: PASS; clips 13, ear errors 0; final: plants caught 4 of 4, hidden 0, unsure 0, other 0, false marks 0, uncertain marks 1; missing clips: none; repeated clips: none
+.lab/round-1f/run-3.off.tsv | Round 1f: clips 13 of 13, ear errors 0; final: plants caught 4 of 4, hidden 0, unsure 0, other 0, false marks 0, uncertain marks 0; metered: plants caught 4 of 4, hidden 0, unsure 0, other 0, false marks 2, uncertain marks 0; ear: plants caught 4 of 4, hidden 0, unsure 0, other 0, false marks 5, uncertain marks 0
+.lab/round-1f/run-3.off.tsv: PASS; clips 13, ear errors 0; final: plants caught 4 of 4, hidden 0, unsure 0, other 0, false marks 0, uncertain marks 0; missing clips: none; repeated clips: none
+Round 1f: 3 of 3 runs pass; 3 needed: PASS
+Finished 08:50:00

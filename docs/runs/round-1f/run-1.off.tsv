@@ -1,0 +1,22 @@
+Replay of run-1.tsv with the probe off
+Voice card: voice-check-2
+Vowel meter: on (ashkenazi voice check)
+Voice card to the ear: on
+Phoneme referee: on (o 0.94, a 0.19, line 0.50)
+Card probe: off (--probe not set)
+clip	said	heard	result	ear	metered	votes
+gal_clean	gal	gal	PASS	gal	gal	gal | gal | gal
+moyro_clean	moy-ro	moy-ro	PASS	moy-ra	moy-ro	moy ra | moy-ra | moy-ra
+tal_kamatz-for-patach	tol	tol	PASS	tal	tol	tol | tal | tal
+chozok_clean	cho-zok	cho-zok	PASS	cha-zak	cho-zak	cho-zak | cha-zak | cha-zak
+moshol_clean	mo-shol	mo-shol	PASS	mo-shol	mo-shol	mo-shol | ma-shol | mo-shol
+kohol_patach-for-kamatz	ka-hol	ka-hol	PASS	ka-hol	ka-hol	ka-hol | ka-hol | ka-hol
+soro_clean	so-ro	so-?	MISS	so-ra	so-ra	so-ra | so-ra | so-ro
+naal_clean	na-al	na-al	PASS	na-ol	na-ol	na-ol | na-al | na-ol
+omol_patach-for-kamatz	o-mal	o-mal	PASS	o-mal	o-mal	o-mal | o-mal | o-mal
+chaveyro_clean	cha-vey-ro	cha-vey-ro	PASS	cha-vey-ra	cha-vey-ro	cha-vey-ra | cha-vey-ra | cha-vey-ra
+godoyl_clean	go-doyl	go-doyl	PASS	go-doyl	go-doyl	go-doyl | ga-doyl | go-doyl
+chom_patach-for-kamatz	cham	cham	PASS	cham	cham	cham | cham | cham
+shulchon_clean	shul-chon	shul-chon	PASS	shul-chan	shul-chon	shul-chan | shul-chan | shul-chan
+Phoneme referee: checked 13 of 13 readings
+Readings changed by the replay: 1 of 13.

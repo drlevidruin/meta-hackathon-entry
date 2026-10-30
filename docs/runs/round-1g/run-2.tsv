@@ -1,0 +1,22 @@
+Ear model: primary (muse-wonder-1.0)
+Ear votes: 3
+Voice card: voice-check-2
+Vowel meter: on (ashkenazi voice check)
+Voice card to the ear: on
+Phoneme referee: on (o 0.94, a 0.19, line 0.50)
+Card probe: off (--probe not set)
+clip	said	heard	result	ear	metered	votes
+sal_clean	sal	sal	PASS	sal	sal	sal | sal | sal
+shiro_clean	shi-ro	shi-ro	PASS	shi-ra	shi-ra	shi-ra | shi-ra | shi-ra
+dal_kamatz-for-patach	dol	dol	PASS	dol	dol	dol | dol | dol
+bosor_clean	bo-sor	bo-sor	PASS	bo-sar	bo-sar	bo-sar | bo-sar | bo-sar
+cholol_clean	cho-lol	cho-lol	PASS	cha-lal	cho-lol	cha-lal | cho-lal | cha-lol
+yofo_patach-for-kamatz	ya-fo	ya-fo	PASS	ya-fo	ya-fo	ya-fo | ya-fa | ya-fo
+malko_clean	mal-ko	mal-ko	PASS	mal-ka	mal-ko	mal-ka | mal-ka | mal-ka
+baal_clean	ba-al	ba-al	PASS	ba-al	ba-al	ba-al | ba-al | ba-ol
+sholol_patach-for-kamatz	sho-lal	sho-lal	PASS	sho-lal	sho-lal	sho-lal | sha-lal | sho-lal
+diro_clean	di-ro	di-ro	PASS	di-ra	di-ro	di-ra | di-ra | di-ra
+oylom_clean	oy-lom	oy-lom	PASS	oy-lam	oy-lom	oy-lam | oy-lam | oy-lam
+dom_patach-for-kamatz	dam	dam	PASS	dam	dam	dam | dam | dam
+suko_clean	su-ko	su-ka	MISS	su-ka	su-ka	su-ka | su-ka | su-ka
+Phoneme referee: checked 13 of 13 readings

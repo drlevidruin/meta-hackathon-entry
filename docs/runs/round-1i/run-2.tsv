@@ -1,0 +1,22 @@
+Ear model: primary (muse-wonder-1.0)
+Ear votes: 3
+Voice card: voice-check-4
+Vowel meter: on (ashkenazi voice check)
+Voice card to the ear: on
+Phoneme referee: on (o 0.97, a 0.12, line 0.50)
+Card probe: off (--probe not set)
+clip	said	heard	result	ear	metered	votes
+shir_clean	shir	shir	PASS	shir	shir	shir | shir | shir
+mincho_segol-for-chirik	men-cho	men-cho	PASS	men-cho	men-cho	men-cho | men cha | men-cha
+mapo_clean	ma-po	ma-po	PASS	ma-po	ma-po	ma-pa | ma-po | ma-po
+kisey_clean	ki-sey	ki-sey	PASS	ki-sey	ki-sey	ki-sey | ki-sey | ki-sey
+yoshon_patach-for-kamatz	ya-shon	ya-shon	PASS	ya-shon	ya-shon	ya-shon | ya-shon | ya-shon
+nohor_clean	no-hor	no-hor	PASS	ne-har	ne-hor	ne-har | ne-har | ne-har
+midbor_clean	mid-bor	mid-bor	PASS	mid-bar	mid-bor	mid-bar | mid-bar | mid-bar
+kaf_kamatz-for-patach	kof	kof	PASS	kaf	kof	kaf | kaf | kaf
+mayim_clean	ma-yim	ma-yim	PASS	ma-yim	ma-yim	ma-yim | ma-yim | ma-yim
+shemesh_chirik-for-segol	she-mish	she-mish	PASS	she-mish	she-mish	she-mish | she-mish | she-mish
+nisim_clean	ni-sim	ni-sim	PASS	ni-sim	ni-sim	ni-sim | ni-sim | ni-sim
+oviv_clean	o-viv	o-viv	PASS	a-viv	o-viv	a-viv | a-viv | a-viv
+yeled_clean	ye-led	ye-led	PASS	ye-led	ye-led	ye-led | ye-led | ye-led
+Phoneme referee: checked 13 of 13 readings

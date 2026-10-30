@@ -1,0 +1,22 @@
+Ear model: primary (muse-wonder-1.0)
+Ear votes: 3
+Voice card: voice-check-2
+Vowel meter: on (ashkenazi voice check)
+Voice card to the ear: on
+Phoneme referee: on (o 0.94, a 0.19, line 0.50)
+Card probe: off (--probe not set)
+clip	said	heard	result	ear	metered	votes
+mazol_clean	ma-zol	ma-zol	PASS	ma-zol	ma-zol	ma-zol | ma-zol | ma-zol
+migdol_patach-for-kamatz	mig-dal	mig-dal	PASS	meg-dal	mig-dal	meg-dal | meg-dal | meg-dal
+botzol_patach-for-kamatz	bo-tzal	bo-tzal	PASS	bo-tzal	bo-tzal	bo-tzal | bo-tzal | bo-tzal
+shuro_clean	shu-ro	shu-ro	PASS	shu-ra	shu-ro	shu-ra | shu-ra | shu-ra
+simcho_clean	sim-cho	sim-cho	PASS	sim-cha	sim-cho	sim-cha | sim-cha | sim-cha
+gam_kamatz-for-patach	gom	gom	PASS	gom	gom	gam | gom | gom
+sulom_clean	su-lom	su-lom	PASS	su-lam	su-lom	su-lam | su-lam | su-lam
+paam_clean	pa-am	pa-am	PASS	pa-am	pa-am	pa-am | pa-am | pa-am
+bono_patach-for-kamatz	ba-no	ba-no	PASS	ba-na	ba-na	ba-no | ba-na | ba-na
+kad_clean	kad	kad	PASS	kad	kad	kad | kad | kad
+galgal_clean	gal-gal	gal gal	MISS	gal gal	gal gal	gal gal | gal gal | gal gal
+naaro_clean	na-a-ro	na-a-ro	PASS	na-a-ra	na-a-ro	na-a-ra | na-a-ra | na-a-ra
+matono_clean	ma-to-no	ma-to-no	PASS	ma-ta-na	ma-ta-na	ma-to-no | ma-ta-na | ma-ta-na
+Phoneme referee: checked 13 of 13 readings

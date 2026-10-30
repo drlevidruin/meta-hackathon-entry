@@ -794,6 +794,29 @@ What could go wrong, written down before the runs:
 - ya-shon is a planted a in a word whose second vowel is o; Round 1e's ear wrote o for a said a. ma-po and ma-yim open with patachs, where the same mistake would be a false mark.
 - shir and kof are one syllable each, with little sound for the meter and the referee to measure.
 
+## Round 1i results, October 30
+
+Round 1i passes: all three runs pass, as Levi's rule requires. It is the first sealed round to pass. It ran three times without `--probe` at `8796b0b`, from 10:55 to 11:00 AM, on the rules above. The ear answered every clip and the phoneme service never failed, so no run was void.
+
+| Run | Plants caught | False marks: ear | After the meter | Final | Uncertain | Passes |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | 4 of 4 | 6 | 0 | 0 | 0 | yes |
+| 2 | 4 of 4 | 5 | 1 | 0 | 0 | yes |
+| 3 | 4 of 4 | 6 | 1 | 0 | 0 | yes |
+
+Every planted mistake was caught in every run, no correct reading was marked wrong, and nothing was left uncertain.
+
+What each stage did:
+
+- **Muse Wonder** heard every i and e as Levi said them, in all three runs, including the planted men-cho and she-mish. Its mistakes were a against o: it wrote a for an o in mid-bor, no-hor, o-viv, ma-po and men-cho, and in runs 2 and 3 it wrote kaf for the planted kof, which on its own would have hidden that mistake. In runs 2 and 3 it also wrote ne for the no of no-hor. On its own it would have failed every run.
+- **The vowel meter**, measuring each vowel against Voice check 4, turned each of those a's back into o and kaf back into kof. It left ne-hor's ne.
+- **The phoneme referee**, Meta's wav2vec2 phoneme model, turned ne into no in runs 2 and 3.
+- In run 1 the ear wrote men-cho as two words, men cho. The grader read them as one word, by the fix merged before Round 1h, and the planted men was caught.
+
+What this shows and what it does not: thirteen words, one adult reader, three runs of the same recordings. The ear's raw answers still carry the a and o confusion seen since Round 1e; the pass comes from the checks behind it, and none of them sees the printed text. Round 1j stays sealed and unheard. A child's voice, Round 2, is the next test.
+
+The raw records of every run, each clip's ear answers, meter and referee results, are in [runs/round-1i](runs/round-1i/), beside those of [Round 1f](runs/round-1f/), [Round 1g](runs/round-1g/) and [Round 1h](runs/round-1h/).
+
 ## Round 1j: spare sealed test
 
 Read each clip once, right after Round 1i, in the same sitting. These thirteen words run only if Round 1i fails, and then only once new rules are frozen. Nobody reads the ear's or the phoneme model's answers on them before that. `npm run ear-test -- --round "Round 1j"` grades them against Voice check 4.
