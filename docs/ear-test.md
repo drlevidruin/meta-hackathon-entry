@@ -889,6 +889,25 @@ In the runs' own records, line 3 shows MISS. That column compares the letters wi
 
 The raw records are in [runs/round-1k](runs/round-1k/).
 
+### Two fixes, measured on Round 1k
+
+Both fixes are text-blind, and both lean on Meta's phoneme model. They are on main at `38a40d2`.
+
+- **The meter works on whole lines.** When the silences do not line up with the syllables, it places each vowel by the phoneme model's vowel timing instead. The model marks a vowel as a 20 ms blip, too short to measure, so the meter measures up to 60 ms either side of it, stopping halfway to the next sound.
+- **The referee lines up more lines.** It leaves out sound that comes a second or more before or after the reading, which the ear leaves out too, and it accepts a line-up that needs up to two more skips, using only the pairings that every best line-up agrees on. On line 6 Levi said a few words about two seconds after the line. The phoneme model kept them, their vowels stopped the line-up, and the referee skipped the line, which hid the planted non.
+
+Replayed on the same three runs' saved ear answers, with no new calls to the ear:
+
+| Run | Plants caught | False marks after the meter | Final false marks | Uncertain |
+| --- | --- | --- | --- | --- |
+| 1 | 5 of 5, was 4 | 6, was 13 | 3, was 3 | 0 |
+| 2 | 5 of 5, was 4 | 5, was 12 | 3, was 3 | 0 |
+| 3 | 5 of 5, was 4 | 8, was 19 | 3, was 5 | 1 |
+
+The planted non is now caught in every run. The meter fixed the first בָ of לְבָבֶךָ, but it turned the she of שְׁמַע into shi in every run, and nothing undid it. So the three false marks left in each run are that sheva, the el of יִשְׂרָאֵל, and the soft h of לִהְיוֹת. Round 1f, the other design set with saved runs, replays exactly as it did before the fixes.
+
+Round 1k is a design set, and these fixes were found on it. The numbers show the fixes do what they were built to do; they prove nothing about new readings. That takes a sealed round. The replays are in [runs/round-1k/fixes](runs/round-1k/fixes/).
+
 ## Round 2: a child's voice
 
 The adult round must pass first. Recording a child requires written parent consent. Turn Meta Model API free credits off and use a paid plan before sending children's audio. Meta's free-credit terms allow content to be used for product improvement.
