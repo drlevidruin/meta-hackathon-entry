@@ -452,8 +452,25 @@ it('preserves Hebrew pairs and marks an extra word with a dot only, never what t
   ] } } }));
   expect(document.querySelector('.previous-line').textContent).not.toContain('ba');
   expect(document.querySelector('.pair-ok').textContent).toBe('בָּ');
-  expect(document.querySelector('.pair-wrong_vowel').textContent).toBe('רָ');
+  expect(document.querySelector('.pair-wrong_vowel').firstChild.textContent).toBe('רָ');
   expect(screen.getByLabelText('Extra word').className).toBe('extra-dot');
+});
+
+it('overlays only vowel mistakes and hides the repeated letter from screen readers', () => {
+  render(React.createElement(GradedLine, { attempt: { status: 'graded', grade: { words: [
+    { pairs: [{ text: 'רוּ', verdict: 'wrong_vowel' }, { text: 'בָּ', verdict: 'wrong_letter' }] },
+    { verdict: 'skipped', pairs: [{ text: 'נֶי', verdict: 'wrong_vowel' }] },
+    { verdict: 'not_decoded', pairs: [{ text: 'תָּה', verdict: 'wrong_vowel' }] },
+  ] } } }));
+  const pair = document.querySelector('.pair-wrong_vowel');
+  expect(pair.firstChild.textContent).toBe('רוּ');
+  const overlay = pair.querySelector('.pair-letter');
+  expect(overlay.textContent).toBe('ר');
+  expect(overlay.getAttribute('aria-hidden')).toBe('true');
+  const letter = document.querySelector('.pair-wrong_letter');
+  expect(letter.textContent).toBe('בָּ');
+  expect(letter.querySelector('.pair-letter')).toBeNull();
+  expect(document.querySelectorAll('.pair-letter')).toHaveLength(1);
 });
 
 it('uses no error red on read, recording, marked pairs, or done', () => {
@@ -471,7 +488,20 @@ it('uses no error red on read, recording, marked pairs, or done', () => {
     });
   }
   check();
-  expect(getComputedStyle(document.querySelector('.pair-wrong_vowel')).color).toBe('rgb(104, 115, 110)');
+  const vowel = getComputedStyle(document.querySelector('.pair-wrong_vowel'));
+  expect(vowel.color).toBe('rgb(124, 58, 237)');
+  expect(vowel.textDecorationColor).toBe(vowel.color);
+  expect(vowel.display).toBe('inline-block');
+  expect(vowel.position).toBe('relative');
+  expect(vowel.textAlign).toBe('start');
+  const overlay = getComputedStyle(document.querySelector('.pair-letter'));
+  expect(overlay.color).toBe('rgb(28, 35, 80)');
+  expect(overlay.position).toBe('absolute');
+  expect(overlay.inset).toBe('0px');
+  const letter = getComputedStyle(document.querySelector('.pair-wrong_letter'));
+  expect(letter.color).toBe('rgb(194, 65, 12)');
+  expect(letter.textDecorationColor).toBe(letter.color);
+  expect(getComputedStyle(document.querySelector('.pair-skipped')).color).toBe('rgb(104, 115, 110)');
   view.unmount();
   render(React.createElement(DoneScreen, { turn: turn({ stars: 4 }), onNext: vi.fn() })); check();
   expect(style.sheet.cssRules.length).toBeGreaterThan(50);

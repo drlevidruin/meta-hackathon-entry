@@ -4,6 +4,7 @@ import { Brand, Star } from './ui.jsx';
 import { turnMessage } from './messages.js';
 import { navigate } from './router.js';
 import { useRecorder } from './useRecorder.js';
+import { pairLetter } from './pair.js';
 
 export function Stats({ turn }) {
   return <aside className="stats" aria-label="Your progress">
@@ -27,10 +28,13 @@ export function GradedLine({ attempt }) {
   return <div className="previous-line" dir="rtl" lang="he" aria-label="Previous line">
     {attempt.grade.words.map((word, index) => <span key={index} className={`graded-word word-${word.verdict || 'paired'}`}>
       {word.verdict === 'extra' ? <span className="extra-dot" aria-label="Extra word" /> :
-        word.pairs?.length ? word.pairs.map((pair, pairIndex) => <span key={pairIndex}
-          style={{ animationDelay: `${pairCount++ * 70}ms` }}
-          className={`pair pair-${['not_decoded', 'skipped'].includes(word.verdict) ? word.verdict : pair.verdict}`}>
-          {pair.text}{pair.verdict === 'extra' && <span className="extra-dot" aria-label="Extra word" />}</span>) : <span>{word.text}</span>}
+        word.pairs?.length ? word.pairs.map((pair, pairIndex) => {
+          const verdict = ['not_decoded', 'skipped'].includes(word.verdict) ? word.verdict : pair.verdict;
+          return <span key={pairIndex} style={{ animationDelay: `${pairCount++ * 70}ms` }}
+            className={`pair pair-${verdict}`}>
+            {pair.text}{verdict === 'wrong_vowel' && <span className="pair-letter" aria-hidden="true">{pairLetter(pair.text)}</span>}
+            {pair.verdict === 'extra' && <span className="extra-dot" aria-label="Extra word" />}</span>;
+        }) : <span>{word.text}</span>}
     </span>)}
   </div>;
 }
