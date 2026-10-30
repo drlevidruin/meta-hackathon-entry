@@ -543,8 +543,64 @@ test('equal counts retain identity pairing even when the classes suggest gaps', 
 });
 
 const phoneme = (token, index = 0) => ({
-  token, start: index * 0.1,
+  token, start: index * 0.1, end: index * 0.1 + 0.02,
   top: [[token, 0.85], [vowelClass(token) === 'back' ? 'a' : 'ɑ', 0.1], ['<pad>', 0.05]],
+});
+
+function timedGroup(tokens, start) {
+  return tokens.map((token, index) => ({ ...token, start: start + index * 0.1, end: start + index * 0.1 + 0.02 }));
+}
+
+for (const edge of ['leading', 'trailing']) {
+  test(`trimEdges drops a ${edge} group two seconds outside the reading when vowels are extra`, () => {
+    const words = [['ka', 'mi', 'nu']];
+    const main = [vowel(0.9), phoneme('i'), phoneme('u')];
+    const extra = [vowel(0.07)];
+    const first = timedGroup(edge === 'leading' ? extra : main, 0);
+    const last = timedGroup(edge === 'leading' ? main : extra, first.at(-1).end + 2);
+    const tokens = Object.freeze([...first, ...last].map(Object.freeze));
+    const before = structuredClone(tokens);
+    assert.deepEqual(applyReferee(words, tokens, calibration), {
+      words: [['ko', 'mi', 'nu']],
+      changes: [{ word: 0, syllable: 0, from: 'ka', to: 'ko', rule: 'phoneme' }], status: 'checked',
+    });
+    assert.deepEqual(tokens, before);
+  });
+}
+
+test('trimEdges leaves separated groups alone when vowel and syllable counts already match', () => {
+  const tokens = [...timedGroup([vowel(0.9), phoneme('i')], 0), ...timedGroup([phoneme('u')], 2.12)];
+  assert.deepEqual(applyReferee([['ka', 'mi', 'nu']], tokens, calibration), {
+    words: [['ko', 'mi', 'nu']],
+    changes: [{ word: 0, syllable: 0, from: 'ka', to: 'ko', rule: 'phoneme' }], status: 'checked',
+  });
+});
+
+test('trimEdges leaves separated groups alone when there are fewer vowels than syllables', () => {
+  const words = [['ka', 'mi', 'nu']];
+  const tokens = [...timedGroup([phoneme('i')], 0), ...timedGroup([phoneme('u')], 2.02)];
+  assert.deepEqual(applyReferee(words, tokens, calibration), { words, changes: [], status: 'aligned' });
+});
+
+test('trimEdges keeps an edge group if dropping it would leave fewer than syllables minus one', () => {
+  const tokens = [...timedGroup([vowel(0.9), phoneme('i'), phoneme('u')], 0),
+    ...timedGroup([phoneme('e'), phoneme('aɪ'), phoneme('i')], 2.22)];
+  assert.deepEqual(applyReferee([['ka', 'mi', 'nu', 'te', 'bay']], tokens, calibration), {
+    words: [['ko', 'mi', 'nu', 'te', 'bay']],
+    changes: [{ word: 0, syllable: 0, from: 'ka', to: 'ko', rule: 'phoneme' }], status: 'aligned',
+  });
+});
+
+test('trimEdges keeps a 0.9 second pause within a group and splits at exactly one second', () => {
+  const words = [['ka', 'mi', 'nu']];
+  const main = timedGroup([vowel(0.9), phoneme('i'), phoneme('u')], 0);
+  for (const [pause, status] of [[0.9, 'aligned'], [1, 'checked']]) {
+    const tokens = [...main, ...timedGroup([vowel(0.07)], main.at(-1).end + pause)];
+    assert.deepEqual(applyReferee(words, tokens, calibration), {
+      words: [['ko', 'mi', 'nu']],
+      changes: [{ word: 0, syllable: 0, from: 'ka', to: 'ko', rule: 'phoneme' }], status,
+    });
+  }
 });
 
 test('Shema alignment corrects the certain ra pair and leaves the tied second a-do-noy alone', () => {
@@ -604,6 +660,15 @@ test('alignment ties with more gaps can veto a vowel correction', () => {
     { words, changes: [], status: 'aligned' });
 });
 
+test('alignment one vowel short accepts three skips and returns only matches shared by both best paths', () => {
+  const words = [['ka', 'ba', 'mi', 'nu', 'te', 'ra']];
+  const syllables = words.flat().map(from => ({ sound: nucleus(from) }));
+  const tokens = [phoneme('i'), phoneme('u'), phoneme('e'), vowel(0.9), vowel(0.9)];
+  // Both best paths skip ka and ba, then one of the final two phoneme vowels.
+  assert.deepEqual(alignVowels(syllables, tokens), [[2, 0], [3, 1], [4, 2]]);
+  assert.deepEqual(applyReferee(words, tokens, calibration), { words, changes: [], status: 'aligned' });
+});
+
 test('alignment corrections use only pairs shared by every maximum-score path in 400 seeded cases', () => {
   // Class numbers are independent fixture labels: open, mid, high front,
   // high back, oy, ay, and an unrecognized phoneme class.
@@ -661,9 +726,11 @@ test('alignment corrections use only pairs shared by every maximum-score path in
 });
 
 test('alignment refuses excessive gaps or a count difference above one third in either direction', () => {
-  const words = [['ka', 'ba', 'mi', 'nu', 'te']];
-  assert.deepEqual(applyReferee(words, [phoneme('i'), phoneme('u'), phoneme('e'), vowel(0.9)], calibration),
-    { words, changes: [], status: 'count' });
+  const words = [['ka', 'ba', 'ta', 'mi', 'nu', 'te', 'bay']];
+  const tokens = [phoneme('i'), phoneme('u'), phoneme('e'), phoneme('aɪ'), vowel(0.9), vowel(0.9)];
+  // The best path needs five skips: three ear vowels and two phoneme vowels.
+  assert.equal(alignVowels(words.flat().map(from => ({ sound: nucleus(from) })), tokens), null);
+  assert.deepEqual(applyReferee(words, tokens, calibration), { words, changes: [], status: 'count' });
   for (const [heard, tokens] of [
     [[['ka', 'mi', 'nu', 'te']], [vowel(0.9), phoneme('i')]],
     [[['ka', 'mi']], [vowel(0.9), phoneme('i'), phoneme('u'), phoneme('e')]],

@@ -148,7 +148,7 @@ function bark(hz) {
   return 26.81 * hz / (1960 + hz) - 0.53;
 }
 
-function syllableRanges(words, samples, rate, tokens) {
+export function syllableRanges(words, samples, rate, tokens) {
   const count = words.flat().length;
   const islands = soundIslands(samples, rate);
   if (islands.length === count) return islands;
@@ -156,7 +156,7 @@ function syllableRanges(words, samples, rate, tokens) {
   const nuclei = [];
   const vowel = /[aɑɔoɒʌæɐeɛəiɪuʊʉɵyʏøœɜɯɨɚɝ]/u;
   let previous = null;
-  for (const token of tokens) {
+  for (const [index, token] of tokens.entries()) {
     if (typeof token?.token !== 'string') return null;
     if (token.token.startsWith('<') || !vowel.test(token.token)) {
       previous = null;
@@ -170,12 +170,24 @@ function syllableRanges(words, samples, rate, tokens) {
     // Merge consecutive vowel phones across at most two 20 ms model frames.
     if (previous && start >= previous.start && start - previous.end <= 0.04 * rate) {
       previous.end = Math.max(previous.end, end);
+      previous.last = index;
     } else {
-      previous = { start, end };
+      previous = { start, end, first: index, last: index };
       nuclei.push(previous);
     }
   }
-  return nuclei.length === count ? nuclei : null;
+  if (nuclei.length !== count) return null;
+  const tokenCenter = token => (token.start + token.end) / 2;
+  const sampleIndex = seconds => Math.max(0, Math.min(samples.length, Math.round(seconds * rate)));
+  return nuclei.map(({ first, last }) => {
+    const center = (tokens[first].start + tokens[last].end) / 2;
+    let start = center - 0.06;
+    let end = center + 0.06;
+    // Model vowel spans are too short to measure; stop widening at neighbouring token midpoints.
+    if (first > 0) start = Math.max(start, (tokenCenter(tokens[first - 1]) + tokenCenter(tokens[first])) / 2);
+    if (last + 1 < tokens.length) end = Math.min(end, (tokenCenter(tokens[last]) + tokenCenter(tokens[last + 1])) / 2);
+    return { start: sampleIndex(start), end: sampleIndex(end) };
+  });
 }
 
 export function syllablePoints(words, data, tokens) {
