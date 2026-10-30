@@ -777,6 +777,23 @@ npm run -s ear-score -- --round "Round 1i" --max-uncertain 2 --runs-needed 3 run
 | oviv_clean | אָבִיב | o-viv | nothing | o-viv |
 | yeled_clean | יֶלֶד | ye-led | nothing | ye-led |
 
+### The rules for Round 1i, fixed before its first run
+
+Written on October 30, after Round 1h failed and before any Round 1i clip ran. Round 1i runs with Round 1h's rules and one change: the voice card.
+
+- **The same ear and referee.** Muse Wonder 1.0, asked three times per clip, hears a voice card before each clip, and the vowel meter and the phoneme referee check its answer. The probe stays off.
+- **The voice card is Voice check 4,** recorded in the same sitting as these clips.
+- **No new rule.** After Round 1h, an i and e referee was built to mirror the a and o one, and tried on the design rounds first. Across eleven design runs it fixed no reading and changed 21 correct ones, every one an i heard as e: shim became shem, no-shim became no-shem, liv became lev. It stays off, on the `referee-ie` branch. No rule was tuned on Round 1h's answers.
+- **The pass rule** is Levi's, set above.
+- **The clips.** Levi recorded them on October 30. None was read again. Nobody has read the ear's or the phoneme model's answers on them.
+
+What could go wrong, written down before the runs:
+
+- The ear wrote e for a said i in Round 1h's sim-cho, and nothing in the rules has changed for it. Seven syllables here are clean chiriks: shir, ki, mid, yim, ni, sim and viv. An e heard in any of them is a false mark.
+- she-mish is a planted i. Heard as e, it is hidden.
+- ya-shon is a planted a in a word whose second vowel is o; Round 1e's ear wrote o for a said a. ma-po and ma-yim open with patachs, where the same mistake would be a false mark.
+- shir and kof are one syllable each, with little sound for the meter and the referee to measure.
+
 ## Round 1j: spare sealed test
 
 Read each clip once, right after Round 1i, in the same sitting. These thirteen words run only if Round 1i fails, and then only once new rules are frozen. Nobody reads the ear's or the phoneme model's answers on them before that. `npm run ear-test -- --round "Round 1j"` grades them against Voice check 4.
