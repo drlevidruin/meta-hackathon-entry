@@ -755,6 +755,12 @@ Read this card first, in a new sitting, before Rounds 1i and 1j. It is Voice che
 
 Read each clip once, right after Voice check 4, in the same sitting. Round 1h failed on an i heard as e, so these thirteen words lean on chirik and segol, with two planted mistakes between i and e and two between a and o. None of them was used in an earlier round. Nobody reads the ear's or the phoneme model's answers on them until the rules are frozen, and the pass rule is set before the first run. `npm run ear-test -- --round "Round 1i"` grades them against Voice check 4.
 
+The pass rule, set by Levi on October 30, before any Round 1i clip was recorded, is Round 1g's and Round 1h's: all three runs must pass. A run passes when all thirteen clips are graded once, the ear answers every one, all four planted mistakes are caught, no correct reading is marked wrong, and at most two syllables are marked uncertain. A run in which the ear or the phoneme service gives no answer on a clip is void and runs again, at most twice; void runs are kept and reported with the results. The scorer checks the pass rule:
+
+```bash
+npm run -s ear-score -- --round "Round 1i" --max-uncertain 2 --runs-needed 3 run-1.tsv run-2.tsv run-3.tsv
+```
+
 | File name | Hebrew | Say | Planted | The ear should write |
 | --- | --- | --- | --- | --- |
 | shir_clean | שִׁיר | shir | nothing | shir |
