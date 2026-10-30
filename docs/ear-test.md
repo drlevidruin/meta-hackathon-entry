@@ -837,6 +837,31 @@ Read each clip once, right after Round 1i, in the same sitting. These thirteen w
 | choson_patach-for-kamatz | חָתָן | cha-son | the first kamatz read as patach | cha-son |
 | gil_clean | גִּיל | gil | nothing | gil |
 
+## Voice check 5
+
+Read this card first in a new sitting, before Round 1k, so the meter and referee are calibrated in the sitting they grade.
+
+| File name | Hebrew | Say | Planted |
+| --- | --- | --- | --- |
+| voice-check-5 | בָּ בַּ בֶּ בִּ בֹּ דָ דַ דֶ דִ דֹ מָ מַ מֶ מִ מֹ | bo ba be bi boy do da de di doy mo ma me mi moy | nothing |
+
+## Round 1k: prayer lines, design
+
+Read each line once at a normal reading pace in Ashkenazi pronunciation, in the same sitting right after Voice check 5; this is a design set, used for tuning.
+
+| File name | Hebrew | Say | Planted |
+| --- | --- | --- | --- |
+| line01_modeh-ani_clean | מוֹדֶה אֲנִי לְפָנֶיךָ מֶלֶךְ חַי וְקַיָּם | mo-de a-ni le-fo-ne-cho me-lech chay ve-ka-yom | none |
+| line02_shehechezarta_clean | שֶׁהֶחֱזַרְתָּ בִּי נִשְׁמָתִי בְּחֶמְלָה | she-he-che-zar-to bi nish-mo-si be-chem-lo | none |
+| line03_blessing_clean | בָּרוּךְ אַתָּה יְהֹוָה אֱלֹהֵינוּ מֶלֶךְ הָעוֹלָם | bo-ruch a-to a-do-noy e-lo-hey-nu me-lech ho-o-lom | none |
+| line04_asher-nasan_patach-for-kamatz | הָעוֹלָם אֲשֶׁר נָתַן לַשֶּׂכְוִי בִינָה | ho-o-lom a-sher na-san la-sech-vi vi-no | נָתַן, kamatz read as patach |
+| line05_shema_clean | שְׁמַע יִשְׂרָאֵל יְהֹוָה אֱלֹהֵינוּ יְהֹוָה אֶחָד | she-ma yis-ro-eyl a-do-noy e-lo-hey-nu a-do-noy e-chod | none |
+| line06_veshinantam_kamatz-for-patach | וְשִׁנַּנְתָּם לְבָנֶיךָ וְדִבַּרְתָּ בָּם בְּשִׁבְתְּךָ בְּבֵיתֶךָ | ve-shi-non-tom le-vo-ne-cho ve-di-bar-to bom be-shiv-te-cho be-vey-se-cho | וְשִׁנַּנְתָּם, patach read as kamatz |
+| line07_anochi_segol-for-chirik | וְהָיוּ הַדְּבָרִים הָאֵלֶּה אֲשֶׁר אָנֹכִי | ve-ho-yu ha-de-vo-rim ho-ey-le a-sher o-no-che | אָנֹכִי, chirik read as segol |
+| line08_meieretz_chirik-for-segol | אֶתְכֶם מֵאֶרֶץ מִצְרַיִם לִהְיוֹת לָכֶם | es-chem mey-i-retz mitz-ra-yim lih-yos lo-chem | מֵאֶרֶץ, segol read as chirik |
+| line09_venasati_clean | וְנָתַתִּי מְטַר־אַרְצְכֶם בְּעִתּוֹ יוֹרֶה | ve-no-sa-ti me-tar ar-tze-chem be-i-to yo-re | none |
+| line10_levavecha_final-patach-for-kamatz | מְצַוְּךָ הַיּוֹם עַל־לְבָבֶךָ | me-tza-ve-cho ha-yom al le-vo-ve-cha | לְבָבֶךָ, word-final kamatz read as patach |
+
 ## Round 2: a child's voice
 
 The adult round must pass first. Recording a child requires written parent consent. Turn Meta Model API free credits off and use a paid plan before sending children's audio. Meta's free-credit terms allow content to be used for product improvement.

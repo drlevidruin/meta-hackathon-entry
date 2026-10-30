@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { Readable } from 'node:stream';
 import { test } from 'node:test';
 import { defaultVotes } from '../../ear/hear.js';
+import { expectedSounds, formatReading, PRESETS, splitWords } from '../../rulebook/index.js';
 import { cardLabels, VOICE_CARD } from '../../rulebook/voice-card.js';
 import { isClipName, loadClips, parseClips } from './clips.js';
 import { defaultEarModel, parseOptions } from './options.js';
@@ -180,6 +181,18 @@ const expectedRound1j = [
   ['choson_patach-for-kamatz', 'cha-son'],
   ['gil_clean', 'gil'],
 ];
+const expectedRound1k = [
+  ['line01_modeh-ani_clean', 'mo-de a-ni le-fo-ne-cho me-lech chay ve-ka-yom'],
+  ['line02_shehechezarta_clean', 'she-he-che-zar-to bi nish-mo-si be-chem-lo'],
+  ['line03_blessing_clean', 'bo-ruch a-to a-do-noy e-lo-hey-nu me-lech ho-o-lom'],
+  ['line04_asher-nasan_patach-for-kamatz', 'ho-o-lom a-sher na-san la-sech-vi vi-no'],
+  ['line05_shema_clean', 'she-ma yis-ro-eyl a-do-noy e-lo-hey-nu a-do-noy e-chod'],
+  ['line06_veshinantam_kamatz-for-patach', 've-shi-non-tom le-vo-ne-cho ve-di-bar-to bom be-shiv-te-cho be-vey-se-cho'],
+  ['line07_anochi_segol-for-chirik', 've-ho-yu ha-de-vo-rim ho-ey-le a-sher o-no-che'],
+  ['line08_meieretz_chirik-for-segol', 'es-chem mey-i-retz mitz-ra-yim lih-yos lo-chem'],
+  ['line09_venasati_clean', 've-no-sa-ti me-tar ar-tze-chem be-i-to yo-re'],
+  ['line10_levavecha_final-patach-for-kamatz', 'me-tza-ve-cho ha-yom al le-vo-ve-cha'],
+];
 const wav = Buffer.from(encodeWav(new Float32Array([0, .25, -.25, 0])));
 
 function earAnswer(words, answers = [words]) {
@@ -285,7 +298,7 @@ test('Round 1 selects only its 12 clips even when Round 1b appears first', async
   }
 });
 
-test('loadClips returns both voice checks and all rounds with their sections in table order', async () => {
+test('loadClips returns voice checks and all rounds with their sections in table order', async () => {
   const clips = await loadClips();
   assert.deepEqual(clips.map(({ name, kind, section }) => [name, kind, section]), [
     ['voice-check', 'voice', 'Voice check'],
@@ -302,21 +315,101 @@ test('loadClips returns both voice checks and all rounds with their sections in 
     ['voice-check-4', 'voice', 'Voice check 4'],
     ...expectedRound1i.map(([name]) => [name, 'reading', 'Round 1i']),
     ...expectedRound1j.map(([name]) => [name, 'reading', 'Round 1j']),
+    ['voice-check-5', 'voice', 'Voice check 5'],
+    ...expectedRound1k.map(([name]) => [name, 'reading', 'Round 1k']),
     ...expectedClips.map(([name]) => [name, 'reading', 'Round 1']),
   ]);
   assert.deepEqual(clips.filter(clip => clip.kind !== 'voice').map(({ name, say }) => [name, say]),
     [...expectedNewClips, ...expectedSealedClips, ...expectedCardTests, ...expectedRound1d, ...expectedRound1e,
-      ...expectedRound1f, ...expectedRound1g, ...expectedRound1h, ...expectedRound1i, ...expectedRound1j, ...expectedClips]);
+      ...expectedRound1f, ...expectedRound1g, ...expectedRound1h, ...expectedRound1i, ...expectedRound1j,
+      ...expectedRound1k, ...expectedClips]);
   assert.deepEqual(clips.find(clip => clip.name === 'voice-check-2'), {
     ...clips[0], name: 'voice-check-2', section: 'Voice check 2',
   });
   for (const clip of clips) {
     if (clip.kind === 'voice') assert.equal(Object.hasOwn(clip, 'card'), false);
-    else assert.equal(clip.card, ['Round 1i', 'Round 1j'].includes(clip.section) ? 'voice-check-4'
+    else assert.equal(clip.card, clip.section === 'Round 1k' ? 'voice-check-5'
+      : ['Round 1i', 'Round 1j'].includes(clip.section) ? 'voice-check-4'
       : ['Round 1f', 'Round 1g', 'Round 1h'].includes(clip.section) ? 'voice-check-2' : 'voice-check');
   }
   const markdown = await readFile(new URL('../../docs/ear-test.md', import.meta.url), 'utf8');
   assert.deepEqual(parseClips(markdown, 'Round 1c').map(({ name, say }) => [name, say]), expectedSealedClips);
+});
+
+test('Voice check 5 copies Voice check 4 and Round 1k follows it after Round 1j for both sets', async () => {
+  const markdown = await readFile(new URL('../../docs/ear-test.md', import.meta.url), 'utf8');
+  assert.deepEqual(parseClips(markdown, 'Voice check 5'),
+    parseClips(markdown, 'Voice check 4').map(clip => ({ ...clip, name: 'voice-check-5' })));
+  assert.deepEqual(parseClips(markdown, 'Round 1k').map(({ name, say }) => [name, say]), expectedRound1k);
+  assert.ok(markdown.indexOf('## Round 1j:') < markdown.indexOf('## Voice check 5'));
+  assert.ok(markdown.indexOf('## Voice check 5') < markdown.indexOf('## Round 1k:'));
+  for (const set of ['adult', 'child']) {
+    const clips = await loadClips(set);
+    const prefix = set === 'child' ? 'child_' : '';
+    const start = clips.findIndex(clip => clip.section === 'Voice check 5');
+    assert.equal(clips[start - 1].section, 'Round 1j');
+    assert.equal(clips[start].name, `${prefix}voice-check-5`);
+    assert.equal(clips[start].kind, 'voice');
+    assert.deepEqual(clips.slice(start + 1, start + 1 + expectedRound1k.length)
+      .map(({ name, kind, section, card }) => [name, kind, section, card]),
+      expectedRound1k.map(([name]) => [`${prefix}${name}`, 'reading', 'Round 1k', `${prefix}voice-check-5`]));
+  }
+});
+
+test('Round 1k copies bank lines and changes exactly the named vowel in each planted reading', async () => {
+  const markdown = await readFile(new URL('../../docs/ear-test.md', import.meta.url), 'utf8');
+  const items = JSON.parse(await readFile(new URL('../../bank/items.json', import.meta.url), 'utf8'));
+  const clips = parseClips(markdown, 'Round 1k');
+  assert.equal(clips.length, 10);
+  assert.equal(new Set(clips.map(clip => clip.hebrew)).size, 10);
+  let cleanCount = 0;
+  const kinds = [];
+  const positions = new Set();
+  for (const clip of clips) {
+    const item = items.find(item => item.text === clip.hebrew);
+    assert.ok(item, `${clip.name}: Hebrew must appear verbatim in the station bank`);
+    assert.ok(item.level >= 5 && item.words.length >= 2 && item.words.length <= 8, clip.name);
+    const readings = splitWords(clip.hebrew)
+      .map(({ word, maqaf }) => expectedSounds(word + (maqaf ? '\u05be' : ''), 'ashkenazi'));
+    const clean = readings.map(formatReading);
+    if (clip.planted === 'none') {
+      cleanCount++;
+      assert.equal(clip.say, clean.join(' '), clip.name);
+      continue;
+    }
+    const say = clip.say.split(' ').map(word => word.split('-'));
+    assert.equal(say.length, clean.length, clip.name);
+    const changes = [];
+    for (const [wordIndex, word] of clean.entries()) {
+      const syllables = word.split('-');
+      assert.equal(say[wordIndex].length, syllables.length, clip.name);
+      for (const [syllableIndex, before] of syllables.entries()) {
+        const after = say[wordIndex][syllableIndex];
+        if (before !== after) changes.push({ wordIndex, syllableIndex, before, after });
+      }
+    }
+    assert.equal(changes.length, 1, clip.name);
+    const plant = clip.planted.match(/^(.+), (word-final )?(kamatz|patach|chirik|segol) read as (kamatz|patach|chirik|segol)$/u);
+    assert.ok(plant, `${clip.name}: plant must name its word and vowel change`);
+    const [, word, final, from, to] = plant;
+    const { wordIndex, syllableIndex, before, after } = changes[0];
+    assert.equal(clip.hebrew.split(/[\s־]+/u)[wordIndex], word, clip.name);
+    const pairs = readings[wordIndex].pairs.filter(pair => pair.sounds[0] && pair.vowels[0] !== '');
+    assert.equal(pairs[syllableIndex].vowel, from, clip.name);
+    assert.equal(before.match(/oy|ey|[aeiou]/u)?.[0], PRESETS.ashkenazi[from][0], clip.name);
+    assert.equal(after, before.replace(/oy|ey|[aeiou]/u, PRESETS.ashkenazi[to][0]), clip.name);
+    const last = clean[wordIndex].split('-').length - 1;
+    if (final) {
+      assert.equal(syllableIndex, last, clip.name);
+      assert.equal(pairs[syllableIndex], readings[wordIndex].pairs.at(-1), clip.name);
+    }
+    kinds.push(`${final ?? ''}${from} read as ${to}`);
+    positions.add(syllableIndex === 0 ? 'start' : syllableIndex === last ? 'end' : 'middle');
+  }
+  assert.equal(cleanCount, 5);
+  assert.deepEqual(kinds.sort(), ['kamatz read as patach', 'patach read as kamatz', 'chirik read as segol',
+    'segol read as chirik', 'word-final kamatz read as patach'].sort());
+  assert.deepEqual([...positions].sort(), ['end', 'middle', 'start']);
 });
 
 test('Round 1e clips are readings after Round 1d with table Say values for both sets', async () => {
@@ -357,13 +450,14 @@ test('parser selects the voice check section, escapes heading names and names er
 test('name validation accepts only exact table names in the selected set', async () => {
   const adult = await loadClips();
   const child = await loadClips('child');
-  assert.equal(adult.length, 142);
+  assert.equal(adult.length, 153);
   assert.equal(adult[0].name, 'voice-check');
   assert.equal(adult[0].kind, 'voice');
-  assert.deepEqual(adult.filter(clip => clip.kind === 'voice').map(clip => clip.name), ['voice-check', 'voice-check-2', 'voice-check-3', 'voice-check-4']);
+  assert.deepEqual(adult.filter(clip => clip.kind === 'voice').map(clip => clip.name),
+    ['voice-check', 'voice-check-2', 'voice-check-3', 'voice-check-4', 'voice-check-5']);
   assert.ok(adult.filter(clip => clip.kind !== 'voice').every((clip) =>
     clip.kind === (expectedCardTests.some(([name]) => name === clip.name) ? 'card' : 'reading')));
-  assert.equal(new Set(adult.map((clip) => clip.name)).size, 142);
+  assert.equal(new Set(adult.map((clip) => clip.name)).size, 153);
   assert.deepEqual(child, adult.map((clip) => ({ ...clip, name: `child_${clip.name}`,
     ...(clip.card ? { card: `child_${clip.card}` } : {}),
   })));
@@ -404,7 +498,7 @@ test('server writes a posted WAV, lists completion, and reads it back from the s
   const server = await createRecorderServer({ directory });
   let list = await request(server, '/clips');
   assert.equal(list.json.set, 'adult');
-  assert.equal(list.json.clips.length, 142);
+  assert.equal(list.json.clips.length, 153);
   assert.ok(list.json.clips.every((clip) => !clip.done));
   const response = await post(server, 'baruch_clean');
   assert.equal(response.status, 200);
@@ -426,13 +520,15 @@ test('server lists, saves and plays both adult and child voice checks like other
   const directory = await fixtureDirectory(t);
   for (const set of ['adult', 'child']) {
     const server = await createRecorderServer({ set, directory });
-    const names = ['voice-check', 'voice-check-2', 'voice-check-3', 'voice-check-4'].map(name => `${set === 'child' ? 'child_' : ''}${name}`);
+    const names = ['voice-check', 'voice-check-2', 'voice-check-3', 'voice-check-4', 'voice-check-5']
+      .map(name => `${set === 'child' ? 'child_' : ''}${name}`);
     const list = await request(server, '/clips');
-    assert.equal(list.json.clips.length, 142);
+    assert.equal(list.json.clips.length, 153);
     const cards = list.json.clips.filter(clip => clip.kind === 'voice');
     assert.deepEqual(cards.map(clip => clip.name), names);
     assert.ok(cards.slice(0, 2).every(clip => clip.hebrew === VOICE_CARD.join(' ') && clip.say.split(' ').length === 15));
     assert.ok(cards[2].hebrew.startsWith(`${VOICE_CARD.join(' ')} `) && cards[2].say.split(' ').length === 21);
+    assert.ok(cards.slice(3).every(clip => clip.hebrew === VOICE_CARD.join(' ') && clip.say.split(' ').length === 15));
     for (const name of names) {
       assert.equal((await post(server, name)).status, 200);
       assert.deepEqual((await request(server, `/clip?name=${name}`)).body, wav);
@@ -441,8 +537,9 @@ test('server lists, saves and plays both adult and child voice checks like other
   }
   const server = await createRecorderServer({ directory });
   assert.deepEqual((await request(server, '/clips?set=child', { method: 'DELETE' })).json.deleted.sort(),
-    ['child_voice-check-2.wav', 'child_voice-check-3.wav', 'child_voice-check-4.wav', 'child_voice-check.wav']);
-  assert.deepEqual((await readdir(directory)).sort(), ['voice-check-2.wav', 'voice-check-3.wav', 'voice-check-4.wav', 'voice-check.wav']);
+    ['child_voice-check-2.wav', 'child_voice-check-3.wav', 'child_voice-check-4.wav', 'child_voice-check-5.wav', 'child_voice-check.wav']);
+  assert.deepEqual((await readdir(directory)).sort(),
+    ['voice-check-2.wav', 'voice-check-3.wav', 'voice-check-4.wav', 'voice-check-5.wav', 'voice-check.wav']);
 });
 
 test('server rejects traversal, unknown names, wrong sets, wrong MIME, and cross-origin writes', async (t) => {
@@ -812,6 +909,45 @@ test('--round filters recorded readings by exact section while the default grade
       assert.deepEqual(output.filter(line => line.startsWith('Voice card:')),
         (round ? ['voice-check-2'] : ['voice-check-2', 'voice-check (not recorded)']).map(name => `Voice card: ${prefix}${name}`));
     }
+  }
+});
+
+test('--round Round 1k requires Voice check 5 and sends its card with every prayer line for both sets', async t => {
+  for (const set of ['adult', 'child']) {
+    const directory = await fixtureDirectory(t);
+    const clips = await loadClips(set);
+    const store = recordingStore(clips, directory);
+    const prefix = set === 'child' ? 'child_' : '';
+    const readings = clips.filter(clip => clip.section === 'Round 1k');
+    const options = parseOptions(['--set', set, '--keep', '--round', 'Round 1k', '--model', 'primary',
+      '--no-meter', '--no-referee'], 'ear');
+    await store.save(`${prefix}voice-check-4`, Buffer.from('previous sitting'));
+    await store.save(`${prefix}omein_clean`, wav);
+    for (const clip of readings) await store.save(clip.name, Buffer.from(clip.name));
+    await assert.rejects(runEar({ ...options, directory,
+      log: () => assert.fail('selection must be checked first'),
+      ear: async () => assert.fail('no ear call without Voice check 5'),
+      phonemes: async () => assert.fail('no phoneme call without Voice check 5'),
+    }), { message: `Voice card is not recorded: ${prefix}voice-check-5 (section: Round 1k).` });
+    const voice = syntheticWav(cardLabels('ashkenazi'));
+    await store.save(`${prefix}voice-check-5`, voice);
+    const output = [];
+    const calls = [];
+    const result = await runEar({ ...options, directory, log: line => output.push(line),
+      ear: async (audio, earOptions) => {
+        const name = audio.data.toString();
+        calls.push(name);
+        assert.deepEqual(earOptions.reference, { data: voice, format: 'wav' });
+        const clip = readings.find(clip => clip.name === name);
+        assert.ok(clip, 'only Round 1k readings should be graded');
+        return earAnswer(clip.say.split(' ').map(word => word.split('-')));
+      }, phonemes: async () => assert.fail('referee is off'),
+    });
+    assert.equal(result.code, 0);
+    assert.deepEqual(calls, readings.map(clip => clip.name));
+    assert.deepEqual(result.rows.map(row => [row.clip, row.said, row.result]),
+      readings.map(clip => [clip.name, clip.say, 'PASS']));
+    assert.deepEqual(output.filter(line => line.startsWith('Voice card:')), [`Voice card: ${prefix}voice-check-5`]);
   }
 });
 
