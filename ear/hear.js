@@ -85,12 +85,15 @@ async function readAudio(audio) {
 // response body or header, since those can echo credentials.
 class EarFailure extends Error {}
 
-async function request(provider, audio, fetcher, reference) {
+async function request(provider, audio, fetcher, reference, signal) {
   if (provider.model.endsWith('-contributor')) throw new EarFailure('contributor models are disabled');
   const key = process.env[provider.key];
   if (!key?.trim()) throw new EarFailure('no key');
 
   const controller = new AbortController();
+  const abort = () => controller.abort();
+  if (signal?.aborted) abort();
+  else signal?.addEventListener('abort', abort, { once: true });
   const timeout = setTimeout(() => controller.abort(), 120_000);
   try {
     const response = await fetcher(provider.url, {
@@ -135,10 +138,12 @@ async function request(provider, audio, fetcher, reference) {
       card: Boolean(reference),
     };
   } catch (error) {
+    signal?.throwIfAborted();
     if (error instanceof EarFailure) throw error;
     throw new EarFailure(error?.name === 'AbortError' ? 'timed out' : 'network error');
   } finally {
     clearTimeout(timeout);
+    signal?.removeEventListener('abort', abort);
   }
 }
 
@@ -185,6 +190,10 @@ export async function listen(audio, options = {}) {
   if (!Number.isInteger(votes) || votes < 1 || votes > 5) {
     throw new Error('Votes must be a whole number from 1 to 5.');
   }
+  const use = options.use === undefined ? votes : options.use;
+  if (!Number.isInteger(use) || use < 1 || use > votes) {
+    throw new Error('Use must be a whole number from 1 to votes.');
+  }
   const fetcher = options.fetch ?? globalThis.fetch;
   if (typeof fetcher !== 'function') throw new Error('A fetch function is required.');
   const audioData = await readAudio(audio);
@@ -195,21 +204,38 @@ export async function listen(audio, options = {}) {
   const tries = options.tries ?? 2;
   for (const name of models) {
     const asked = name === 'primary' ? votes : 1;
+    const controller = use < asked ? new AbortController() : undefined;
+    const enough = Promise.withResolvers();
+    const arrived = [];
+    let answered = 0;
     // Promise.all preserves request order, including when a slot needs a retry.
-    const results = await Promise.all(Array.from({ length: asked }, async () => {
+    const pending = Array.from({ length: asked }, async () => {
       const failures = [];
       for (let attempt = 1; attempt <= tries; attempt += 1) {
         try {
-          const answer = await request(PROVIDERS[name], audioData, fetcher, name === 'primary' ? reference : undefined);
+          const answer = await request(PROVIDERS[name], audioData, fetcher,
+            name === 'primary' ? reference : undefined, controller?.signal);
           return { answer, failures };
         } catch (error) {
+          if (controller?.signal.aborted) return { failures };
           failures.push(`${name}: ${error instanceof EarFailure ? error.message : 'failed'}`);
           // Only a prose answer is worth another try within this slot.
           if (!(error instanceof EarFailure && error.message === 'answered in prose')) break;
         }
       }
       return { failures };
-    }));
+    });
+    const all = Promise.all(pending.map((slot, index) => slot.then(result => {
+      if (controller && !controller.signal.aborted) {
+        arrived[index] = result;
+        if (result.answer && ++answered === use) {
+          controller.abort();
+          enough.resolve(arrived.filter(Boolean));
+        }
+      }
+      return result;
+    })));
+    const results = controller ? await Promise.race([enough.promise, all]) : await all;
     const answers = results.flatMap(result => result.answer ? [result.answer] : []);
     if (answers.length) {
       return {
@@ -217,7 +243,7 @@ export async function listen(audio, options = {}) {
         words: combineAnswers(answers),
         answers: answers.map(answer => answer.words),
         usage: combineUsage(answers),
-        votes: { asked, answered: answers.length },
+        votes: { asked, answered: answers.length, ...(use < votes ? { used: answers.length } : {}) },
       };
     }
     failures.push(...results.flatMap(result => result.failures));

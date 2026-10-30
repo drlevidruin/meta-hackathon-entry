@@ -20,6 +20,7 @@ const AVATARS = new Set(['lion', 'owl', 'fox', 'bear', 'rabbit', 'turtle', 'whal
 const ID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const TURN_TTL = 30 * 60 * 1000;
 const AUDIO_LIMIT = 25 * 1024 * 1024;
+const GRADE_VOTES = Object.freeze({ votes: 5, use: 3 });
 const JSON_LIMIT = 1024 * 1024;
 const TYPES = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -455,8 +456,8 @@ export function createApp({
             // both held in memory, with no text, child or preset. The phoneme model
             // hears only this reading, on this computer.
             const heard = card
-              ? await listen({ data, format: 'wav' }, { reference: { data: card, format: 'wav' } })
-              : await listen({ data, format: 'wav' });
+              ? await listen({ data, format: 'wav' }, { ...GRADE_VOTES, reference: { data: card, format: 'wav' } })
+              : await listen({ data, format: 'wav' }, GRADE_VOTES);
             words = heard.words;
             try {
               words = applyMeter(words, data, getChild(turn.childId).voice).words;

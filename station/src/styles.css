@@ -13,6 +13,8 @@
   --navy-tint: #edeefb;
   --green-tint: #e7f1ea;
   --mark-ink: #68736e;
+  --letter-mistake: #c2410c;
+  --nekudah-mistake: #7c3aed;
   --demo-text: #65717b;
   --demo-ground: #f0f2f3;
   --shadow: 0 1px 2px rgba(16,22,52,.05), 0 8px 24px rgba(16,22,52,.06);
@@ -153,7 +155,11 @@ main > section { animation: screen-arrive .3s ease-out both; }
 .graded-word { display: inline-block; margin-inline: .18em; position: relative; }
 .pair { position: relative; animation: pair-light .3s ease-out both; }
 .pair-ok { color: var(--green); }
-.pair-wrong_letter, .pair-wrong_vowel, .pair-skipped, .word-skipped { color: #68736e; text-decoration: underline; text-decoration-color: var(--gold); text-underline-offset: .18em; text-decoration-thickness: .065em; text-decoration-skip-ink: none; }
+.pair-wrong_letter, .pair-wrong_vowel, .pair-skipped, .word-skipped { text-decoration: underline; text-underline-offset: .18em; text-decoration-thickness: .065em; text-decoration-skip-ink: none; }
+.pair-wrong_letter { color: #c2410c; text-decoration-color: #c2410c; }
+.pair-wrong_vowel { display: inline-block; text-align: start; color: #7c3aed; text-decoration-color: #7c3aed; }
+.pair-letter { position: absolute; inset: 0; color: #1c2350; }
+.pair-skipped, .word-skipped { color: #68736e; text-decoration-color: var(--gold); }
 .pair-uncertain, .pair-not_decoded, .word-not_decoded, .word-extra, .pair-extra { color: var(--deep-navy); }
 .extra-dot { display: inline-block; background: var(--gold); width: .17em; height: .17em; border-radius: 50%; position: absolute; top: .5em; inset-inline-end: -.14em; }
 .line-frame { min-width: 0; width: 100%; display: grid; align-items: center; border: 1px solid var(--edge); border-radius: var(--radius); position: relative; background: var(--card); box-shadow: var(--shadow); }
@@ -296,7 +302,10 @@ legend { font-weight: 700; font-size: 13px; color: var(--deep-navy); margin-bott
 /* The literal fallbacks above also support renderers that cannot resolve custom properties. */
 @supports (color: var(--text)) {
   .level-badge.demo-badge { color: var(--demo-text); background: var(--demo-ground); }
-  .pair-wrong_letter, .pair-wrong_vowel, .pair-skipped, .word-skipped { color: var(--mark-ink); }
+  .pair-wrong_letter { color: var(--letter-mistake); text-decoration-color: var(--letter-mistake); }
+  .pair-wrong_vowel { color: var(--nekudah-mistake); text-decoration-color: var(--nekudah-mistake); }
+  .pair-letter { color: var(--deep-navy); }
+  .pair-skipped, .word-skipped { color: var(--mark-ink); }
 }
 
 @keyframes screen-arrive { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
