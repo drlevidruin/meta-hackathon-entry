@@ -75,6 +75,7 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, lin
     session.completedKey = key;
     session.chunks = [];
     session.visibleAt = session.context?.currentTime;
+    session.capturedAt = null;
     session.silent ??= createLineEndDetector();
     session.silent.reset({ text: options.current.lineText, preset: options.current.preset });
     setStatus(key == null ? 'waiting' : 'recording');
@@ -85,7 +86,7 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, lin
     const session = capture.current;
     if (!session) return;
     paused.current = reading(session) ? { lineKey: session.lineKey, chunks: session.chunks,
-      silent: session.silent, sampleRate: session.context?.sampleRate } : null;
+      silent: session.silent, sampleRate: session.context?.sampleRate, capturedAt: session.capturedAt } : null;
     session.chunks = [];
     session.discard = true;
     release(session);
@@ -107,7 +108,7 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, lin
 
   async function begin() {
     if (capture.current || (continuous && (options.current.finished || options.current.lineKey == null))) return;
-    const session = { chunks: [], mock: mockMode, discard: false };
+    const session = { chunks: [], mock: mockMode, discard: false, clockOffsetMs: 0 };
     capture.current = session;
     setStatus('requesting');
     try {
@@ -133,6 +134,9 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, lin
           if (paused.current?.lineKey === session.lineKey) {
             session.chunks = paused.current.chunks;
             session.silent = paused.current.silent;
+            session.capturedAt = paused.current.capturedAt;
+            // Continue the capture clock across contexts without counting time spent paused.
+            session.clockOffsetMs = (session.capturedAt ?? 0) - session.visibleAt * 1000;
             session.silent.resume();
             if (session.silent.heardSpeech) {
               session.timer = setTimeout(() => endLine(session), MAX_LINE_MS);
@@ -156,8 +160,10 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, lin
               Math.ceil((session.visibleAt - inputStart - AUDIO_TIME_EPSILON) * session.context.sampleRate));
             const samples = input.subarray(firstVisibleSample);
             if (!samples.length) return;
+            // Quiet and tail durations follow captured frames even when messages arrive late.
+            session.capturedAt = session.clockOffsetMs + (startFrame + input.length) * 1000 / session.context.sampleRate;
             const heardSpeech = session.silent.heardSpeech;
-            const silent = session.silent(rms(samples), performance.now(), samples.length / session.context.sampleRate * 1000);
+            const silent = session.silent(rms(samples), session.capturedAt, samples.length * 1000 / session.context.sampleRate);
             setStatus(session.silent.finishing ? 'finishing' : 'recording');
             if (!heardSpeech && session.silent.heardSpeech) {
               // Count from speech so looking at the line or room hum cannot use up the limit.
@@ -178,7 +184,8 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, lin
             if (following.current || !reading(session) || !session.silent.heardSpeech || !options.current.onFollow) return;
             following.current = true;
             const key = session.lineKey;
-            const capturedAt = performance.now();
+            // Date the snapshot by its last PCM sample, which can lag the current audio clock.
+            const capturedAt = session.capturedAt;
             const isCurrent = () => mounted.current && reading(session) && session.lineKey === key;
             try {
               const word = await options.current.onFollow(clip(session, SAMPLE_RATE), isCurrent);

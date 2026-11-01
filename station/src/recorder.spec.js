@@ -559,6 +559,92 @@ it('shows finishing while retaining at least 450 ms of soft final vowel, then ke
   expect(screen.getByRole('button', { name: 'Record' }).getAttribute('aria-pressed')).toBe('false');
 });
 
+it.each([16000, 44100, 48000])('retains speech captured during the finishing tail when the main thread stalls at %i Hz', async sampleRate => {
+  const mic = microphone(sampleRate), onStop = vi.fn();
+  const { result } = renderHook(() => useRecorder(onStop, false,
+    { continuous: true, lineKey: 'one', lineText: 'בָּ' }));
+  await act(async () => result.current.toggle());
+  act(() => { mic.audio(.1, 1000); mic.audio(0, 1550); });
+  expect(result.current.status).toBe('finishing');
+  const context = mic.contexts[0], queued = [];
+  // Capture keeps running while the main thread cannot handle the worklet messages.
+  for (let frame = 0; frame < 12; frame++) {
+    const startFrame = Math.round(context.currentTime * sampleRate);
+    queued.push({ data: { samples: new Float32Array(sampleRate / 20).fill(frame < 4 ? 0 : .2), startFrame } });
+    context.currentTime += .05;
+  }
+  act(() => {
+    vi.advanceTimersByTime(600);
+    for (const event of queued) mic.processors[0].port.onmessage(event);
+  });
+  expect(onStop).not.toHaveBeenCalled();
+  expect(result.current.status).toBe('recording');
+  act(() => mic.audio(0, 2000));
+  expect(onStop).toHaveBeenCalledOnce();
+  expect(onStop.mock.calls[0][1]).toBe('one');
+  const pcm = new Int16Array(await onStop.mock.calls[0][0].arrayBuffer(), 44);
+  expect(pcm).toHaveLength(sampleRate / 20 * 103);
+  expect(pcm.subarray(sampleRate / 20 * 55, sampleRate / 20 * 63).every(value => value === 6553)).toBe(true);
+});
+
+it('timestamps follow snapshots on the captured audio clock when it differs from message time', async () => {
+  const mic = microphone(), onStop = vi.fn(), onFollow = vi.fn(async () => 0);
+  const { result } = renderHook(() => useRecorder(onStop, false,
+    { continuous: true, lineKey: 'one', lineText: 'בָּ בָּ בָּ', onFollow }));
+  await act(async () => result.current.toggle());
+  mic.contexts[0].currentTime = 30;
+  await act(async () => { mic.audio(.1, 2000); });
+  expect(onFollow).toHaveBeenCalledOnce();
+  act(() => mic.audio(0, 3500));
+  expect(onStop).not.toHaveBeenCalled();
+  expect(result.current.status).toBe('recording');
+  act(() => mic.audio(0, 50));
+  expect(result.current.status).toBe('finishing');
+  act(() => mic.audio(0, 450));
+  expect(onStop).toHaveBeenCalledOnce();
+});
+
+it('dates a follow snapshot by its last captured sample while the audio context runs ahead of queued messages', async () => {
+  const mic = microphone(), onStop = vi.fn(), onFollow = vi.fn(async () => 0);
+  const { result } = renderHook(() => useRecorder(onStop, false,
+    { continuous: true, lineKey: 'one', lineText: 'בָּ בָּ בָּ', onFollow }));
+  await act(async () => result.current.toggle());
+  await act(async () => { mic.audio(.1, 1000); });
+  const context = mic.contexts[0], queued = [];
+  for (let frame = 0; frame < 52; frame++) {
+    const startFrame = Math.round(context.currentTime * 16000);
+    queued.push({ data: { samples: new Float32Array(800).fill(.1), startFrame } });
+    context.currentTime += .05;
+  }
+  // The follow timer runs before the main thread drains the delayed capture messages.
+  await act(async () => { vi.advanceTimersByTime(2600); });
+  expect(onFollow).toHaveBeenCalledTimes(2);
+  expect(onFollow.mock.calls[1][0].size).toBe(44 + 1000 * 16 * 2);
+  onFollow.mockResolvedValue(null);
+  act(() => { for (const event of queued) mic.processors[0].port.onmessage(event); });
+  act(() => mic.audio(0, 2000));
+  expect(onStop).toHaveBeenCalledOnce();
+  expect(onStop.mock.calls[0][0].size).toBe(44 + 5600 * 16 * 2);
+});
+
+it('lets a follow snapshot become stale as speech continues across a paused audio context', async () => {
+  const mic = microphone(), onStop = vi.fn(), onFollow = vi.fn(async () => 0);
+  const { result } = renderHook(() => useRecorder(onStop, false,
+    { continuous: true, lineKey: 'one', lineText: 'בָּ בָּ בָּ', onFollow }));
+  await act(async () => result.current.toggle());
+  mic.contexts[0].currentTime = 30;
+  await act(async () => { mic.audio(.1, 2000); });
+  onFollow.mockResolvedValue(null);
+  act(() => result.current.toggle());
+  act(() => vi.advanceTimersByTime(10000));
+  await act(async () => result.current.toggle());
+  expect(mic.contexts[1].currentTime).toBe(0);
+  await act(async () => { mic.audio(.1, 3000); });
+  act(() => mic.audio(0, 2000));
+  expect(onStop).toHaveBeenCalledOnce();
+  expect(onStop.mock.calls[0][0].size).toBe(44 + 7000 * 16 * 2);
+});
+
 it('excludes speech before the next line appears, including a queued input buffer delivered after it appears', async () => {
   const mic = microphone(), onStop = vi.fn();
   const { result, rerender } = renderHook(({ lineKey }) => useRecorder(onStop, false,
