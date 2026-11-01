@@ -3,12 +3,12 @@ import { loadPin } from './storage.js';
 
 export const isMockMode = () => new URLSearchParams(window.location.search).has('mock');
 
-async function request(path, { teacher = false, pin = loadPin(), data, ...options } = {}) {
+async function request(path, { teacher = false, pin = loadPin(), data, timeoutMs = 60000, ...options } = {}) {
   const headers = { ...options.headers };
   if (teacher) headers['X-Teacher-Pin'] = pin;
   if (data !== undefined) headers['Content-Type'] = 'application/json';
   const response = await fetch(`/api/${path}`, { ...options, headers,
-    ...(data !== undefined ? { body: JSON.stringify(data) } : {}), signal: AbortSignal.timeout(60000) });
+    ...(data !== undefined ? { body: JSON.stringify(data) } : {}), signal: AbortSignal.timeout(timeoutMs) });
   const body = await response.json();
   if (!response.ok) {
     const error = new Error(body.error || 'Request failed');
@@ -23,12 +23,13 @@ const post = (path, data, options) => request(path, { ...options, method: 'POST'
 export const children = () => isMockMode() ? mock.children() : request('children');
 export const config = () => isMockMode() ? mock.config() : request('config');
 export const start = data => isMockMode() ? mock.start(data) : post('start', { childId: data.childId });
-export const grade = ({ turnId, itemId, audio }) => isMockMode() ? mock.grade({ turnId, itemId }) :
-  request(`grade?turn=${encodeURIComponent(turnId)}&item=${encodeURIComponent(itemId)}`, {
+export const grade = ({ turnId, itemId, audio, setIndex, lineIndex }) => isMockMode() ? mock.grade({ turnId, itemId }) :
+  request(`grade?turn=${encodeURIComponent(turnId)}&item=${encodeURIComponent(itemId)}${setIndex === undefined ? '' : `&set=${setIndex}&line=${lineIndex}`}`, {
     method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: audio,
   });
-export const follow = ({ turnId, itemId, audio }) => isMockMode() ? Promise.resolve({ word: null }) :
+export const follow = ({ turnId, itemId, audio }) => isMockMode() ? Promise.resolve({ syllables: 0 }) :
   request(`follow?turn=${encodeURIComponent(turnId)}&item=${encodeURIComponent(itemId)}`, {
+    timeoutMs: 1500, // Let slow following yield to the station's timing fallback and the next line.
     method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: audio,
   });
 export const voice = ({ childId, audio }) => isMockMode() ? mock.voice({ childId }) :

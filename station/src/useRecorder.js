@@ -1,18 +1,17 @@
-import { useEffect, useRef, useState } from 'react';
-import { createSilenceDetector, rms } from './silence.js';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createLineEndDetector, createSilenceDetector, rms } from './silence.js';
 import { encodeWav, resample, SAMPLE_RATE } from './wav.js';
 
 const MAX_LINE_MS = 20000; // Keep the existing safety limit for a line with no quiet ending.
 const LEAD_IN_SECONDS = 1; // Retain a quiet first consonant before the detected speech.
+const AUDIO_TIME_EPSILON = 0.000001; // Ignore sub-microsecond rounding at an audio block boundary.
 
-export function useRecorder(onStop, mockMode, { continuous = false, lineKey, finished = false, onFollow } = {}) {
+export function useRecorder(onStop, mockMode, { continuous = false, lineKey, lineText = '', preset, finished = false, onFollow } = {}) {
   const [status, setStatus] = useState('ready');
   const capture = useRef(null);
   const callback = useRef(onStop);
-  callback.current = onStop;
   const mounted = useRef(true);
   const options = useRef(null);
-  options.current = { lineKey, finished, onFollow };
   const paused = useRef(null);
   const following = useRef(false);
 
@@ -54,15 +53,19 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, fin
     session.chunks = [];
     session.lineKey = null;
     clearTimeout(session.timer);
-    callback.current(blob);
+    setStatus('waiting');
+    callback.current(blob, session.completedKey);
   }
 
   function resetLine(session, key) {
     clearTimeout(session.timer);
     session.lineKey = key;
+    session.completedKey = key;
     session.chunks = [];
-    session.silent ??= createSilenceDetector();
-    session.silent.reset();
+    session.visibleAt = session.context?.currentTime;
+    session.silent ??= createLineEndDetector();
+    session.silent.reset({ text: options.current.lineText, preset: options.current.preset });
+    setStatus(key == null ? 'waiting' : 'recording');
     if (session.mock && key != null) session.timer = setTimeout(() => endLine(session), MAX_LINE_MS);
   }
 
@@ -130,13 +133,23 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, fin
           paused.current = null;
           // PCM snapshots remain decodable while capture continues. The output
           // stays silent so the microphone is never played through the speakers.
+          session.inputThrough = session.context.currentTime;
           session.processor = session.context.createScriptProcessor(2048, 1, 1);
           session.processor.onaudioprocess = event => {
             event.outputBuffer.getChannelData(0).fill(0);
-            if (!reading(session)) return;
             const samples = event.inputBuffer.getChannelData(0);
+            const duration = samples.length / session.context.sampleRate;
+            // Advance even between lines so delayed callbacks retain their original input time.
+            const frameStart = session.inputThrough;
+            session.inputThrough += duration;
+            if (!reading(session)) return;
+            // Discard queued input that began before this line was committed to the screen.
+            const inputStart = Math.min(frameStart,
+              Math.min(event.playbackTime ?? session.context.currentTime, session.context.currentTime) - duration);
+            if (inputStart + AUDIO_TIME_EPSILON < session.visibleAt) return;
             const heardSpeech = session.silent.heardSpeech;
-            const silent = session.silent(rms(samples), performance.now());
+            const silent = session.silent(rms(samples), performance.now(), duration * 1000);
+            setStatus(session.silent.finishing ? 'finishing' : 'recording');
             if (!heardSpeech && session.silent.heardSpeech) {
               // Count from speech so looking at the line or room hum cannot use up the limit.
               session.timer = setTimeout(() => endLine(session), MAX_LINE_MS);
@@ -156,8 +169,11 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, fin
             if (following.current || !reading(session) || !session.silent.heardSpeech || !options.current.onFollow) return;
             following.current = true;
             const key = session.lineKey;
+            const capturedAt = performance.now();
+            const isCurrent = () => mounted.current && reading(session) && session.lineKey === key;
             try {
-              await options.current.onFollow(clip(session, SAMPLE_RATE), () => mounted.current && reading(session) && session.lineKey === key);
+              const word = await options.current.onFollow(clip(session, SAMPLE_RATE), isCurrent);
+              if (isCurrent()) session.silent.follow(word, capturedAt);
             } catch { /* Following must never interrupt a reading. */ }
             finally { following.current = false; }
           }, 400);
@@ -205,7 +221,13 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, fin
     }
   }
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    // Capture belongs to committed UI only, including when React is rendering a later line.
+    options.current = { lineKey, lineText, preset, finished, onFollow };
+    callback.current = onStop;
+  });
+
+  useLayoutEffect(() => {
     if (!continuous) return;
     const session = capture.current;
     if (finished) {
@@ -237,5 +259,6 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, fin
     };
   }, []);
 
-  return { status, toggle: () => status === 'recording' ? (continuous ? pause() : stop()) : begin(), retry: begin };
+  return { status, toggle: () => ['recording', 'finishing', 'waiting'].includes(status)
+    ? (continuous ? pause() : stop()) : begin(), retry: begin };
 }

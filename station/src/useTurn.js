@@ -58,9 +58,10 @@ export function useTurn() {
     }
   }
 
-  async function record(blob) {
+  async function record(blob, lineKey) {
     const snapshot = current.current;
     if (!snapshot || snapshot.phase !== 'reading') return;
+    if (lineKey != null && lineKey !== `${snapshot.turnId}:${snapshot.completedSets}:${snapshot.lineIndex}`) return;
     const item = snapshot.set[snapshot.lineIndex];
     if (!item) return;
     const index = snapshot.attempts.length;
@@ -75,7 +76,8 @@ export function useTurn() {
         // Decode and dispatch in reading order without waiting for a grade.
         const sent = uploads.current.then(async () => {
           const audio = await recordingToWav(blob);
-          return { grade: api.grade({ turnId: snapshot.turnId, itemId: item.id, audio }) };
+          return { grade: api.grade({ turnId: snapshot.turnId, itemId: item.id, audio,
+            setIndex: snapshot.completedSets, lineIndex: snapshot.lineIndex }) };
         });
         uploads.current = sent.then(() => {}, () => {});
         result = await (await sent).grade;

@@ -4,8 +4,34 @@ import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { SKILLS } from '../rulebook/index.js';
 import { normalizeVowels } from '../rulebook/vowels.js';
+import { decodeWav } from '../ear/meter.js';
 
 export const DEFAULT_DATA_DIR = fileURLToPath(new URL('../data/', import.meta.url));
+
+export function createAttemptWriter(dataDir = DEFAULT_DATA_DIR, enabled = false) {
+  return async ({ audio, turnId, setIndex, lineIndex, itemId, text, preset, heard, tokens, grade, gradeMs }) => {
+    if (!enabled) return;
+    const { samples, rate } = decodeWav(audio);
+    const directory = path.join(dataDir, 'attempts');
+    const id = randomUUID();
+    const wavFile = path.join(directory, `${id}.wav`);
+    const jsonFile = path.join(directory, `${id}.json`);
+    // Copy only replay fields, never request headers, environment or provider metadata.
+    const record = { version: 1, turnId, setIndex, lineIndex, itemId, text, preset, audio: `${id}.wav`,
+      heard: { raw: heard.raw, metered: heard.metered, final: heard.final }, tokens,
+      words: grade.words, verdicts: grade.verdicts, summary: grade.summary,
+      timings: { recordingMs: samples.length / rate * 1000, gradeMs } };
+    await fs.promises.mkdir(directory, { recursive: true, mode: 0o700 });
+    await fs.promises.writeFile(wavFile, audio, { mode: 0o600, flag: 'wx' });
+    try {
+      await fs.promises.writeFile(jsonFile, JSON.stringify(record), { mode: 0o600, flag: 'wx' });
+    } catch (error) {
+      await fs.promises.rm(wavFile, { force: true });
+      await fs.promises.rm(jsonFile, { force: true });
+      throw error;
+    }
+  };
+}
 
 // Decisions still drop private fields. Profiles use the coach schema below.
 export function durable(value) {

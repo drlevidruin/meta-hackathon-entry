@@ -1330,7 +1330,7 @@ test('start loads the saved profile and returns a turn with only bank items', as
   assert.equal((await request(app, '/api/start', { data: { childId: randomUUID() } })).status, 404);
 });
 
-test('follow maps vowel counts to words with one, two and three syllables without reaching the ear or saving sounds', async () => {
+test('follow returns audio vowel counts without reaching the ear or saving sounds', async () => {
   const item = { ...items[0], id: 'phrase', text: 'בָּ בָּרָ בָּרָכָה' };
   let count = 0;
   const phonemes = mock.fn(async () => [{ token: '<s>' }, { token: 'b' },
@@ -1341,10 +1341,10 @@ test('follow maps vowel counts to words with one, two and three syllables withou
   const turn = await start(app, child.id);
   const saved = disk(dataDir);
   const audio = wav(utterance(['a']));
-  for (const expected of [null, 0, 1, 1, 2, 2, 2, 2]) {
+  for (let expected = 0; expected < 8; expected++) {
     const response = await follow(app, turn.turnId, item.id, { data: audio });
     assert.equal(response.status, 200);
-    assert.deepEqual(response.json, { word: expected }, `vowels ${count}`);
+    assert.deepEqual(response.json, { syllables: expected }, `vowels ${count}`);
     assert.equal(response.headers['Cache-Control'], 'no-store');
     assert.deepEqual(phonemes.mock.calls.at(-1).arguments, [audio]);
     count++;
@@ -1354,20 +1354,20 @@ test('follow maps vowel counts to words with one, two and three syllables withou
   assert.deepEqual(disk(dataDir), saved);
 });
 
-test('follow counts the first rulebook reading of a printed word, including a substituted Name', async () => {
+test('follow leaves printed words and substituted Names to the station', async () => {
   const item = { ...items[0], id: 'name', text: 'מֶלֶךְ יְהוָה בָּ' };
   let count = 0;
   const { app } = setup({ items: [item], phonemes: async () => Array.from({ length: count }, () => ({ token: 'ə' })),
     chooseNextSet: async profile => selection(profile, { itemIds: [item.id] }) });
   const child = await add(app, { preset: 'chassidish' });
   const turn = await start(app, child.id);
-  for (const [vowels, word] of [[1, 0], [2, 0], [3, 1], [5, 1], [6, 2], [20, 2]]) {
+  for (const vowels of [1, 2, 3, 5, 6, 20]) {
     count = vowels;
-    assert.deepEqual((await follow(app, turn.turnId, item.id)).json, { word });
+    assert.deepEqual((await follow(app, turn.turnId, item.id)).json, { syllables: vowels });
   }
 });
 
-test('follow returns only a null word when the phoneme service is off, empty or fails', async () => {
+test('follow returns zero syllables when the phoneme service is off, empty or fails', async () => {
   for (const phonemes of [undefined, async () => null, async () => [], async () => [{ token: 'k' }],
     async () => { throw new Error('private phoneme failure'); }]) {
     const { app, listen, gradeLine } = setup({ phonemes });
@@ -1375,7 +1375,7 @@ test('follow returns only a null word when the phoneme service is off, empty or 
     const turn = await start(app, child.id);
     const response = await follow(app, turn.turnId);
     assert.equal(response.status, 200);
-    assert.deepEqual(response.json, { word: null });
+    assert.deepEqual(response.json, { syllables: 0 });
     assert.equal(listen.mock.callCount(), 0);
     assert.equal(gradeLine.mock.callCount(), 0);
   }
@@ -1401,7 +1401,7 @@ test('follow rejects a second request per turn while leaving grading and other t
     assert.equal((await grade(app, turn.turnId)).status, 200);
     assert.equal(listen.mock.callCount(), 1);
   } finally { release.resolve([{ token: 'a' }]); }
-  assert.deepEqual((await pending).json, { word: 0 });
+  assert.deepEqual((await pending).json, { syllables: 1 });
   assert.equal((await follow(app, turn.turnId)).status, 200);
 });
 
@@ -2187,4 +2187,110 @@ test('a failed teacher level write preserves the live turn as well as the saved 
   rename.mock.restore();
   assert.equal(disk(dataDir).children[child.id].level, 1);
   assert.equal((await grade(app, turn.turnId)).status, 200);
+});
+
+test('queued live grades retain their own lines and checkpoints wait, while stale set coordinates cannot grade a repeated item', async () => {
+  const entered = deferred(), release = deferred();
+  let calls = 0;
+  const listen = mock.fn(async () => {
+    const order = ++calls;
+    if (order === 1) { entered.resolve(); await release.promise; }
+    return { words: [[String(order)]] };
+  });
+  const { app, chooseNextSet, gradeLine } = setup({ listen });
+  const child = await add(app), turn = await start(app, child.id);
+  const positioned = (set, line, item = `kamatz-${line}`) => request(app,
+    `/api/grade?turn=${turn.turnId}&item=${item}&set=${set}&line=${line}`,
+    { type: 'audio/wav', data: Buffer.from('FAKE_AUDIO_BYTES') });
+  const first = positioned(0, 0);
+  await entered.promise;
+  const second = positioned(0, 1);
+  const checkpoint = next(app, turn.turnId);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(listen.mock.callCount(), 1);
+  assert.equal(chooseNextSet.mock.callCount(), 1);
+  release.resolve();
+  const responses = await Promise.all([first, second, checkpoint]);
+  assert.deepEqual(responses.map(response => response.status), [200, 200, 200]);
+  assert.deepEqual(responses.slice(0, 2).map(response => response.json.itemId), ['kamatz-0', 'kamatz-1']);
+  assert.deepEqual(chooseNextSet.mock.calls[1].arguments[1].map(result => result.itemId), ['kamatz-0', 'kamatz-1']);
+  assert.deepEqual(gradeLine.mock.calls.map(call => call.arguments[0].heard), [[['1']], [['2']]]);
+  assert.equal((await positioned(0, 0)).status, 409);
+  assert.equal(listen.mock.callCount(), 2);
+  assert.equal((await positioned(1, 0)).status, 200);
+  assert.equal((await positioned(1, 1, 'kamatz-0')).status, 409);
+});
+
+for (const enabled of [false, true]) {
+  test(`live attempts ${enabled ? 'save WAV and replay JSON before turn finish with SAVE_ATTEMPTS=1' : 'write no audio or replay JSON when SAVE_ATTEMPTS is unset'}`, async () => {
+    const previous = process.env.SAVE_ATTEMPTS;
+    let context;
+    const tokens = [phonemeVowel(0.9), phonemeVowel(0.8)];
+    const phonemes = mock.fn(async () => phonemes.mock.callCount() === 0 ? phonemeCard() : tokens);
+    try {
+      if (enabled) process.env.SAVE_ATTEMPTS = '1';
+      else delete process.env.SAVE_ATTEMPTS;
+      context = setup({ phonemes, teacherPin: '987654321099',
+        listen: async () => ({ words: [['ka', 'tan']], apiKey: 'DO_NOT_SAVE_PROVIDER_SECRET' }) });
+    } finally {
+      if (previous === undefined) delete process.env.SAVE_ATTEMPTS;
+      else process.env.SAVE_ATTEMPTS = previous;
+    }
+    const { app, dataDir } = context;
+    const response = await request(app, '/api/children', { headers: { 'x-teacher-pin': '987654321099' },
+      data: { name: 'Sprout', avatar: 'owl', preset: 'ashkenazi' } });
+    const child = response.json;
+    assert.equal((await voice(app, child)).status, 200);
+    assert.deepEqual(fs.readdirSync(dataDir), ['store.json']);
+    const turn = await start(app, child.id);
+    const data = wav(utterance(['a', 'a']));
+    assert.equal((await grade(app, turn.turnId, 'kamatz-0', { data })).status, 200);
+    assert.deepEqual(disk(dataDir).turns[child.id], []);
+    if (!enabled) {
+      assert.deepEqual(fs.readdirSync(dataDir), ['store.json']);
+      return;
+    }
+    const directory = path.join(dataDir, 'attempts');
+    const files = fs.readdirSync(directory).sort();
+    assert.equal(files.length, 2);
+    const jsonFile = files.find(file => file.endsWith('.json'));
+    const metadata = fs.readFileSync(path.join(directory, jsonFile), 'utf8');
+    const saved = JSON.parse(metadata);
+    assert.equal(saved.version, 1);
+    assert.equal(saved.itemId, 'kamatz-0');
+    assert.equal(saved.text, items[0].text);
+    assert.equal(saved.setIndex, 0);
+    assert.equal(saved.lineIndex, 0);
+    assert.deepEqual(saved.heard, { raw: [['ka', 'tan']], metered: [['ka', 'tan']], final: [['ko', 'ton']] });
+    assert.deepEqual(saved.tokens, tokens);
+    assert.deepEqual(saved.verdicts, gradeFor().verdicts);
+    assert.deepEqual(saved.words, gradeFor().words);
+    assert.deepEqual(saved.summary, gradeFor().summary);
+    assert.equal(saved.timings.recordingMs, (data.length - 44) / 32);
+    assert.ok(saved.timings.gradeMs >= 0);
+    assert.doesNotMatch(metadata, /987654321099|DO_NOT_SAVE_PROVIDER_SECRET|teacherPin|apiKey/);
+    const audio = fs.readFileSync(path.join(directory, saved.audio));
+    assert.deepEqual(audio, data);
+    assert.equal(audio.readUInt16LE(22), 1);
+    assert.equal(audio.readUInt32LE(24), 16000);
+    assert.equal(fs.statSync(path.join(directory, saved.audio)).mode & 0o777, 0o600);
+    assert.equal(fs.statSync(path.join(directory, jsonFile)).mode & 0o777, 0o600);
+    assert.doesNotMatch(fs.readFileSync(path.join(dataDir, 'store.json'), 'utf8'), /"ka"|"tan"|"verdicts"|"heard"/);
+    assert.equal((await grade(app, turn.turnId, 'kamatz-0', { data })).status, 200);
+    assert.equal(fs.readdirSync(directory).length, 4);
+  });
+}
+
+test('replay saving collects available phonemes without a calibration and leaves grading unchanged', async () => {
+  const tokens = [phonemeVowel(0.9)];
+  const phonemes = mock.fn(async () => tokens);
+  const { app, dataDir, gradeLine } = setup({ phonemes, saveAttempts: true });
+  const child = await add(app), turn = await start(app, child.id);
+  assert.equal((await grade(app, turn.turnId, 'kamatz-0', { data: wav(utterance(['a'])) })).status, 200);
+  assert.equal(phonemes.mock.callCount(), 1);
+  assert.deepEqual(gradeLine.mock.calls[0].arguments[0].heard, [['ba']]);
+  const directory = path.join(dataDir, 'attempts');
+  const saved = JSON.parse(fs.readFileSync(path.join(directory, fs.readdirSync(directory).find(file => file.endsWith('.json')))));
+  assert.deepEqual(saved.tokens, tokens);
+  assert.deepEqual(saved.heard, { raw: [['ba']], metered: [['ba']], final: [['ba']] });
 });

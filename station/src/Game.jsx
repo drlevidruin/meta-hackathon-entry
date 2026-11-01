@@ -6,6 +6,7 @@ import { turnMessage } from './messages.js';
 import { navigate } from './router.js';
 import { useRecorder } from './useRecorder.js';
 import { pairLetter } from './pair.js';
+import { wordForSyllables } from './silence.js';
 
 export function Stats({ turn }) {
   return <aside className="stats" aria-label="Your progress">
@@ -24,7 +25,8 @@ export function Stats({ turn }) {
 
 export function GradedLine({ attempt }) {
   if (!attempt) return <div className="previous-line empty" aria-hidden="true" />;
-  if (!attempt.grade || attempt.status === 'failed') return <div className="previous-line" dir="rtl" lang="he" aria-label="Previous line">{attempt.text}</div>;
+  if (!attempt.grade || attempt.status === 'failed') return <div className="previous-line" dir="rtl" lang="he"
+    aria-label="Previous line" aria-busy={attempt.status === 'pending'}>{attempt.text}</div>;
   let pairCount = 0;
   return <div className="previous-line" dir="rtl" lang="he" aria-label="Previous line">
     {attempt.grade.words.map((word, index) => <span key={index} className={`graded-word word-${word.verdict || 'paired'}`}>
@@ -47,8 +49,8 @@ export function MicrophoneIcon() {
 }
 
 export function RecordButton({ recorder, disabled = false, thinking = false, continuous = false }) {
-  const recording = recorder.status === 'recording';
-  const busy = thinking || recorder.status === 'requesting';
+  const recording = ['recording', 'finishing', 'waiting'].includes(recorder.status);
+  const busy = thinking || ['requesting', 'finishing', 'waiting'].includes(recorder.status);
   return <button className={`record-button ${recording ? 'recording' : ''} ${busy ? 'thinking' : ''}`}
     onClick={recorder.toggle} disabled={disabled || recorder.status === 'requesting'}
     aria-label={recording ? (continuous ? 'Pause listening' : 'Stop recording') : 'Record'} aria-pressed={recording} aria-busy={busy}>
@@ -100,16 +102,19 @@ export function ReadScreen({ turn, onRecord, onRetryNext }) {
   const item = turn.phase === 'reading' ? turn.set[turn.lineIndex] : null;
   const lineKey = item ? `${turn.turnId}:${turn.completedSets}:${turn.lineIndex}` : null;
   const [position, setPosition] = useState(null);
-  const recorder = useRecorder(onRecord, isMockMode(), { continuous: true, lineKey,
+  const recorder = useRecorder(onRecord, isMockMode(), { continuous: true, lineKey, lineText: item?.text,
+    preset: turn.child.preset,
     finished: ['finish_pending', 'finishing', 'finish_error', 'finished'].includes(turn.phase)
       || (turn.phase === 'level_up' && turn.afterLevelUp === 'finish_pending'),
     onFollow: async (audio, isCurrent) => {
       if (!isCurrent()) return;
-      const { word } = await follow({ turnId: turn.turnId, itemId: item.id, audio });
+      const { syllables } = await follow({ turnId: turn.turnId, itemId: item.id, audio });
+      const word = wordForSyllables(item.text, turn.child.preset, syllables);
       if (isCurrent() && Number.isInteger(word) && word >= 0) setPosition(previous => {
         const current = previous?.lineKey === lineKey ? previous.word : -1;
         return { lineKey, word: Math.max(current, Math.min(word, current + 1)) };
       });
+      return word;
     },
   });
   if (recorder.status === 'off') return <section className="microphone-off">

@@ -1,13 +1,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID, timingSafeEqual } from 'node:crypto';
-import { expectedSounds, formatReading, SKILLS, splitWords } from '../rulebook/index.js';
+import { SKILLS } from '../rulebook/index.js';
 import { cardLabels, voiceCardFor } from '../rulebook/voice-card.js';
 import { itemsForVowels, normalizeVowels, VOWEL_IDS } from '../rulebook/vowels.js';
 import { applyMeter, buildVoiceProfile, syllablePoints, VoiceCheckError } from '../ear/meter.js';
 import { voiceCardToEar } from '../ear/card-gate.js';
-import { applyReferee, cardCalibration, nucleus, refereeSettings, vowelClass } from '../ear/referee.js';
-import { createStore, durable } from './store.js';
+import { applyReferee, cardCalibration, refereeSettings, vowelClass } from '../ear/referee.js';
+import { createAttemptWriter, createStore, durable } from './store.js';
 import { buildMap, recordPairs, summaryOnly, totalSummary } from './progress.js';
 import { parentLine } from './hints.js';
 import { makePacket } from './packet.js';
@@ -164,10 +164,12 @@ function childFields(value, partial = false) {
 export function createApp({
   items, listen, gradeLine, chooseNextSet, startProfile, startTurn = resetTurn, explain, turnFacts, staticDir, phonemes,
   dataDir = process.env.DATA_DIR, teacherPin = process.env.TEACHER_PIN,
+  saveAttempts = process.env.SAVE_ATTEMPTS === '1',
   trace = process.env.TRACE === '1', coachModel = process.env.COACH_MODEL, now = Date.now,
 }) {
   const byId = new Map(items.map(item => [item.id, item]));
   const store = createStore(dataDir);
+  const saveAttempt = createAttemptWriter(dataDir, saveAttempts === true);
   const turns = new Map();
   const starts = new Map();
   const voiceChanges = new Map();
@@ -455,30 +457,33 @@ export function createApp({
           let tokens = null;
           try { tokens = phonemes ? await phonemes(data) : null; } catch { /* Following is optional. */ }
           checkTurn(turn);
-          let count = Array.isArray(tokens) ? tokens.filter(value => vowelClass(value?.token) !== null).length : 0;
-          let word = null;
-          if (count) {
-            const words = splitWords(item.text);
-            word = words.findIndex(({ word, maqaf }) => {
-              const reading = expectedSounds(word + (maqaf ? '־' : ''), turn.preset);
-              count -= formatReading(reading).split('-').filter(sound => nucleus(sound)).length;
-              return count <= 0;
-            });
-            if (word < 0) word = words.length ? words.length - 1 : null;
-          }
-          json(res, 200, { word });
+          // Return audio-derived progress only; printed-word mapping belongs on the station.
+          const syllables = Array.isArray(tokens) ? tokens.filter(value => vowelClass(value?.token) !== null).length : 0;
+          json(res, 200, { syllables });
         } finally {
           data = null;
           turn.following = false;
         }
       } else if (req.method === 'POST' && url.pathname === '/api/grade') {
+        const gradeStartedAt = performance.now();
         await turnOperation(url.searchParams.get('turn'), async turn => {
+          const setIndex = turn.checkpoint;
+          const hasPosition = url.searchParams.has('set') || url.searchParams.has('line');
+          const lineIndex = hasPosition ? Number(url.searchParams.get('line'))
+            : turn.set.findIndex(candidate => candidate.id === url.searchParams.get('item'));
+          if (hasPosition && (!/^\d+$/u.test(url.searchParams.get('set') || '')
+            || !/^\d+$/u.test(url.searchParams.get('line') || '')
+            || Number(url.searchParams.get('set')) !== setIndex || !Number.isSafeInteger(lineIndex)
+            || turn.set[lineIndex]?.id !== url.searchParams.get('item'))) {
+            throw new RequestError(409, 'Invalid reading position');
+          }
           const item = turn.set.find(candidate => candidate.id === url.searchParams.get('item'));
           if (!item) throw new RequestError(404, 'Unknown item');
           if (contentType(req) !== 'audio/wav') throw new RequestError(415, 'Use audio/wav');
           let data = await body(req, AUDIO_LIMIT);
           if (!data.length) throw new RequestError(400, 'Empty audio');
-          let words;
+          const attemptAudio = saveAttempts ? data : null;
+          let words, tokens, raw, metered, replayPhonemes;
           try {
             const child = getChild(turn.childId);
             const card = voiceCardToEar(child.voice, child.vowels, child.preset) ? voiceCards.get(turn.childId) : undefined;
@@ -487,6 +492,9 @@ export function createApp({
               ? (async () => {
                 try { return await phonemes(data); } catch { return null; }
               })() : Promise.resolve(null);
+            // Replay may collect tokens without a calibration, but they never enter grading.
+            if (saveAttempts) replayPhonemes = phonemes && !refereeSettings(calibration).on
+              ? (async () => { try { return await phonemes(data); } catch { return null; } })() : phonemeResult;
             // The ear hears this reading and, when kept, the child's own voice card,
             // both held in memory, with no text, child or preset. The phoneme model
             // hears only this reading, on this computer.
@@ -494,12 +502,14 @@ export function createApp({
               ? await listen({ data, format: 'wav' }, { ...GRADE_VOTES, reference: { data: card, format: 'wav' } })
               : await listen({ data, format: 'wav' }, GRADE_VOTES);
             words = heard.words;
-            const tokens = await phonemeResult;
+            if (saveAttempts) raw = structuredClone(words);
+            tokens = await phonemeResult;
             try {
               words = applyMeter(words, data, getChild(turn.childId).voice, { tokens }).words;
             } catch {
               // A meter failure leaves the ear's words available for grading.
             }
+            if (saveAttempts) metered = structuredClone(words);
             try {
               const current = getChild(turn.childId).voice?.phonemes;
               if (tokens != null && calibration && current
@@ -519,6 +529,13 @@ export function createApp({
           const grade = await gradeLine({ heard: words, text: item.text, preset: turn.preset });
           const result = { itemId: item.id, summary: summaryOnly(grade.summary), verdicts: grade.verdicts };
           const earnedStars = lineStars(grade, item.source?.challenge === true);
+          if (saveAttempts) {
+            checkTurn(turn);
+            await saveAttempt({ audio: attemptAudio, turnId: turn.id, setIndex, lineIndex, itemId: item.id,
+              text: item.text, preset: turn.preset, heard: { raw, metered, final: words },
+              tokens: await replayPhonemes, grade,
+              gradeMs: performance.now() - gradeStartedAt });
+          }
           await store.update(state => {
             checkTurn(turn);
             recordPairs(childIn(state, turn.childId).pairs, result.verdicts);

@@ -84,12 +84,21 @@ it('uses mock voice functions without fetching', async () => {
 it('posts only raw WAV and encoded turn and item ids to follow without a PIN', async () => {
   savePin('2468');
   const audio = new Blob(['wav'], { type: 'audio/wav' });
-  fetch.mockResolvedValueOnce({ ok: true, json: async () => ({ word: 1 }) });
-  await expect(api.follow({ turnId: 't /1', itemId: 'i?2', audio, text: 'ignored' })).resolves.toEqual({ word: 1 });
+  fetch.mockResolvedValueOnce({ ok: true, json: async () => ({ syllables: 2 }) });
+  await expect(api.follow({ turnId: 't /1', itemId: 'i?2', audio, text: 'ignored' })).resolves.toEqual({ syllables: 2 });
   expect(fetch).toHaveBeenCalledExactlyOnceWith('/api/follow?turn=t%20%2F1&item=i%3F2', expect.objectContaining({
     method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: audio,
   }));
   window.history.replaceState(null, '', '/?mock');
-  await expect(api.follow({ turnId: 't', itemId: 'i', audio })).resolves.toEqual({ word: null });
+  await expect(api.follow({ turnId: 't', itemId: 'i', audio })).resolves.toEqual({ syllables: 0 });
   expect(fetch).toHaveBeenCalledOnce();
+});
+
+it('identifies a live grade by its set and displayed line without sending text or credentials', async () => {
+  savePin('2468');
+  const audio = new Blob(['wav'], { type: 'audio/wav' });
+  await api.grade({ turnId: 'turn', itemId: 'item', setIndex: 2, lineIndex: 1, audio, text: 'ignored' });
+  expect(fetch).toHaveBeenCalledExactlyOnceWith('/api/grade?turn=turn&item=item&set=2&line=1', expect.objectContaining({
+    method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: audio,
+  }));
 });

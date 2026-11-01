@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { createStore } from './store.js';
+import { createAttemptWriter, createStore } from './store.js';
 import { startProfile } from '../coach/index.js';
 import { buildVoiceProfile } from '../ear/meter.js';
 import { utterance, wav } from '../ear/synth-for-tests.js';
@@ -188,4 +188,21 @@ test('voice sanitizer rejects invalid spread on update and reload', async t => {
     }));
     assert.equal(createStore(directory).read().children.sprout.voice, null);
   }
+});
+
+test('a failed replay metadata write removes its audio and partial JSON', async t => {
+  const { directory } = fixture(t);
+  const writeFile = fs.promises.writeFile;
+  t.mock.method(fs.promises, 'writeFile', async function(file, data, options) {
+    if (String(file).endsWith('.json')) {
+      await writeFile.call(this, file, '{', options);
+      throw new Error('Disk full');
+    }
+    return writeFile.call(this, file, data, options);
+  });
+  const save = createAttemptWriter(directory, true);
+  await assert.rejects(save({ audio: wav(utterance(['a'])), itemId: 'one', text: 'בָּ',
+    heard: { raw: [['ba']], metered: [['ba']], final: [['ba']] }, tokens: null,
+    grade: { words: [], verdicts: [], summary: {} }, gradeMs: 5 }), /Disk full/);
+  assert.deepEqual(fs.readdirSync(path.join(directory, 'attempts')), []);
 });

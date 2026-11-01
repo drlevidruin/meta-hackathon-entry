@@ -65,6 +65,7 @@ Children with the full set receive the original bank in its original order.
 | `GET /api/children` | None | `[Child]` |
 | `POST /api/start` | `{ childId }` | `{ turnId, level, set: [Item] }` |
 | `POST /api/grade?turn=<turnId>&item=<itemId>` | Raw `audio/wav` bytes | `{ itemId, words, summary }` |
+| `POST /api/follow?turn=<turnId>&item=<itemId>` | Raw `audio/wav` bytes | `{ syllables }` |
 | `POST /api/next` | `{ turnId, elapsedMs, checkpoint }` | `{ done: false, level, levelUp, set: [Item] }` or `{ done: true, level, levelUp, facts: { best, next, proven } }` |
 | `POST /api/finish` | `{ turnId, stars }` | `{ child: Child }` |
 | `GET /api/config` | None | `{ trace: boolean }` |
@@ -192,9 +193,18 @@ word output. Summary is:
 Every successful grade immediately saves per-cell read history. Regrading a
 line replaces its result for the current checkpoint but still records every
 pair read. Failed grades do not contribute results. Reading audio is never
-saved or logged. Card audio is never saved to disk, logged or returned. Verdict
-`heard` strings exist only during the live turn and in the
-grader's word response, never on disk.
+logged and is saved only with `SAVE_ATTEMPTS=1`, alongside replay metadata as
+described in [live attempts](live-attempts.md). Card audio is never saved to disk,
+logged or returned. Verdict `heard` strings otherwise exist only during the
+live turn and in the grader's word response.
+
+The station sends zero-based `set` and `line` query parameters on grades. The
+server serializes grades, next and finish in request order and checks that this
+position still belongs to the current set and item, returning 409 for a stale
+position even when a later set repeats the same item. Legacy requests without
+these parameters use the current set. Follow returns only the number of vowel
+tokens heard, or zero when unavailable; the station maps it to printed words
+locally without sending text to any model.
 
 Next uses the server-held results, in current-set order, and calls:
 
@@ -461,6 +471,7 @@ No key or part of a key is printed. Configuration:
 | `COACH_MODEL` | Exactly `off` disables model calls at next checkpoints |
 | `COACH_REASONING_EFFORT` | Coach reasoning effort, default `minimal`; requests allow 16000 tokens and time out after 30 seconds |
 | `DATA_DIR` | Store directory, default `<repo>/data` |
+| `SAVE_ATTEMPTS` | Exactly `1` saves graded live WAV and JSON pairs under `DATA_DIR/attempts`; off by default |
 | `HOST` | Listen address, default `127.0.0.1`; use `0.0.0.0` and TLS for network tablets |
 | `PORT` | Server port, default 8787 |
 | `PHONEME_URL` | Local phoneme service, default `http://127.0.0.1:8791`; `off`, empty or invalid disables it. Only http on `127.0.0.1`, `localhost` or `[::1]` is accepted, and only its origin is used. |

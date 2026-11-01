@@ -35,6 +35,7 @@ function microphone(sampleRate = 16000) {
   });
   class Context {
     sampleRate = sampleRate;
+    currentTime = 0;
     destination = {};
     resume = vi.fn(async () => {});
     close = vi.fn(async () => {});
@@ -63,6 +64,7 @@ function microphone(sampleRate = 16000) {
     for (let elapsed = 0; elapsed < ms; elapsed += 50) {
       level = loudness;
       vi.advanceTimersByTime(50);
+      contexts.at(-1).currentTime += .05;
       const input = new Float32Array(sampleRate / 20).fill(loudness);
       const output = new Float32Array(sampleRate / 20).fill(1);
       processors.at(-1)?.onaudioprocess?.({ inputBuffer: { getChannelData: () => input },
@@ -71,7 +73,7 @@ function microphone(sampleRate = 16000) {
     }
   }
   async function line() {
-    await act(async () => { audio(.1, 100); audio(0, 1250); });
+    await act(async () => { audio(.1, 1000); audio(0, 2000); });
   }
   return { tracks, processors, contexts, getUserMedia, audio, line };
 }
@@ -80,7 +82,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   sessionStorage.clear();
   window.history.replaceState(null, '', '/#/read');
-  vi.spyOn(api, 'follow').mockResolvedValue({ word: null });
+  vi.spyOn(api, 'follow').mockResolvedValue({ syllables: 0 });
   vi.spyOn(wav, 'recordingToWav').mockImplementation(async blob => blob);
 });
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals(); });
@@ -159,7 +161,7 @@ it('ends a line of steady noise 20 seconds after its first sound, once, and keep
   expect(onStop).toHaveBeenCalledOnce();
   expect(onStop.mock.calls[0][0]).toBeInstanceOf(MemoryBlob);
   expect(onStop.mock.calls[0][0].size).toBeLessThanOrEqual(44 + 20000 * 16 * 2);
-  expect(result.current.status).toBe('recording');
+  expect(result.current.status).toBe('waiting');
   act(() => mic.audio(.1, 2000));
   expect(onStop).toHaveBeenCalledOnce();
   rerender({ lineKey: 'two' });
@@ -189,7 +191,7 @@ it.each([true, false])('waits through hum and ends after speech in continuous mo
   expect(onStop).not.toHaveBeenCalled();
   expect(result.current.status).toBe('recording');
   act(() => mic.audio(.1, 1000));
-  act(() => mic.audio(.03, 1200));
+  act(() => mic.audio(.03, continuous ? 1950 : 1200));
   expect(onStop).not.toHaveBeenCalled();
   act(() => mic.audio(.03, 50));
   expect(onStop).toHaveBeenCalledOnce();
@@ -221,10 +223,10 @@ it('keeps only one second of hum before actual speech in the graded audio', asyn
   const { result } = renderHook(() => useRecorder(onStop, false, { continuous: true, lineKey: 'one' }));
   await act(async () => result.current.toggle());
   act(() => mic.audio(.03, 5000));
-  act(() => mic.audio(.1, 200));
-  act(() => mic.audio(.03, 1250));
+  act(() => mic.audio(.1, 1000));
+  act(() => mic.audio(.03, 2000));
   expect(onStop).toHaveBeenCalledOnce();
-  expect(onStop.mock.calls[0][0].size).toBe(44 + 2450 * 16 * 2);
+  expect(onStop.mock.calls[0][0].size).toBe(44 + 4000 * 16 * 2);
 });
 
 it('preserves the room floor across lines while waiting for the next reader sound', async () => {
@@ -232,12 +234,12 @@ it('preserves the room floor across lines while waiting for the next reader soun
   const { result, rerender } = renderHook(({ lineKey }) => useRecorder(onStop, false, { continuous: true, lineKey }),
     { initialProps: { lineKey: 'one' } });
   await act(async () => result.current.toggle());
-  act(() => { mic.audio(.03, 1000); mic.audio(.1, 200); mic.audio(.03, 1250); });
+  act(() => { mic.audio(.03, 1000); mic.audio(.1, 1000); mic.audio(.03, 2000); });
   expect(onStop).toHaveBeenCalledOnce();
   rerender({ lineKey: 'two' });
   act(() => mic.audio(.03, 25000));
   expect(onStop).toHaveBeenCalledOnce();
-  act(() => { mic.audio(.1, 200); mic.audio(.03, 1250); });
+  act(() => { mic.audio(.1, 1000); mic.audio(.03, 2000); });
   expect(onStop).toHaveBeenCalledTimes(2);
 });
 
@@ -245,15 +247,15 @@ it('resumes the same speech and room levels without counting time spent paused a
   const mic = microphone(), onStop = vi.fn();
   const { result } = renderHook(() => useRecorder(onStop, false, { continuous: true, lineKey: 'one' }));
   await act(async () => result.current.toggle());
-  act(() => { mic.audio(.03, 1000); mic.audio(.1, 200); mic.audio(.03, 500); });
+  act(() => { mic.audio(.03, 1000); mic.audio(.1, 1000); mic.audio(.03, 500); });
   act(() => result.current.toggle());
   act(() => vi.advanceTimersByTime(5000));
   await act(async () => result.current.toggle());
-  act(() => mic.audio(.03, 1200));
+  act(() => mic.audio(.03, 1950));
   expect(onStop).not.toHaveBeenCalled();
   act(() => mic.audio(.03, 50));
   expect(onStop).toHaveBeenCalledOnce();
-  expect(onStop.mock.calls[0][0].size).toBe(44 + 2950 * 16 * 2);
+  expect(onStop.mock.calls[0][0].size).toBe(44 + 4500 * 16 * 2);
 });
 
 it('drops partial audio and releases the session when the microphone track ends, then retries the same line', async () => {
@@ -275,7 +277,7 @@ it('drops partial audio and releases the session when the microphone track ends,
   expect(mic.getUserMedia).toHaveBeenCalledTimes(2);
   await mic.line();
   expect(onStop).toHaveBeenCalledOnce();
-  expect(onStop.mock.calls[0][0].size).toBe(44 + 1350 * 16 * 2);
+  expect(onStop.mock.calls[0][0].size).toBe(44 + 3000 * 16 * 2);
 });
 
 it('pauses without submitting, releases the track and resumes the same partial line with one new tap', async () => {
@@ -294,8 +296,8 @@ it('pauses without submitting, releases the track and resumes the same partial l
   expect(onStop).toHaveBeenCalledOnce();
   expect(mic.getUserMedia).toHaveBeenCalledTimes(2);
   const audio = onStop.mock.calls[0][0];
-  // The 200 ms before pausing and 1350 ms after resuming are both retained.
-  expect(audio.size).toBe(44 + 1550 * 16 * 2);
+  // The 200 ms before pausing and 3000 ms after resuming are both retained.
+  expect(audio.size).toBe(44 + 3200 * 16 * 2);
   expect(mic.tracks[1].stop).not.toHaveBeenCalled();
 });
 
@@ -382,7 +384,7 @@ it('dispatches WAV grades in reading order when conversion of the first line is 
 it('polls cumulative line audio every 400 ms with one request at a time, ignores failures and stale replies, and stops at line end', async () => {
   const mic = microphone(), pending = deferred();
   const following = vi.spyOn(api, 'follow').mockReturnValueOnce(pending.promise)
-    .mockRejectedValueOnce(new Error('Offline')).mockResolvedValue({ word: 1 });
+    .mockRejectedValueOnce(new Error('Offline')).mockResolvedValue({ syllables: 2 });
   const onRecord = vi.fn();
   const view = render(React.createElement(ReadScreen, { turn: turn(), onRecord }));
   await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Record' })));
@@ -393,7 +395,7 @@ it('polls cumulative line audio every 400 ms with one request at a time, ignores
   expect(following.mock.calls[0][0]).toEqual({ turnId: 'turn', itemId: 'one', audio: expect.any(MemoryBlob) });
   await act(async () => { mic.audio(.1, 1200); });
   expect(following).toHaveBeenCalledOnce();
-  await act(async () => { pending.resolve({ word: 1 }); });
+  await act(async () => { pending.resolve({ syllables: 2 }); });
   expect(document.querySelector('.reading-word-current').textContent).toBe('בָּ');
   await act(async () => { mic.audio(.1, 400); });
   expect(following).toHaveBeenCalledTimes(2);
@@ -402,10 +404,10 @@ it('polls cumulative line audio every 400 ms with one request at a time, ignores
   const late = deferred();
   following.mockReturnValueOnce(late.promise);
   await act(async () => { mic.audio(.1, 400); });
-  await act(async () => { mic.audio(0, 1250); });
+  await act(async () => { mic.audio(0, 2000); });
   expect(onRecord).toHaveBeenCalledOnce();
   view.rerender(React.createElement(ReadScreen, { turn: turn({ lineIndex: 1 }), onRecord }));
-  await act(async () => { late.resolve({ word: 1 }); });
+  await act(async () => { late.resolve({ syllables: 2 }); });
   expect(document.querySelector('.reading-word-current')).toBeNull();
   const calls = following.mock.calls.length;
   await act(async () => { mic.audio(0, 2000); });
@@ -420,7 +422,7 @@ it('polls cumulative line audio every 400 ms with one request at a time, ignores
 
 it('ignores a follow reply after pause and prevents overlap when recording resumes', async () => {
   const mic = microphone(), pending = deferred();
-  const following = vi.spyOn(api, 'follow').mockReturnValueOnce(pending.promise).mockResolvedValue({ word: 0 });
+  const following = vi.spyOn(api, 'follow').mockReturnValueOnce(pending.promise).mockResolvedValue({ syllables: 1 });
   render(React.createElement(ReadScreen, { turn: turn(), onRecord: vi.fn() }));
   await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Record' })));
   await act(async () => { mic.audio(.1, 400); });
@@ -428,7 +430,7 @@ it('ignores a follow reply after pause and prevents overlap when recording resum
   await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Record' })));
   await act(async () => { mic.audio(.1, 400); });
   expect(following).toHaveBeenCalledOnce();
-  await act(async () => { pending.resolve({ word: 1 }); });
+  await act(async () => { pending.resolve({ syllables: 2 }); });
   expect(document.querySelector('.reading-word-current')).toBeNull();
   await act(async () => { mic.audio(.1, 400); });
   expect(document.querySelector('.reading-word-current').textContent).toBe('בָּ');
@@ -436,7 +438,7 @@ it('ignores a follow reply after pause and prevents overlap when recording resum
 
 it.each([48000, 44100])('follows %i Hz capture as 16 kHz PCM without decoding or opening another context', async sampleRate => {
   const mic = microphone(sampleRate), onRecord = vi.fn();
-  const following = vi.spyOn(api, 'follow').mockResolvedValue({ word: 0 });
+  const following = vi.spyOn(api, 'follow').mockResolvedValue({ syllables: 2 });
   render(React.createElement(ReadScreen, { turn: turn(), onRecord }));
   await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Record' })));
   await act(async () => { mic.audio(.25, 400); });
@@ -460,13 +462,13 @@ it.each([48000, 44100])('follows %i Hz capture as 16 kHz PCM without decoding or
 
 it('only enlarges the next word per answer, never moves back, and starts each new line plain', async () => {
   const mic = microphone(), onRecord = vi.fn();
-  const following = vi.spyOn(api, 'follow').mockResolvedValue({ word: 4 });
+  const following = vi.spyOn(api, 'follow').mockResolvedValue({ syllables: 100 });
   const set = [{ ...items[0], text: items.map(item => item.text).join(' ') }, items[1]];
   const view = render(React.createElement(ReadScreen, { turn: turn({ set }), onRecord }));
   await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Record' })));
   expect(document.querySelector('.reading-word-current')).toBeNull();
   for (const [word, expected] of [[4, 0], [4, 1], [0, 1], [null, 1], [-1, 1], [1.5, 1], [4, 2], [2, 2], [5, 3], [1, 3]]) {
-    following.mockResolvedValueOnce({ word });
+    following.mockResolvedValueOnce({ syllables: Number.isInteger(word) && word >= 0 ? word + 2 : word });
     await act(async () => { mic.audio(.1, 400); });
     const words = [...document.querySelectorAll('.reading-word')];
     expect(words.findIndex(element => element.classList.contains('reading-word-current')), `answer ${word}`).toBe(expected);
@@ -499,4 +501,104 @@ it('preserves printed text and word indexes across spaces, maqaf and punctuation
     if (original) Element.prototype.scrollIntoView = original;
     else delete Element.prototype.scrollIntoView;
   }
+});
+
+it('shows finishing while retaining at least 450 ms of soft final vowel, then keeps the next line listening', async () => {
+  const mic = microphone(), onRecord = vi.fn();
+  vi.spyOn(api, 'follow').mockResolvedValue({ syllables: 100 });
+  const set = [{ id: 'adon', text: 'אֲדוֹן לְבַדּוֹ אֶחָד בְּיָדוֹ' }, items[1]];
+  const view = render(React.createElement(ReadScreen, { turn: turn({ set }), onRecord }));
+  await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Record' })));
+  await act(async () => { mic.audio(.1, 2400); });
+  await act(async () => { mic.audio(0, 1550); });
+  const button = screen.getByRole('button', { name: 'Pause listening' });
+  expect(button.getAttribute('aria-busy')).toBe('true');
+  expect(button.querySelector('.thinking-icon')).toBeTruthy();
+  expect(onRecord).not.toHaveBeenCalled();
+  await act(async () => { mic.audio(.01, 400); });
+  expect(onRecord).not.toHaveBeenCalled();
+  await act(async () => { mic.audio(.01, 50); });
+  expect(onRecord).toHaveBeenCalledOnce();
+  const bytes = new DataView(await onRecord.mock.calls[0][0].arrayBuffer());
+  for (let offset = bytes.byteLength - 450 * 16 * 2; offset < bytes.byteLength; offset += 2) {
+    expect(bytes.getInt16(offset, true)).toBe(328);
+  }
+  expect(onRecord.mock.calls[0][1]).toBe('turn:0:0');
+  view.rerender(React.createElement(ReadScreen, { turn: turn({ set, lineIndex: 1 }), onRecord }));
+  expect(screen.getByRole('button', { name: 'Pause listening' }).getAttribute('aria-busy')).toBe('false');
+  fireEvent.click(screen.getByRole('button', { name: 'Pause listening' }));
+  expect(screen.getByRole('button', { name: 'Record' }).getAttribute('aria-pressed')).toBe('false');
+});
+
+it('excludes speech before the next line appears, including a queued input buffer delivered after it appears', async () => {
+  const mic = microphone(), onStop = vi.fn();
+  const { result, rerender } = renderHook(({ lineKey }) => useRecorder(onStop, false,
+    { continuous: true, lineKey, lineText: 'בָּ בָּ' }), { initialProps: { lineKey: 'one' } });
+  await act(async () => result.current.toggle());
+  await mic.line();
+  act(() => mic.audio(.75, 2000));
+  expect(onStop).toHaveBeenCalledOnce();
+  rerender({ lineKey: 'two' });
+  act(() => mic.processors[0].onaudioprocess({ playbackTime: mic.contexts[0].currentTime - 1,
+    inputBuffer: { getChannelData: () => new Float32Array(800).fill(.75) },
+    outputBuffer: { getChannelData: () => new Float32Array(800) } }));
+  await act(async () => { mic.audio(.2, 1000); mic.audio(0, 2000); });
+  expect(onStop).toHaveBeenCalledTimes(2);
+  const bytes = new DataView(await onStop.mock.calls[1][0].arrayBuffer());
+  expect(bytes.getInt16(44, true)).toBe(6553);
+  for (let offset = 44; offset < bytes.byteLength; offset += 2) expect(bytes.getInt16(offset, true)).toBeLessThanOrEqual(6553);
+  expect(bytes.byteLength).toBe(44 + 3000 * 16 * 2);
+});
+
+it('rejects a recorder callback from an older displayed line and keeps late grades on their own attempts', async () => {
+  const firstGrade = deferred(), secondGrade = deferred();
+  const grading = vi.spyOn(api, 'grade').mockReturnValueOnce(firstGrade.promise).mockReturnValueOnce(secondGrade.promise);
+  const choosing = vi.spyOn(api, 'next').mockResolvedValue({ done: false, level: 1, set: [items[2]] });
+  sessionStorage.setItem(TURN_KEY, JSON.stringify(turn()));
+  const { result } = renderHook(useTurn);
+  let first, second;
+  await act(async () => { first = result.current.record('first', 'turn:0:0'); });
+  await act(async () => { await result.current.record('stale', 'turn:0:0'); });
+  expect(grading).toHaveBeenCalledOnce();
+  await act(async () => { second = result.current.record('second', 'turn:0:1'); });
+  expect(grading.mock.calls.map(([value]) => [value.setIndex, value.lineIndex])).toEqual([[0, 0], [0, 1]]);
+  await act(async () => { secondGrade.resolve(grade(items[1])); await second; });
+  expect(result.current.turn.attempts.map(attempt => [attempt.itemId, attempt.status]))
+    .toEqual([['one', 'pending'], ['two', 'graded']]);
+  expect(choosing).not.toHaveBeenCalled();
+  await act(async () => { firstGrade.resolve(grade(items[0])); await first; });
+  expect(result.current.turn.attempts.map(attempt => attempt.grade.itemId)).toEqual(['one', 'two']);
+  expect(choosing).toHaveBeenCalledOnce();
+});
+
+it('preserves the measured room floor when the next displayed line has different words', async () => {
+  const mic = microphone(), onStop = vi.fn();
+  const { result, rerender } = renderHook(({ lineKey, lineText }) => useRecorder(onStop, false,
+    { continuous: true, lineKey, lineText }), { initialProps: { lineKey: 'one', lineText: 'בָּ בָּ' } });
+  await act(async () => result.current.toggle());
+  act(() => { mic.audio(.002, 1000); mic.audio(.1, 1000); mic.audio(.002, 2000); });
+  expect(onStop).toHaveBeenCalledOnce();
+  rerender({ lineKey: 'two', lineText: 'מָ מָ' });
+  act(() => { mic.audio(.025, 1000); mic.audio(.002, 2000); });
+  expect(onStop).toHaveBeenCalledTimes(2);
+});
+
+it('keeps a delayed input block from before a screen change out of the new line without a playback timestamp', async () => {
+  const mic = microphone(), onStop = vi.fn();
+  const { result, rerender } = renderHook(({ lineKey }) => useRecorder(onStop, false,
+    { continuous: true, lineKey, lineText: 'בָּ בָּ' }), { initialProps: { lineKey: 'one' } });
+  await act(async () => result.current.toggle());
+  await mic.line();
+  mic.contexts[0].currentTime += .05;
+  rerender({ lineKey: 'two' });
+  mic.contexts[0].currentTime += .05;
+  act(() => mic.processors[0].onaudioprocess({
+    inputBuffer: { getChannelData: () => new Float32Array(800).fill(.75) },
+    outputBuffer: { getChannelData: () => new Float32Array(800) },
+  }));
+  await act(async () => { mic.audio(.2, 1000); mic.audio(0, 2000); });
+  expect(onStop).toHaveBeenCalledTimes(2);
+  const bytes = new DataView(await onStop.mock.calls[1][0].arrayBuffer());
+  expect(bytes.getInt16(44, true)).toBe(6553);
+  expect(bytes.byteLength).toBe(44 + 3000 * 16 * 2);
 });

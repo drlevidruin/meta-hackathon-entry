@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { createSilenceDetector, rms } from './silence.js';
+import { createLineEndDetector, createSilenceDetector, rms, wordForSyllables, wordSyllables } from './silence.js';
 
 function audio(silent) {
   let now = 0;
@@ -89,4 +89,67 @@ it('starts soft speech read from the first moment at the first pause between wor
   play(.003, 200);
   expect(play(.03, 400)).toBe(false);
   expect(silent.heardSpeech).toBe(true);
+});
+
+it('keeps a mid-line breath open even after enough speech for the timing fallback', () => {
+  const ended = createLineEndDetector({ text: 'בָּ בָּרָ בָּרָכָה' });
+  const play = audio(ended);
+  play(.1, 2000);
+  ended.follow(0, 2000);
+  expect(play(0, 3000)).toBe(false);
+  expect(ended.finishing).toBe(false);
+  expect(play(.1, 500)).toBe(false);
+  ended.follow(2, 5500);
+  expect(play(0, 1500)).toBe(false);
+  expect(play(0, 50)).toBe(false);
+  expect(ended.finishing).toBe(true);
+  expect(play(0, 400)).toBe(false);
+  expect(play(0, 50)).toBe(true);
+});
+
+it('allows a mid-line stop after 3.5 seconds plus the retained tail', () => {
+  const ended = createLineEndDetector({ text: 'בָּ בָּרָ בָּרָכָה' });
+  const play = audio(ended);
+  play(.1, 500);
+  ended.follow(0, 500);
+  expect(play(0, 3500)).toBe(false);
+  expect(play(0, 50)).toBe(false);
+  expect(ended.finishing).toBe(true);
+  expect(play(0, 450)).toBe(true);
+});
+
+it('cancels a detected ending when the final vowel resumes during the tail', () => {
+  const ended = createLineEndDetector({ text: 'בָּ' });
+  const play = audio(ended);
+  play(.1, 500);
+  ended.follow(0, 500);
+  expect(play(0, 1600)).toBe(false);
+  expect(ended.finishing).toBe(true);
+  expect(play(.03, 500)).toBe(false);
+  expect(ended.finishing).toBe(false);
+  expect(play(0, 1950)).toBe(false);
+  expect(play(0, 50)).toBe(true);
+});
+
+it('scales timing-only endings with line length and falls back when follow is slow', () => {
+  const short = createLineEndDetector({ text: 'בָּ' }), long = createLineEndDetector({ text: 'בָּ '.repeat(20) });
+  const shortPlay = audio(short), longPlay = audio(long);
+  shortPlay(.1, 1000); longPlay(.1, 1000);
+  expect(shortPlay(0, 2000)).toBe(true);
+  expect(longPlay(0, 7000)).toBe(false);
+  expect(longPlay(0, 1500)).toBe(true);
+  const slow = createLineEndDetector({ text: 'בָּ בָּ' }), play = audio(slow);
+  play(.1, 1000);
+  slow.follow(0, -2000);
+  expect(play(0, 2000)).toBe(true);
+});
+
+it('maps syllables to printed word positions locally, including maqaf and substituted Names', () => {
+  expect(wordSyllables('בָּ־בָּרָ  בָּרָכָה׃')).toEqual([1, 2, 3]);
+  for (const [count, word] of [[0, null], [1, 0], [2, 1], [3, 1], [4, 2], [6, 2], [20, 2]]) {
+    expect(wordForSyllables('בָּ בָּרָ בָּרָכָה', 'ashkenazi', count)).toBe(word);
+  }
+  for (const [count, word] of [[1, 0], [2, 0], [3, 1], [5, 1], [6, 2]]) {
+    expect(wordForSyllables('מֶלֶךְ יְהוָה בָּ', 'chassidish', count)).toBe(word);
+  }
 });
