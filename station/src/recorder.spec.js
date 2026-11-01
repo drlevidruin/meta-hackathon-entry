@@ -550,6 +550,46 @@ it('excludes speech before the next line appears, including a queued input buffe
   expect(bytes.byteLength).toBe(44 + 3000 * 16 * 2);
 });
 
+it.each([
+  { sampleRate: 16000, playback: true, fraction: 0 },
+  { sampleRate: 16000, playback: false, fraction: .25 },
+  { sampleRate: 44100, playback: true, fraction: 0 },
+  { sampleRate: 48000, playback: false, fraction: .25 },
+])('keeps the opening sound from a buffer spanning a line change at $sampleRate Hz with playback timestamp $playback', async ({ sampleRate, playback, fraction }) => {
+  const mic = microphone(sampleRate), onStop = vi.fn(), onFollow = vi.fn(async () => null);
+  const { result, rerender } = renderHook(({ lineKey }) => useRecorder(onStop, false,
+    { continuous: true, lineKey, lineText: 'בָּ בָּ', onFollow }), { initialProps: { lineKey: 'one' } });
+  await act(async () => result.current.toggle());
+  await mic.line();
+  onFollow.mockClear();
+  const context = mic.contexts[0], frameStart = context.currentTime;
+  const prefixLength = 733, input = new Float32Array(2048).fill(.01);
+  input.fill(.75, 0, prefixLength);
+  context.currentTime = frameStart + (prefixLength - fraction) / sampleRate;
+  rerender({ lineKey: 'two' });
+  context.currentTime = frameStart + input.length / sampleRate;
+  const output = new Float32Array(input.length).fill(1);
+  act(() => {
+    vi.advanceTimersByTime(input.length / sampleRate * 1000);
+    mic.processors[0].onaudioprocess({ ...(playback ? { playbackTime: context.currentTime } : {}),
+      inputBuffer: { getChannelData: () => input }, outputBuffer: { getChannelData: () => output } });
+  });
+  expect(output.every(value => value === 0)).toBe(true);
+  await act(async () => { mic.audio(0, 400); });
+  expect(onFollow).not.toHaveBeenCalled();
+  expect(onStop).toHaveBeenCalledOnce();
+  await mic.line();
+  expect(onStop).toHaveBeenCalledTimes(2);
+  expect(onStop.mock.calls[1][1]).toBe('two');
+  const pcm = new Int16Array(await onStop.mock.calls[1][0].arrayBuffer(), 44);
+  const openingLength = input.length - prefixLength;
+  expect(pcm).toHaveLength(openingLength + sampleRate * 3.4);
+  expect(pcm.subarray(0, openingLength).every(value => value === 328)).toBe(true);
+  expect(pcm[openingLength]).toBe(0);
+  expect(pcm[openingLength + sampleRate * .4]).toBe(3277);
+  expect(pcm.every(value => value <= 3277)).toBe(true);
+});
+
 it('rejects a recorder callback from an older displayed line and keeps late grades on their own attempts', async () => {
   const firstGrade = deferred(), secondGrade = deferred();
   const grading = vi.spyOn(api, 'grade').mockReturnValueOnce(firstGrade.promise).mockReturnValueOnce(secondGrade.promise);

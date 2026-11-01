@@ -190,19 +190,21 @@ test('voice sanitizer rejects invalid spread on update and reload', async t => {
   }
 });
 
-test('a failed replay metadata write removes its audio and partial JSON', async t => {
-  const { directory } = fixture(t);
-  const writeFile = fs.promises.writeFile;
-  t.mock.method(fs.promises, 'writeFile', async function(file, data, options) {
-    if (String(file).endsWith('.json')) {
-      await writeFile.call(this, file, '{', options);
-      throw new Error('Disk full');
-    }
-    return writeFile.call(this, file, data, options);
+for (const extension of ['wav', 'json']) {
+  test(`a failed replay ${extension} write removes its audio and partial JSON`, async t => {
+    const { directory } = fixture(t);
+    const writeFile = fs.promises.writeFile;
+    t.mock.method(fs.promises, 'writeFile', async function(file, data, options) {
+      if (String(file).endsWith(`.${extension}`)) {
+        await writeFile.call(this, file, data.slice(0, 1), options);
+        throw new Error('Disk full');
+      }
+      return writeFile.call(this, file, data, options);
+    });
+    const save = createAttemptWriter(directory, true);
+    await assert.rejects(save({ audio: wav(utterance(['a'])), itemId: 'one', text: 'בָּ',
+      heard: { raw: [['ba']], metered: [['ba']], final: [['ba']] }, tokens: null,
+      grade: { words: [], verdicts: [], summary: {} }, gradeMs: 5 }), /Disk full/);
+    assert.deepEqual(fs.readdirSync(path.join(directory, 'attempts')), []);
   });
-  const save = createAttemptWriter(directory, true);
-  await assert.rejects(save({ audio: wav(utterance(['a'])), itemId: 'one', text: 'בָּ',
-    heard: { raw: [['ba']], metered: [['ba']], final: [['ba']] }, tokens: null,
-    grade: { words: [], verdicts: [], summary: {} }, gradeMs: 5 }), /Disk full/);
-  assert.deepEqual(fs.readdirSync(path.join(directory, 'attempts')), []);
-});
+}

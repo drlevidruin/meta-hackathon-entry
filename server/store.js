@@ -22,8 +22,8 @@ export function createAttemptWriter(dataDir = DEFAULT_DATA_DIR, enabled = false)
       words: grade.words, verdicts: grade.verdicts, summary: grade.summary,
       timings: { recordingMs: samples.length / rate * 1000, gradeMs } };
     await fs.promises.mkdir(directory, { recursive: true, mode: 0o700 });
-    await fs.promises.writeFile(wavFile, audio, { mode: 0o600, flag: 'wx' });
     try {
+      await fs.promises.writeFile(wavFile, audio, { mode: 0o600, flag: 'wx' });
       await fs.promises.writeFile(jsonFile, JSON.stringify(record), { mode: 0o600, flag: 'wx' });
     } catch (error) {
       await fs.promises.rm(wavFile, { force: true });

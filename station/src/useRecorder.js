@@ -137,18 +137,21 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, lin
           session.processor = session.context.createScriptProcessor(2048, 1, 1);
           session.processor.onaudioprocess = event => {
             event.outputBuffer.getChannelData(0).fill(0);
-            const samples = event.inputBuffer.getChannelData(0);
-            const duration = samples.length / session.context.sampleRate;
+            const input = event.inputBuffer.getChannelData(0);
+            const duration = input.length / session.context.sampleRate;
             // Advance even between lines so delayed callbacks retain their original input time.
             const frameStart = session.inputThrough;
             session.inputThrough += duration;
             if (!reading(session)) return;
-            // Discard queued input that began before this line was committed to the screen.
+            // Trim queued samples from before this line appeared, retaining its opening sound.
             const inputStart = Math.min(frameStart,
               Math.min(event.playbackTime ?? session.context.currentTime, session.context.currentTime) - duration);
-            if (inputStart + AUDIO_TIME_EPSILON < session.visibleAt) return;
+            const firstVisibleSample = Math.max(0,
+              Math.ceil((session.visibleAt - inputStart - AUDIO_TIME_EPSILON) * session.context.sampleRate));
+            const samples = input.subarray(firstVisibleSample);
+            if (!samples.length) return;
             const heardSpeech = session.silent.heardSpeech;
-            const silent = session.silent(rms(samples), performance.now(), duration * 1000);
+            const silent = session.silent(rms(samples), performance.now(), samples.length / session.context.sampleRate * 1000);
             setStatus(session.silent.finishing ? 'finishing' : 'recording');
             if (!heardSpeech && session.silent.heardSpeech) {
               // Count from speech so looking at the line or room hum cannot use up the limit.
