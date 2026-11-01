@@ -25,7 +25,7 @@ const deferred = () => {
   return { promise, resolve, reject };
 };
 
-function microphone(sampleRate = 16000) {
+function microphone(sampleRate = 16000, loadModule = async () => {}) {
   const tracks = [], processors = [], contexts = [];
   let level = 0;
   const getUserMedia = vi.fn(async () => {
@@ -37,6 +37,7 @@ function microphone(sampleRate = 16000) {
     sampleRate = sampleRate;
     currentTime = 0;
     destination = {};
+    audioWorklet = { addModule: vi.fn(loadModule) };
     resume = vi.fn(async () => {});
     close = vi.fn(async () => {});
     constructor() { contexts.push(this); }
@@ -44,11 +45,12 @@ function microphone(sampleRate = 16000) {
     createAnalyser() {
       return { fftSize: 2048, disconnect: vi.fn(), getFloatTimeDomainData: samples => samples.fill(level) };
     }
-    createScriptProcessor() {
-      const processor = { connect: vi.fn(), disconnect: vi.fn(), onaudioprocess: null };
-      processors.push(processor);
-      return processor;
-    }
+  }
+  class CaptureNode {
+    port = { onmessage: null, close: vi.fn() };
+    connect = vi.fn();
+    disconnect = vi.fn();
+    constructor() { processors.push(this); }
   }
   class Recorder {
     static isTypeSupported() { return true; }
@@ -58,6 +60,7 @@ function microphone(sampleRate = 16000) {
   }
   vi.stubGlobal('navigator', { mediaDevices: { getUserMedia } });
   vi.stubGlobal('AudioContext', Context);
+  vi.stubGlobal('AudioWorkletNode', CaptureNode);
   vi.stubGlobal('MediaRecorder', Recorder);
   vi.stubGlobal('Blob', MemoryBlob);
   function audio(loudness, ms = 50) {
@@ -66,10 +69,8 @@ function microphone(sampleRate = 16000) {
       vi.advanceTimersByTime(50);
       contexts.at(-1).currentTime += .05;
       const input = new Float32Array(sampleRate / 20).fill(loudness);
-      const output = new Float32Array(sampleRate / 20).fill(1);
-      processors.at(-1)?.onaudioprocess?.({ inputBuffer: { getChannelData: () => input },
-        outputBuffer: { getChannelData: () => output } });
-      if (processors.at(-1)?.onaudioprocess) expect(output.every(value => value === 0)).toBe(true);
+      processors.at(-1)?.port.onmessage?.({ data: { samples: input,
+        startFrame: Math.round((contexts.at(-1).currentTime - .05) * sampleRate) } });
     }
   }
   async function line() {
@@ -258,18 +259,45 @@ it('resumes the same speech and room levels without counting time spent paused a
   expect(onStop.mock.calls[0][0].size).toBe(44 + 4500 * 16 * 2);
 });
 
-it('drops partial audio and releases the session when the microphone track ends, then retries the same line', async () => {
+it('releases the microphone and offers retry when the capture module cannot load', async () => {
+  const mic = microphone(16000, async () => { throw new Error('Module load failed'); }), onStop = vi.fn();
+  const { result } = renderHook(() => useRecorder(onStop, false, { continuous: true, lineKey: 'one' }));
+  await act(async () => result.current.toggle());
+  expect(result.current.status).toBe('off');
+  expect(mic.tracks[0].stop).toHaveBeenCalledOnce();
+  expect(mic.contexts[0].close).toHaveBeenCalledOnce();
+  expect(mic.processors).toHaveLength(0);
+  expect(onStop).not.toHaveBeenCalled();
+});
+
+it('releases a session unmounted while its capture module is still loading', async () => {
+  const module = deferred(), mic = microphone(16000, () => module.promise), onStop = vi.fn();
+  const { result, unmount } = renderHook(() => useRecorder(onStop, false, { continuous: true, lineKey: 'one' }));
+  let starting;
+  await act(async () => { starting = result.current.toggle(); });
+  expect(result.current.status).toBe('requesting');
+  expect(mic.contexts[0].audioWorklet.addModule).toHaveBeenCalledOnce();
+  unmount();
+  await act(async () => { module.resolve(); await starting; });
+  expect(mic.tracks[0].stop).toHaveBeenCalledOnce();
+  expect(mic.contexts[0].close).toHaveBeenCalledOnce();
+  expect(mic.processors).toHaveLength(0);
+  expect(onStop).not.toHaveBeenCalled();
+});
+
+it.each(['track', 'processor'])('drops partial audio and releases the session when the %s fails, then retries the same line', async source => {
   const mic = microphone(), onStop = vi.fn();
   const { result } = renderHook(() => useRecorder(onStop, false, { continuous: true, lineKey: 'one' }));
   await act(async () => result.current.toggle());
   act(() => mic.audio(.1, 200));
-  act(() => mic.tracks[0].onended?.());
+  act(() => source === 'track' ? mic.tracks[0].onended() : mic.processors[0].onprocessorerror());
   expect(result.current.status).toBe('off');
   expect(onStop).not.toHaveBeenCalled();
   expect(mic.tracks[0].stop).toHaveBeenCalledOnce();
   expect(mic.contexts[0].close).toHaveBeenCalledOnce();
   expect(mic.processors[0].disconnect).toHaveBeenCalledOnce();
-  expect(mic.processors[0].onaudioprocess).toBeNull();
+  expect(mic.processors[0].port.onmessage).toBeNull();
+  expect(mic.processors[0].port.close).toHaveBeenCalledOnce();
   act(() => vi.advanceTimersByTime(20000));
   expect(onStop).not.toHaveBeenCalled();
   await act(async () => result.current.retry());
@@ -341,7 +369,8 @@ it.each(['/', '/child/reader', '/teacher'])('releases the microphone and drops p
   expect(mic.tracks[0].stop).toHaveBeenCalledOnce();
   expect(mic.contexts[0].close).toHaveBeenCalledOnce();
   expect(grading).not.toHaveBeenCalled();
-  expect(mic.processors[0].onaudioprocess).toBeNull();
+  expect(mic.processors[0].port.onmessage).toBeNull();
+  expect(mic.processors[0].port.close).toHaveBeenCalledOnce();
 });
 
 it('keeps listening after a failed grade and lets the next spoken line reach the checkpoint', async () => {
@@ -539,9 +568,9 @@ it('excludes speech before the next line appears, including a queued input buffe
   act(() => mic.audio(.75, 2000));
   expect(onStop).toHaveBeenCalledOnce();
   rerender({ lineKey: 'two' });
-  act(() => mic.processors[0].onaudioprocess({ playbackTime: mic.contexts[0].currentTime - 1,
-    inputBuffer: { getChannelData: () => new Float32Array(800).fill(.75) },
-    outputBuffer: { getChannelData: () => new Float32Array(800) } }));
+  act(() => mic.processors[0].port.onmessage({ data: {
+    samples: new Float32Array(800).fill(.75), startFrame: Math.round((mic.contexts[0].currentTime - 1.05) * 16000),
+  } }));
   await act(async () => { mic.audio(.2, 1000); mic.audio(0, 2000); });
   expect(onStop).toHaveBeenCalledTimes(2);
   const bytes = new DataView(await onStop.mock.calls[1][0].arrayBuffer());
@@ -551,11 +580,11 @@ it('excludes speech before the next line appears, including a queued input buffe
 });
 
 it.each([
-  { sampleRate: 16000, playback: true, fraction: 0 },
-  { sampleRate: 16000, playback: false, fraction: .25 },
-  { sampleRate: 44100, playback: true, fraction: 0 },
-  { sampleRate: 48000, playback: false, fraction: .25 },
-])('keeps the opening sound from a buffer spanning a line change at $sampleRate Hz with playback timestamp $playback', async ({ sampleRate, playback, fraction }) => {
+  { sampleRate: 16000, fraction: 0 },
+  { sampleRate: 16000, fraction: .25 },
+  { sampleRate: 44100, fraction: 0 },
+  { sampleRate: 48000, fraction: .25 },
+])('keeps the opening sound from a buffer spanning a line change at $sampleRate Hz with a $fraction sample boundary offset', async ({ sampleRate, fraction }) => {
   const mic = microphone(sampleRate), onStop = vi.fn(), onFollow = vi.fn(async () => null);
   const { result, rerender } = renderHook(({ lineKey }) => useRecorder(onStop, false,
     { continuous: true, lineKey, lineText: 'בָּ בָּ', onFollow }), { initialProps: { lineKey: 'one' } });
@@ -568,13 +597,10 @@ it.each([
   context.currentTime = frameStart + (prefixLength - fraction) / sampleRate;
   rerender({ lineKey: 'two' });
   context.currentTime = frameStart + input.length / sampleRate;
-  const output = new Float32Array(input.length).fill(1);
   act(() => {
     vi.advanceTimersByTime(input.length / sampleRate * 1000);
-    mic.processors[0].onaudioprocess({ ...(playback ? { playbackTime: context.currentTime } : {}),
-      inputBuffer: { getChannelData: () => input }, outputBuffer: { getChannelData: () => output } });
+    mic.processors[0].port.onmessage({ data: { samples: input, startFrame: Math.round(frameStart * sampleRate) } });
   });
-  expect(output.every(value => value === 0)).toBe(true);
   await act(async () => { mic.audio(0, 400); });
   expect(onFollow).not.toHaveBeenCalled();
   expect(onStop).toHaveBeenCalledOnce();
@@ -623,19 +649,42 @@ it('preserves the measured room floor when the next displayed line has different
   expect(onStop).toHaveBeenCalledTimes(2);
 });
 
-it('keeps a delayed input block from before a screen change out of the new line without a playback timestamp', async () => {
+it.each([16000, 44100, 48000])('keeps complete short readings after dropped capture callbacks at %i Hz', async sampleRate => {
+  const mic = microphone(sampleRate), onStop = vi.fn();
+  const { result, rerender } = renderHook(({ lineKey }) => useRecorder(onStop, false,
+    { continuous: true, lineKey, lineText: 'בָּ בָּ' }), { initialProps: { lineKey: 'one' } });
+  await act(async () => result.current.toggle());
+  await mic.line();
+  // The audio clock keeps running while capture callbacks are lost under load.
+  act(() => {
+    vi.advanceTimersByTime(2500);
+    mic.contexts[0].currentTime += 2.5;
+  });
+  rerender({ lineKey: 'two' });
+  await mic.line();
+  expect(onStop).toHaveBeenCalledTimes(2);
+  expect(onStop.mock.calls[1][1]).toBe('two');
+  const pcm = new Int16Array(await onStop.mock.calls[1][0].arrayBuffer(), 44);
+  expect(pcm).toHaveLength(sampleRate * 3);
+  expect(pcm.subarray(0, sampleRate).every(value => value === 3277)).toBe(true);
+  expect(pcm.subarray(sampleRate).every(value => value === 0)).toBe(true);
+  rerender({ lineKey: 'three' });
+  await mic.line();
+  expect(onStop).toHaveBeenCalledTimes(3);
+  expect(onStop.mock.calls[2][0].size).toBe(44 + sampleRate * 3 * 2);
+});
+
+it('keeps a delayed input block from before a screen change out of the new line using its capture frame', async () => {
   const mic = microphone(), onStop = vi.fn();
   const { result, rerender } = renderHook(({ lineKey }) => useRecorder(onStop, false,
     { continuous: true, lineKey, lineText: 'בָּ בָּ' }), { initialProps: { lineKey: 'one' } });
   await act(async () => result.current.toggle());
   await mic.line();
+  const startFrame = Math.round(mic.contexts[0].currentTime * 16000);
   mic.contexts[0].currentTime += .05;
   rerender({ lineKey: 'two' });
   mic.contexts[0].currentTime += .05;
-  act(() => mic.processors[0].onaudioprocess({
-    inputBuffer: { getChannelData: () => new Float32Array(800).fill(.75) },
-    outputBuffer: { getChannelData: () => new Float32Array(800) },
-  }));
+  act(() => mic.processors[0].port.onmessage({ data: { samples: new Float32Array(800).fill(.75), startFrame } }));
   await act(async () => { mic.audio(.2, 1000); mic.audio(0, 2000); });
   expect(onStop).toHaveBeenCalledTimes(2);
   const bytes = new DataView(await onStop.mock.calls[1][0].arrayBuffer());

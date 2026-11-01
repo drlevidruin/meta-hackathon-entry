@@ -20,7 +20,11 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, lin
     clearTimeout(session.timer);
     clearInterval(session.meter);
     clearInterval(session.follow);
-    if (session.processor) session.processor.onaudioprocess = null;
+    if (session.processor) {
+      session.processor.onprocessorerror = null;
+      session.processor.port.onmessage = null;
+      session.processor.port.close();
+    }
     session.processor?.disconnect();
     session.source?.disconnect();
     session.analyser?.disconnect();
@@ -32,6 +36,14 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, lin
     session.context = null;
     session.stream = null;
     if (capture.current === session) capture.current = null;
+  }
+
+  function captureFailed(session) {
+    session.discard = true;
+    session.chunks = [];
+    paused.current = null;
+    release(session);
+    if (mounted.current) setStatus('off');
   }
 
   function clip(session, sampleRate = session.context.sampleRate) {
@@ -107,13 +119,7 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, lin
         });
         if (!mounted.current || session.discard) { release(session); return; }
         if (continuous) session.stream.getTracks().forEach(track => {
-          track.onended = () => {
-            session.discard = true;
-            session.chunks = [];
-            paused.current = null;
-            release(session);
-            if (mounted.current) setStatus('off');
-          };
+          track.onended = () => captureFailed(session);
         });
         const AudioContextClass = globalThis.AudioContext || globalThis.webkitAudioContext;
         session.context = new AudioContextClass(paused.current?.sampleRate ? { sampleRate: paused.current.sampleRate } : undefined);
@@ -121,6 +127,8 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, lin
         if (!mounted.current || session.discard) { release(session); return; }
         session.source = session.context.createMediaStreamSource(session.stream);
         if (continuous) {
+          await session.context.audioWorklet.addModule(new URL('./capture-worklet.js', import.meta.url));
+          if (!mounted.current || session.discard) { release(session); return; }
           resetLine(session, options.current.lineKey);
           if (paused.current?.lineKey === session.lineKey) {
             session.chunks = paused.current.chunks;
@@ -133,19 +141,17 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, lin
           paused.current = null;
           // PCM snapshots remain decodable while capture continues. The output
           // stays silent so the microphone is never played through the speakers.
-          session.inputThrough = session.context.currentTime;
-          session.processor = session.context.createScriptProcessor(2048, 1, 1);
-          session.processor.onaudioprocess = event => {
-            event.outputBuffer.getChannelData(0).fill(0);
-            const input = event.inputBuffer.getChannelData(0);
-            const duration = input.length / session.context.sampleRate;
-            // Advance even between lines so delayed callbacks retain their original input time.
-            const frameStart = session.inputThrough;
-            session.inputThrough += duration;
+          session.processor = new AudioWorkletNode(session.context, 'kriah-capture', {
+            numberOfInputs: 1, numberOfOutputs: 1, channelCount: 1,
+            channelCountMode: 'explicit', outputChannelCount: [1],
+          });
+          session.processor.onprocessorerror = () => captureFailed(session);
+          session.processor.port.onmessage = event => {
             if (!reading(session)) return;
+            const { samples: input, startFrame } = event.data;
+            // Audio-thread frames remain accurate when main-thread messages are delayed or lost.
+            const inputStart = startFrame / session.context.sampleRate;
             // Trim queued samples from before this line appeared, retaining its opening sound.
-            const inputStart = Math.min(frameStart,
-              Math.min(event.playbackTime ?? session.context.currentTime, session.context.currentTime) - duration);
             const firstVisibleSample = Math.max(0,
               Math.ceil((session.visibleAt - inputStart - AUDIO_TIME_EPSILON) * session.context.sampleRate));
             const samples = input.subarray(firstVisibleSample);
