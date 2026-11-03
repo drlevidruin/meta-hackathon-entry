@@ -219,7 +219,7 @@ it('counts the line safety limit from speech after hum', async () => {
   expect(onStop).toHaveBeenCalledOnce();
 });
 
-it('keeps only one second of hum before actual speech in the graded audio', async () => {
+it('keeps every sound since the line appeared, so a soft slow start is not cut to one second', async () => {
   const mic = microphone(), onStop = vi.fn();
   const { result } = renderHook(() => useRecorder(onStop, false, { continuous: true, lineKey: 'one' }));
   await act(async () => result.current.toggle());
@@ -227,7 +227,43 @@ it('keeps only one second of hum before actual speech in the graded audio', asyn
   act(() => mic.audio(.1, 1000));
   act(() => mic.audio(.03, 2000));
   expect(onStop).toHaveBeenCalledOnce();
-  expect(onStop.mock.calls[0][0].size).toBe(44 + 4000 * 16 * 2);
+  expect(onStop.mock.calls[0][0].size).toBe(44 + 8000 * 16 * 2);
+});
+
+it('keeps four soft syllables that stay below the speech level before a louder one, on the first line and on the next', async () => {
+  const mic = microphone(), onStop = vi.fn();
+  const { result, rerender } = renderHook(({ lineKey }) => useRecorder(onStop, false, { continuous: true, lineKey, lineText: 'בָּ בָּ' }),
+    { initialProps: { lineKey: 'one' } });
+  await act(async () => result.current.toggle());
+  async function softStart() {
+    // Four syllables at a level the detector does not count as speech, 700 ms apart, then one it does.
+    act(() => { for (let syllable = 0; syllable < 4; syllable++) { mic.audio(.012, 200); mic.audio(.002, 500); } });
+    act(() => mic.audio(.1, 1000));
+    await act(async () => { mic.audio(0, 2000); });
+  }
+  await softStart();
+  expect(onStop).toHaveBeenCalledOnce();
+  rerender({ lineKey: 'two' });
+  await softStart();
+  expect(onStop).toHaveBeenCalledTimes(2);
+  for (const [blob] of onStop.mock.calls) {
+    const pcm = new Int16Array(await blob.arrayBuffer(), 44);
+    expect(pcm).toHaveLength(5800 * 16);
+    expect(pcm[0]).toBe(393);
+    for (let syllable = 0; syllable < 4; syllable++) expect(pcm[(syllable * 700 + 100) * 16]).toBe(393);
+  }
+});
+
+it('bounds the sound kept before speech at the 20-second line limit', async () => {
+  const mic = microphone(), onStop = vi.fn();
+  const { result } = renderHook(() => useRecorder(onStop, false, { continuous: true, lineKey: 'one' }));
+  await act(async () => result.current.toggle());
+  act(() => mic.audio(.002, 60000));
+  act(() => mic.audio(.1, 1000));
+  act(() => mic.audio(0, 2000));
+  expect(onStop).toHaveBeenCalledOnce();
+  expect(onStop.mock.calls[0][0].size).toBeLessThanOrEqual(44 + 23100 * 16 * 2);
+  expect(onStop.mock.calls[0][0].size).toBeGreaterThan(44 + 22900 * 16 * 2);
 });
 
 it('preserves the room floor across lines while waiting for the next reader sound', async () => {

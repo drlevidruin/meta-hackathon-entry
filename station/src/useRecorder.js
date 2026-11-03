@@ -3,7 +3,10 @@ import { createLineEndDetector, createSilenceDetector, rms } from './silence.js'
 import { encodeWav, resample, SAMPLE_RATE } from './wav.js';
 
 const MAX_LINE_MS = 20000; // Keep the existing safety limit for a line with no quiet ending.
-const LEAD_IN_SECONDS = 1; // Retain a quiet first consonant before the detected speech.
+// Everything since the line appeared stays in the clip, because soft or slow first syllables sit
+// below the speech level and are heard only once a louder one trips the detector. The cap only
+// bounds memory for a reader who waits longer than a whole line may last.
+const MAX_LEAD_IN_SECONDS = MAX_LINE_MS / 1000;
 const AUDIO_TIME_EPSILON = 0.000001; // Ignore sub-microsecond rounding at an audio block boundary.
 
 export function useRecorder(onStop, mockMode, { continuous = false, lineKey, lineText = '', preset, finished = false, onFollow } = {}) {
@@ -171,9 +174,9 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, lin
             }
             session.chunks.push(new Float32Array(samples));
             if (!session.silent.heardSpeech) {
-              // Keep a second of lead-in so a quiet first consonant reaches
-              // grading, while an idle microphone uses bounded memory.
-              if (session.chunks.length > Math.ceil(session.context.sampleRate * LEAD_IN_SECONDS / samples.length)) session.chunks.shift();
+              let held = session.chunks.reduce((size, chunk) => size + chunk.length, 0);
+              const limit = session.context.sampleRate * MAX_LEAD_IN_SECONDS;
+              while (session.chunks.length > 1 && held - session.chunks[0].length >= limit) held -= session.chunks.shift().length;
               return;
             }
             if (silent) endLine(session);
