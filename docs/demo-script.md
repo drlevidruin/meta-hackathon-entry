@@ -32,7 +32,7 @@ If a correctly read syllable is also marked, keep it in the take and add: "This 
 
 ### 1:05 to 1:45 | The ear never sees the text
 
-**Screen:** The How it works diagram in the README, rendered on GitHub at 1440 wide [CHECK: the diagram is still in the README]. Highlight each box as it is named: the ear, then the vowel meter and the phoneme model, then the rulebook and grader.
+**Screen:** The How it works diagram in the README, rendered on GitHub at 1440 wide. Highlight each box as it is named: the ear, then the vowel meter and the phoneme model, then the rulebook and grader.
 
 **Voiceover:**
 "Here's the part that matters. The ear is Muse Wonder, through the Meta Model API. It gets my audio and a sound alphabet, and never the printed line. A model that knows the word tends to hear the word. So the ear only writes sounds. We ask it five times and grade on the first three answers. Then two checks that also never see the text: a vowel meter, and Meta's open wav2vec2 phoneme model, running on this computer. Both compare my vowels with my own voice card. Last, plain code: a rulebook that knows every letter and vowel."
@@ -51,7 +51,7 @@ npm run grade -- --preset sephardi --line "שַׁבָּת" --heard "sha-bos"
 
 ### 2:00 to 2:25 | The teacher view
 
-**Screen:** Teacher, PIN entered off camera, then Class, then Levi: the reading map with its legend. Then Print packet: Warm up, Practice and Challenge in frame. For a fuller class, cut to the mock teacher view with its gray Demo pill in frame [CHECK: https://levis-new-mac-mini.tail8bd372.ts.net/?mock#/teacher opens mock mode].
+**Screen:** Teacher, PIN entered off camera, then Class, then Levi: the reading map with its legend. Then Print packet: Warm up, Practice and Challenge in frame. For a fuller class, cut to the mock teacher view with its gray Demo pill in frame (https://levis-new-mac-mini.tail8bd372.ts.net/?mock#/teacher; any four digits open it).
 
 **Voiceover:**
 "The teacher gets a reading map: every letter with every vowel, solid, shaky, or not tested yet. Children are grouped by what to practice next. Muse Spark picks the next lines from the bank, and code checks every pick. The packet has a warm-up, practice and a challenge. No model writes Hebrew a child reads."
@@ -80,7 +80,7 @@ If the mock class is on screen, add: "This class is simulated."
 
 ## Lines and the planted mistake
 
-The station chooses the lines, so the exact lines depend on the set it serves. Before recording, set Levi to Ashkenazi at Level 5 in Roster, so the lines are short siddur phrases [CHECK: Levi's preset and level on the live roster].
+The station chooses the lines, so the exact lines depend on the set it serves. Before recording, set Levi to Ashkenazi at Level 5 in Roster, so the lines are short siddur phrases.
 
 - **Line 1:** read as printed, Ashkenazi: kamatz as o, cholam as oy, a sav without a dot as s.
 - **Line 2:** read one kamatz in the middle of a word as a patach, a instead of o. Pick one inside a word, not on its last syllable. Read the rest as printed.
@@ -112,7 +112,7 @@ The same plant was in Round 1k. After the fixes measured on Round 1k, the replay
 - [ ] Do Not Disturb on. Notifications off.
 - [ ] Quiet room, no fan or music. Same microphone for the voice card and the lines.
 - [ ] Microphone allowed for https://levis-new-mac-mini.tail8bd372.ts.net in Chrome's site settings before the take.
-- [ ] Levi on the live roster, Ashkenazi, Level 5 [CHECK].
+- [x] Levi on the live roster, Ashkenazi, Level 5 (set November 3). Do Levi's voice card once before recording.
 - [ ] Voice card read off camera before the take, in the same room and on the same microphone. If the server restarts, read it again: the card lives only in memory.
 - [ ] Line 2's planted mistake chosen: one kamatz inside a word, read as a.
 - [ ] Teacher PIN entered off camera.

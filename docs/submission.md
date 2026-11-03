@@ -97,9 +97,9 @@ On Round 1i, Muse Wonder alone left 6, 5 and 6 false marks in its three runs, mo
 
 Round 1k, ten connected prayer lines from the bank, is a design set used for tuning, not a test. Muse Wonder alone left 12 to 19 false marks a run. The phoneme referee cut them to 3, 3 and 5. Fixes found on those lines brought the replay to 2 a run with every planted mistake caught, and my two Ashkenazi rulings cover both of the two left. Because these lines shaped the rules, those numbers prove nothing about new readings.
 
-**Tests and tools.** On November 3, 1,289 server-side tests, 234 station tests and 36 phoneme service tests passed [CHECK: rerun before pasting, since the station is still changing]. They cover the rulebook in all three traditions, alignment with restarts, rereads and skips, the vote, the meter, the referee, saved progress, packets and the station screens. `npm run ear-score` grades a saved run against a pass rule fixed in advance. `npm run ear-replay` replays a saved run's referee without calling the ear. On 15,687 practice-bank lines, each read with one made-up skip, reread or restart, the October 27 grader marked 88.6% exactly right.
+**Tests and tools.** On November 3, 1,293 server-side tests, 248 station tests and 36 phoneme service tests passed. They cover the rulebook in all three traditions, alignment with restarts, rereads and skips, the vote, the meter, the referee, saved progress, packets and the station screens. `npm run ear-score` grades a saved run against a pass rule fixed in advance. `npm run ear-replay` replays a saved run's referee without calling the ear. On 15,687 practice-bank lines, each read with one made-up skip, reread or restart, the October 27 grader marked 88.6% exactly right.
 
-**Privacy.** The ear never sees the text. Keys stay on the server. By default the station and server grade audio in memory and never write it to disk or a log. The saved store holds first names, avatars, presets, progress and stars, with no audio, transcripts or model reasons. An opt-in setting, `SAVE_ATTEMPTS=1`, saves adult test readings for replay; it is off by default [CHECK: whether the live demo runs with it on].
+**Privacy.** The ear never sees the text. Keys stay on the server. By default the station and server grade audio in memory and never write it to disk or a log. The saved store holds first names, avatars, presets, progress and stars, with no audio, transcripts or model reasons. An opt-in setting, `SAVE_ATTEMPTS=1`, saves adult test readings for replay; it is off by default, and off on the live demo.
 
 ## What was built during the event
 
@@ -111,7 +111,7 @@ Built during the event: the rulebook and its three presets, the item bank genera
 
 **Third party.**
 
-- Meta models: Muse Wonder 1.0, Muse Spark 1.3, Muse Spark Open, and the wav2vec2 phoneme weights `facebook/wav2vec2-lv-60-espeak-cv-ft` [CHECK: the weights' license on Hugging Face].
+- Meta models: Muse Wonder 1.0, Muse Spark 1.3, Muse Spark Open, and the wav2vec2 phoneme weights `facebook/wav2vec2-lv-60-espeak-cv-ft` (Apache 2.0).
 - Open-source libraries: React and React DOM; Vite, Vitest, Testing Library and jsdom for building and testing the station; PyTorch, Transformers, NumPy, huggingface_hub, safetensors and tokenizers for the phoneme service. The server uses only Node's standard library.
 - Text: Hebrew lines from *The Metsudah Siddur* (1981), via Sefaria, licensed CC-BY. The text was cut into lines and filtered. Section references and source links are in `bank/data/siddur.json`.
 - Fonts: Frank Ruhl Libre and Montserrat, under the SIL Open Font License.
@@ -125,7 +125,7 @@ The code is MIT licensed. The siddur text keeps its CC-BY license.
 - Every real-voice result is one adult reader, me, in Ashkenazi pronunciation. No child has used it yet. Sephardi and Chassidish are tested only offline.
 - One sealed round has passed out of six, and it was single words. Connected prayer lines have only been used as design data.
 - Muse Wonder still confuses a and o, and the checks behind it carry the grade. Nothing yet checks i against e; that missed one syllable in Round 1h.
-- The first live test, on October 31, did not go well: lines ended at the first pause, grading took 6 to 10 seconds a line, and two correct words were marked wrong. The live flow was rebuilt after it [CHECK: current live behavior and grading time].
+- The first live test, on October 31, did not go well: lines ended at the first pause, grading took 6 to 10 seconds a line, and two correct words were marked wrong. The live flow was rebuilt after it. On November 3 the live station graded a line in about 4 to 5 seconds through the public link, and the next line appears while the last one is graded.
 - No kriah teacher other than me has checked the rulebook by hand.
 - It has not been tested on a classroom tablet over the school network.
 
@@ -147,9 +147,9 @@ The code is MIT licensed. The siddur text keeps its CC-BY license.
 
 1. Open https://levis-new-mac-mini.tail8bd372.ts.net in Chrome on a computer with a microphone.
 2. Allow the microphone when Chrome asks.
-3. Tap a reader: Levi or Guest [CHECK: both readers are on the live roster, and which tradition Guest uses].
+3. Tap a reader: Levi reads in Ashkenazi pronunciation, Guest in Sephardi.
 4. A new reader first sees a voice card of fifteen sounds. Tap the microphone and read the card right to left, row by row, with a short pause after each sound.
-5. Read each line as it appears. The microphone stays on. Read in Ashkenazi pronunciation for the Levi reader: kamatz as o, a sav without a dot as s.
+5. Read each line as it appears. The microphone stays on. For Levi, read in Ashkenazi pronunciation: kamatz as o, a sav without a dot as s. For Guest, read in Sephardi pronunciation.
 6. To test a mistake, read one kamatz as a patach, a instead of o. Its vowel points should turn purple, with the heard syllable under it. A wrong letter shows orange. Each line takes a few seconds to grade.
 7. For the teacher view, tap Teacher and enter the PIN given in the private judge notes of this form. Open Class, then a reader, to see the reading map and turn log. Tap Print packet for the practice packet.
 
