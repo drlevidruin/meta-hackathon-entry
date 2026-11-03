@@ -67,12 +67,13 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, lin
       if (capture.current !== session || session.stopping || session.discard) return;
       if (context.state === 'running') session.running = true;
       // A call, Siri or a backgrounded page stops the context ('interrupted' on WebKit); only a new tap restarts it.
-      else if (session.running && ['interrupted', 'suspended', 'closed'].includes(context.state)) interrupt(session);
+      // A context that closes before it ever ran gets the same treatment.
+      else if (context.state === 'closed' || (session.running && ['interrupted', 'suspended'].includes(context.state))) interrupt(session);
     };
     context.addEventListener?.('statechange', session.onAudioState);
     session.running = context.state === 'running';
     session.startCheck = setTimeout(() => {
-      if (!session.running && ['suspended', 'interrupted'].includes(context.state)
+      if (!session.running && ['suspended', 'interrupted', 'closed'].includes(context.state)
         && capture.current === session && !session.stopping) interrupt(session);
     }, START_TIMEOUT_MS);
   }

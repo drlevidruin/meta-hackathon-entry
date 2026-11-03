@@ -100,6 +100,7 @@ async function main() {
   const children = [];
   const url = phonemeUrl(env);
   let service = null;
+  let notSetUp = false;
   if (url && !(await phonemesReady({ url, timeoutMs: 1000 }))) {
     // The same command as `npm run phonemes`, started directly so a stop signal reaches it.
     const python = path.join(ROOT, 'phonemes/.venv/bin/python');
@@ -107,21 +108,26 @@ async function main() {
       console.log('Starting the phoneme service');
       service = spawn(python, ['-I', 'phonemes/server.py'], { cwd: ROOT, env, stdio: 'inherit' });
       children.push(service);
-    } else console.log('Phoneme service is not set up; run npm run phonemes:setup once');
+    } else {
+      notSetUp = true;
+      console.log('Phoneme service is not set up; run npm run phonemes:setup once');
+    }
   }
-  if (url) {
+  if (url && !notSetUp) {
     const ready = await waitForPhonemes(url, service);
     console.log(ready ? 'Phoneme service is ready' : 'Phoneme service did not answer; starting without it');
   }
 
   const server = spawn(process.execPath, ['server/index.js'], { cwd: ROOT, env, stdio: 'inherit' });
   children.push(server);
-  const stop = signal => { for (const child of children) if (child.exitCode === null) child.kill(signal); };
+  let stopping = false;
+  const stop = signal => { stopping = true; for (const child of children) if (child.exitCode === null) child.kill(signal); };
   process.on('SIGINT', () => stop('SIGINT'));
   process.on('SIGTERM', () => stop('SIGTERM'));
   server.on('exit', code => {
     if (service?.exitCode === null) service.kill('SIGTERM');
-    process.exit(code ?? 0);
+    // A server killed by a signal we did not send is a failure.
+    process.exit(code ?? (stopping ? 0 : 1));
   });
 }
 
