@@ -13,6 +13,7 @@
   },
   "scripts": {
     "start": "node server/index.js",
+    "live": "node tools/live.js",
     "build": "npm --prefix station run build -- --configLoader native",
     "demo": "npm --prefix station run dev",
     "rulebook": "node rulebook/cli.js",

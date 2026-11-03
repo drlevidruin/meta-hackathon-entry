@@ -132,6 +132,8 @@ npm run phonemes:setup
 npm run phonemes
 ```
 
+For a live demo in one terminal, run `npm run live`. It starts the phoneme service, waits until it answers, then starts the server with attempt saving off at http://localhost:8787. It takes `META_API_KEY` and `TEACHER_PIN` from the environment or from the macOS keychain items `meta-model-api` and `kriah-teacher-pin`, never prints them, and adds two readers, Levi and Guest, only when the roster is empty.
+
 `npm start` runs `node server/index.js`. On the computer running the server, open http://localhost:8787. The server binds to `127.0.0.1` unless `HOST` is set. Browsers allow the microphone only on https or localhost. Localhost works without https. The server uses http when both `TLS_CERT` and `TLS_KEY` are empty. Set both paths to use https. If only one path is set or either file cannot be read, startup stops with one plain line naming the variable.
 
 **Classroom tablet.** Use a self-signed certificate for the server computer's network IP address. Replace `192.168.1.20` below with that address. Run these commands from the repo root. The `certs/` folder is gitignored.

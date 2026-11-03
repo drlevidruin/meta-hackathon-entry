@@ -4,25 +4,38 @@ import { useRoute, navigate } from './router.js';
 import { useTurn } from './useTurn.js';
 import { Avatar } from './Avatar.jsx';
 import { Brand, ErrorView, Loading, Resource, Star, useResource } from './ui.jsx';
-import { DoneScreen, ReadScreen, Stats } from './Game.jsx';
+import { DoneScreen, MicrophoneIcon, ReadScreen, Stats } from './Game.jsx';
 import { VoiceCheck } from './VoiceCheck.jsx';
 import { ChildDetail, ClassView, Packet, Roster, TeacherGate, Trace } from './Teacher.jsx';
 export { GradedLine, ReadScreen, LevelUp, DoneScreen } from './Game.jsx';
 export { Star } from './ui.jsx';
 
+const tone = avatar => ({ '--tone': `var(--avatar-${avatar || 'lion'})` });
+
+function PlusIcon() {
+  return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>;
+}
+
 function Home({ children }) {
-  return <section className="page home-page"><h1>Who’s reading?</h1><div className="children-grid">{children.map(child =>
-    <a className="child-tile" href={`#/child/${encodeURIComponent(child.id)}`} key={child.id}>
-      <Avatar name={child.avatar} /><strong>{child.name}</strong>
-    </a>)}</div></section>;
+  return <section className="page home-page"><h1>Who’s reading?</h1><div className="children-grid">
+    {children.map(child =>
+      <a className="child-tile" href={`#/child/${encodeURIComponent(child.id)}`} key={child.id} style={tone(child.avatar)}>
+        <span className="tile-art"><Avatar name={child.avatar} /></span>
+        <span className="tile-body"><strong>{child.name}</strong>
+          <span className="tile-meta"><span className="level-badge">Level {child.level}</span>
+            <span className="tile-stars"><Star filled /><span className="sr-only">Stars </span>{child.stars}</span></span>
+        </span>
+      </a>)}
+    {!children.length && <a className="add-reader-tile" href="#/teacher/roster"><span className="add-icon"><PlusIcon /></span>Add a reader</a>}
+  </div></section>;
 }
 
 function ChildHome({ child, engine }) {
-  if (!child) return <section className="child-home"><h1>Child not found</h1><a className="secondary" href="#/">Home</a></section>;
-  return <section className="child-home"><div className="child-portrait"><Avatar name={child.avatar} /><h1>{child.name}</h1></div>
+  if (!child) return <section className="child-missing"><h1>Child not found</h1><a className="primary" href="#/">Readers</a></section>;
+  return <section className="child-home" style={tone(child.avatar)}><div className="child-portrait"><Avatar name={child.avatar} /><h1>{child.name}</h1></div>
     <div className="child-welcome"><div className="level-badge">Level {child.level}</div>
       <dl className="child-totals"><div><dt>Lifetime stars</dt><dd><Star filled />{child.stars}</dd></div><div><dt>Best turn</dt><dd><Star filled />{child.best}</dd></div></dl>
-      <button className="primary start-button" disabled={engine.starting} onClick={() => child.voiceStatus === 'needed' ? navigate(`/child/${encodeURIComponent(child.id)}/voice`) : void engine.start(child)}>{engine.starting ? 'Starting…' : engine.startError ? 'Try again' : 'Start'}</button>
+      <button className="primary start-button" disabled={engine.starting} onClick={() => child.voiceStatus === 'needed' ? navigate(`/child/${encodeURIComponent(child.id)}/voice`) : void engine.start(child)}><MicrophoneIcon />{engine.starting ? 'Starting…' : engine.startError ? 'Try again' : 'Start'}</button>
     </div>
   </section>;
 }
@@ -47,7 +60,7 @@ export default function App() {
   useEffect(() => {
     const names = { home: 'Who’s reading?', child: 'Let’s read', voice: 'Read these sounds', read: 'Read', done: 'Well done', teacher: 'Class', detail: 'Reading map', roster: 'Roster', packet: 'Practice packet', trace: 'Coach trace' };
     document.title = `${names[route.screen]} | Kriah Listener`;
-    document.querySelector('main')?.focus();
+    document.querySelector('main')?.focus({ preventScroll: true });
   }, [route.path]);
 
   if (route.screen === 'trace') {
@@ -66,7 +79,7 @@ export default function App() {
   const done = engine.turn?.phase === 'finished' ? engine.turn : demoDone;
   return <div className={`app screen-${route.screen}`}>
     {reading ? <Stats turn={engine.turn} /> : <header className="child-header"><Brand />
-      {route.screen === 'home' ? <a className="teacher-link" href="#/teacher">Teacher</a> : <a className="secondary" href="#/">Home</a>}
+      {route.screen === 'home' ? <a className="teacher-link" href="#/teacher">Teacher</a> : <a className="secondary" href="#/">Readers</a>}
     </header>}
     <main tabIndex={-1}>
       {route.screen === 'home' && <Resource resource={roster}>{children => <Home children={children} />}</Resource>}

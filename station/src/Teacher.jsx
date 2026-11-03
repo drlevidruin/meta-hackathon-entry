@@ -68,7 +68,7 @@ export function TeacherGate({ children, developer = false }) {
     <header className="teacher-header no-print"><Brand />
       {!developer && verified && <nav aria-label="Teacher"><a href="#/teacher">Class</a><a href="#/teacher/roster">Roster</a></nav>}
       {verified && <button className="secondary" onClick={lock}>Lock</button>}
-      {!verified && <a className="secondary" href="#/">Home</a>}
+      <a className="secondary readers-link" href="#/">Readers</a>
     </header>
     <main tabIndex={-1}>
       {!pin ? <PinPad onUnlock={pin => { setPin(pin); setVerified(true); }} /> : !verified ?

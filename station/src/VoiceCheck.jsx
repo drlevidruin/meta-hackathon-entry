@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { voiceCardFor } from '../../rulebook/voice-card.js';
 import * as api from './api.js';
 import { Avatar } from './Avatar.jsx';
-import { RecordButton } from './Game.jsx';
+import { MicrophoneOff, RecordButton } from './Game.jsx';
 import { useRecorder } from './useRecorder.js';
 import { recordingToWav } from './wav.js';
 
@@ -40,15 +40,13 @@ export function VoiceCheck({ child, engine }) {
     }
   }, api.isMockMode());
 
-  if (!child) return <section className="child-home"><h1>Child not found</h1><a className="secondary" href="#/">Home</a></section>;
+  if (!child) return <section className="child-missing"><h1>Child not found</h1><a className="primary" href="#/">Readers</a></section>;
   if (!card.length) return <section className="loading-screen">{engine.startError ?
     <><p role="alert">Try again</p><button className="primary" disabled={engine.starting} onClick={() =>
       void engine.start({ ...child, voiceStatus: 'none', voiceCheck: true })}>Try again</button></> : <span role="status">Starting…</span>}</section>;
-  if (recorder.status === 'off') return <section className="microphone-off">
-    <h1>Microphone is off</h1><button className="primary" onClick={recorder.retry}>Try again</button>
-  </section>;
+  if (recorder.status === 'off') return <MicrophoneOff onRetry={recorder.retry} />;
   return <section className="voice-check">
-    <div className="voice-identity child-portrait"><Avatar name={child.avatar} /><h2>{child.name}</h2><h1>Read these sounds</h1></div>
+    <div className="voice-identity"><Avatar name={child.avatar} /><h2>{child.name}</h2><h1>Read these sounds</h1></div>
     <div className="voice-reading">
       <div className="voice-card" dir="rtl" lang="he" style={{ '--columns': card.length / 3 }}>{card.map((syllable, index) => <span key={index}>{syllable}</span>)}</div>
       <div className="record-area">

@@ -9,7 +9,7 @@ import { pairLetter } from './pair.js';
 import { wordForSyllables } from './silence.js';
 
 export function Stats({ turn }) {
-  return <aside className="stats" aria-label="Your progress">
+  return <header className="stats" aria-label="Your progress">
     <div className="reading-brand"><Brand /></div>
     <div className="reader-profile">
       <div className="reader-identity"><Avatar name={turn.child.avatar} small /><strong>{turn.child.name}</strong></div>
@@ -20,7 +20,7 @@ export function Stats({ turn }) {
       <div className="stat"><dt>Streak</dt><dd>{turn.streak}</dd></div>
       <div className="stat"><dt>Best streak</dt><dd>{turn.bestStreak}</dd></div>
     </dl>
-  </aside>;
+  </header>;
 }
 
 export function GradedLine({ attempt }) {
@@ -48,14 +48,27 @@ export function MicrophoneIcon() {
   return <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="18" y="5" width="12" height="25" rx="6" /><path d="M12 23v2a12 12 0 0 0 24 0v-2M24 37v7M17 44h14" /></svg>;
 }
 
-export function RecordButton({ recorder, disabled = false, thinking = false, continuous = false }) {
+const RECORD_LABELS = { idle: 'Start', starting: 'Starting', listening: 'Listening', finishing: 'Finishing',
+  checking: 'Checking', paused: 'Paused' };
+
+export function recordState(status, { thinking = false, paused = false } = {}) {
+  if (status === 'requesting') return 'starting';
+  if (status === 'finishing') return 'finishing';
+  if (status === 'waiting' || thinking) return 'checking';
+  if (status === 'recording') return 'listening';
+  return paused ? 'paused' : 'idle';
+}
+
+export function RecordButton({ recorder, disabled = false, thinking = false, continuous = false, paused = false }) {
   const recording = ['recording', 'finishing', 'waiting'].includes(recorder.status);
   const busy = thinking || ['requesting', 'finishing', 'waiting'].includes(recorder.status);
-  return <button className={`record-button ${recording ? 'recording' : ''} ${busy ? 'thinking' : ''}`}
+  const state = recordState(recorder.status, { thinking, paused });
+  return <button className={`record-button state-${state} ${recording ? 'recording' : ''} ${busy ? 'thinking' : ''}`}
     onClick={recorder.toggle} disabled={disabled || recorder.status === 'requesting'}
     aria-label={recording ? (continuous ? 'Pause listening' : 'Stop recording') : 'Record'} aria-pressed={recording} aria-busy={busy}>
-    {busy ? <span className="thinking-icon" aria-hidden="true" /> :
-      recording ? <span className="stop-icon" aria-hidden="true" /> : <MicrophoneIcon />}
+    <span className="record-icon">{busy ? <span className="thinking-icon" aria-hidden="true" /> :
+      recording ? <span className={continuous ? 'pause-icon' : 'stop-icon'} aria-hidden="true" /> : <MicrophoneIcon />}</span>
+    <span className="record-label" aria-hidden="true">{RECORD_LABELS[state]}</span>
   </button>;
 }
 
@@ -117,31 +130,48 @@ export function ReadScreen({ turn, onRecord, onRetryNext }) {
       return word;
     },
   });
-  if (recorder.status === 'off') return <section className="microphone-off">
-    <h1>Microphone is off</h1><button className="primary" onClick={recorder.retry}>Try again</button>
-  </section>;
+  const started = useRef(false);
+  if (['recording', 'finishing', 'waiting'].includes(recorder.status)) started.current = true;
+  if (recorder.status === 'off') return <MicrophoneOff onRetry={recorder.retry} />;
   if (turn.phase === 'level_up') return <LevelUp level={turn.level} />;
   const checkpoint = ['checkpoint', 'choosing', 'finishing', 'finish_pending'].includes(turn.phase);
   const retry = ['next_error', 'finish_error'].includes(turn.phase);
+  const state = recordState(recorder.status, { thinking: checkpoint, paused: started.current && !!item });
+  const total = turn.set.length;
   return <section className="reading-content" aria-label="Reading">
-    <div className="reading-controls">
-      <div className="turn-stars" role="img" aria-label={`${turn.stars} stars this turn`}>
-        {Array.from({ length: Math.max(3, turn.stars) }, (_, index) => <Star key={index} filled={index < turn.stars} />)}
-        {checkpoint && <Star filling />}
-        {!!turn.bonusBurst && <span key={turn.bonusBurst} className="bonus-burst" aria-hidden="true"><Star filled /><Star filled /><Star filled /></span>}
+    <div className="reading-stage" data-state={state}>
+      <div className="stage-top">
+        <div className="turn-stars" role="img" aria-label={`${turn.stars} stars this turn`}>
+          {Array.from({ length: Math.max(3, turn.stars) }, (_, index) => <Star key={index} filled={index < turn.stars} />)}
+          {checkpoint && <Star filling />}
+          {!!turn.bonusBurst && <span key={turn.bonusBurst} className="bonus-burst" aria-hidden="true"><Star filled /><Star filled /><Star filled /></span>}
+        </div>
+        <div className="set-progress" role="img" aria-label={`Line ${Math.min(turn.lineIndex + 1, total)} of ${total}`}>
+          {turn.set.map((line, index) => <span key={index} className={`set-dot${index < turn.lineIndex ? ' done' : ''}${index === turn.lineIndex && item ? ' current' : ''}${line.source?.challenge ? ' challenge' : ''}`} />)}
+        </div>
       </div>
+      <div className="stage-center">
       <div className={`line-frame ${item?.source?.challenge ? 'challenge-frame' : ''}`} aria-label={item?.source?.challenge ? 'Challenge' : undefined}>
         {item?.source?.challenge && <span className="challenge-badge" aria-hidden="true"><Star filled /></span>}
         <CurrentLine item={item} word={position?.lineKey === lineKey ? position.word : null} checkpoint={checkpoint} />
       </div>
       <div className="record-area">
         {retry ? <button className="primary" onClick={onRetryNext}>Try again</button> :
-          <RecordButton recorder={recorder} continuous disabled={!item && recorder.status !== 'recording'} thinking={checkpoint} />}
+          <RecordButton recorder={recorder} continuous paused={started.current && !!item}
+            disabled={!item && recorder.status !== 'recording'} thinking={checkpoint} />}
+      </div>
       </div>
     </div>
     <div className="reading-results">
       {turn.attempts.map((attempt, index) => <GradedLine key={index} attempt={attempt} />).reverse()}
     </div>
+  </section>;
+}
+
+export function MicrophoneOff({ onRetry }) {
+  return <section className="microphone-off">
+    <span className="mic-off-icon" aria-hidden="true"><MicrophoneIcon /></span>
+    <h1>Microphone is off</h1><button className="primary" onClick={onRetry}>Try again</button>
   </section>;
 }
 
