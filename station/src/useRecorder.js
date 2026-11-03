@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createLineEndDetector, createSilenceDetector, rms } from './silence.js';
 import { encodeWav, resample, SAMPLE_RATE } from './wav.js';
+// A real file, not Vite's inlined data: URL, so every browser loads the worklet as a same-origin script.
+import captureWorkletUrl from './capture-worklet.js?url&no-inline';
 
 const MAX_LINE_MS = 20000; // Keep the existing safety limit for a line with no quiet ending.
 // Everything since the line appeared stays in the clip, because soft or slow first syllables sit
@@ -8,6 +10,25 @@ const MAX_LINE_MS = 20000; // Keep the existing safety limit for a line with no 
 // bounds memory for a reader who waits longer than a whole line may last.
 const MAX_LEAD_IN_SECONDS = MAX_LINE_MS / 1000;
 const AUDIO_TIME_EPSILON = 0.000001; // Ignore sub-microsecond rounding at an audio block boundary.
+// iOS takes a moment to switch its audio session to recording; past this, the audio never started.
+const START_TIMEOUT_MS = 3000;
+
+// A rate WebKit cannot run throws NotSupportedError, so fall back to the device's own rate.
+export function openAudioContext(sampleRate) {
+  const AudioContextClass = globalThis.AudioContext || globalThis.webkitAudioContext;
+  if (!AudioContextClass) throw new Error('Web Audio is unavailable');
+  if (sampleRate) {
+    try { return new AudioContextClass({ sampleRate }); } catch { /* Use the device rate below. */ }
+  }
+  return new AudioContextClass();
+}
+
+function join(chunks) {
+  const samples = new Float32Array(chunks.reduce((size, chunk) => size + chunk.length, 0));
+  let offset = 0;
+  for (const chunk of chunks) { samples.set(chunk, offset); offset += chunk.length; }
+  return samples;
+}
 
 export function useRecorder(onStop, mockMode, { continuous = false, lineKey, lineText = '', preset, finished = false, onFollow } = {}) {
   const [status, setStatus] = useState('ready');
@@ -17,12 +38,63 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, lin
   const options = useRef(null);
   const paused = useRef(null);
   const following = useRef(false);
+  const audio = useRef(null);
+
+  // Runs synchronously inside the tap, before any await. WebKit starts audio only while the tap's
+  // user activation is live; a resume() requested later never settles, and the button would hang.
+  function wakeAudio(sampleRate) {
+    let shared = audio.current;
+    if (!shared || shared.context.state === 'closed') {
+      shared = audio.current = { context: openAudioContext(sampleRate), module: null };
+    }
+    Promise.resolve(shared.context.resume?.()).catch(() => {});
+    return shared;
+  }
+
+  function suspendAudio() {
+    Promise.resolve(audio.current?.context.suspend?.()).catch(() => {});
+  }
+
+  function closeAudio() {
+    const shared = audio.current;
+    audio.current = null;
+    Promise.resolve(shared?.context.close?.()).catch(() => {});
+  }
+
+  function watchAudio(session) {
+    const context = session.context;
+    session.onAudioState = () => {
+      if (capture.current !== session || session.stopping || session.discard) return;
+      if (context.state === 'running') session.running = true;
+      // A call, Siri or a backgrounded page stops the context ('interrupted' on WebKit); only a new tap restarts it.
+      else if (session.running && ['interrupted', 'suspended', 'closed'].includes(context.state)) interrupt(session);
+    };
+    context.addEventListener?.('statechange', session.onAudioState);
+    session.running = context.state === 'running';
+    session.startCheck = setTimeout(() => {
+      if (!session.running && ['suspended', 'interrupted'].includes(context.state)
+        && capture.current === session && !session.stopping) interrupt(session);
+    }, START_TIMEOUT_MS);
+  }
+
+  function interrupt(session) {
+    if (continuous) { pause(); return; }
+    session.discard = true;
+    session.chunks = [];
+    if (session.recorder?.state === 'recording') session.recorder.stop();
+    release(session);
+    closeAudio();
+    if (mounted.current) setStatus('ready');
+  }
 
   function release(session) {
     if (!session) return;
     clearTimeout(session.timer);
+    clearTimeout(session.startCheck);
     clearInterval(session.meter);
     clearInterval(session.follow);
+    if (session.onAudioState) session.context?.removeEventListener?.('statechange', session.onAudioState);
+    session.onAudioState = null;
     if (session.processor) {
       session.processor.onprocessorerror = null;
       session.processor.port.onmessage = null;
@@ -31,7 +103,6 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, lin
     session.processor?.disconnect();
     session.source?.disconnect();
     session.analyser?.disconnect();
-    session.context?.close().catch(() => {});
     session.stream?.getTracks().forEach(track => { track.onended = null; track.stop(); });
     session.source = null;
     session.processor = null;
@@ -46,13 +117,12 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, lin
     session.chunks = [];
     paused.current = null;
     release(session);
+    closeAudio();
     if (mounted.current) setStatus('off');
   }
 
   function clip(session, sampleRate = session.context.sampleRate) {
-    const samples = new Float32Array(session.chunks.reduce((size, chunk) => size + chunk.length, 0));
-    let offset = 0;
-    for (const chunk of session.chunks) { samples.set(chunk, offset); offset += chunk.length; }
+    const samples = join(session.chunks);
     const pcm = sampleRate === session.context.sampleRate ? samples : resample(samples, session.context.sampleRate, sampleRate);
     return new Blob([encodeWav(pcm, sampleRate)], { type: 'audio/wav' });
   }
@@ -93,6 +163,8 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, lin
     session.chunks = [];
     session.discard = true;
     release(session);
+    // Keep the context for the next tap: iOS limits how many can be opened.
+    suspendAudio();
     setStatus('ready');
   }
 
@@ -118,24 +190,33 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, lin
       if (!mockMode) {
         // Noise suppression and echo cancellation reshape vowels, so the ear hears the voice
         // as the sealed rounds recorded it. Automatic gain stays on: it changes loudness only.
-        session.stream = await navigator.mediaDevices.getUserMedia({
+        const microphone = navigator.mediaDevices.getUserMedia({
           audio: { channelCount: 1, echoCancellation: false, noiseSuppression: false },
         });
+        let shared;
+        try {
+          shared = wakeAudio(paused.current?.sampleRate);
+        } catch (error) {
+          microphone.then(stream => stream.getTracks().forEach(track => track.stop()), () => {});
+          throw error;
+        }
+        session.context = shared.context;
+        session.stream = await microphone;
         if (!mounted.current || session.discard) { release(session); return; }
         if (continuous) session.stream.getTracks().forEach(track => {
           track.onended = () => captureFailed(session);
         });
-        const AudioContextClass = globalThis.AudioContext || globalThis.webkitAudioContext;
-        session.context = new AudioContextClass(paused.current?.sampleRate ? { sampleRate: paused.current.sampleRate } : undefined);
-        await session.context.resume();
-        if (!mounted.current || session.discard) { release(session); return; }
         session.source = session.context.createMediaStreamSource(session.stream);
         if (continuous) {
-          await session.context.audioWorklet.addModule(new URL('./capture-worklet.js', import.meta.url));
+          shared.module ??= shared.context.audioWorklet.addModule(captureWorkletUrl);
+          await shared.module;
           if (!mounted.current || session.discard) { release(session); return; }
           resetLine(session, options.current.lineKey);
           if (paused.current?.lineKey === session.lineKey) {
-            session.chunks = paused.current.chunks;
+            const held = paused.current;
+            // A replacement context can run at another rate; one clip must hold one rate.
+            session.chunks = held.sampleRate === session.context.sampleRate ? held.chunks
+              : [resample(join(held.chunks), held.sampleRate, session.context.sampleRate)];
             session.silent = paused.current.silent;
             session.capturedAt = paused.current.capturedAt;
             // Continue the capture clock across contexts without counting time spent paused.
@@ -210,6 +291,8 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, lin
             const blob = new Blob(session.chunks, { type: session.recorder.mimeType });
             session.chunks = [];
             release(session);
+            // One recording per tap here, and the next tap opens a fresh context inside its gesture.
+            closeAudio();
             if (!session.discard && mounted.current) {
               setStatus('ready');
               callback.current(blob);
@@ -220,6 +303,7 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, lin
             if (session.recorder.state === 'recording') session.recorder.stop();
             session.chunks = [];
             release(session);
+            closeAudio();
             if (mounted.current) setStatus('off');
           };
           session.recorder.start();
@@ -228,14 +312,20 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, lin
             if (silent(rms(samples), performance.now())) stop();
           }, 50);
         }
+        watchAudio(session);
       } else if (continuous) {
         resetLine(session, options.current.lineKey);
       }
       setStatus('recording');
       if (!continuous) session.timer = setTimeout(stop, MAX_LINE_MS);
     } catch {
+      // A denied microphone prompt lands here too, so the button never stays on starting.
+      const current = capture.current === session;
       session.discard = true;
       release(session);
+      // A session already replaced by a newer tap must not close the context that tap now uses.
+      if (!current) return;
+      closeAudio();
       if (mounted.current) setStatus('off');
     }
   }
@@ -256,6 +346,7 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, lin
         session.chunks = [];
         release(session);
       }
+      closeAudio();
       setStatus('ready');
     } else {
       if (paused.current?.lineKey !== lineKey) paused.current = null;
@@ -275,8 +366,19 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, lin
         session.chunks = [];
         release(session);
       }
+      closeAudio();
     };
   }, []);
+
+  useEffect(() => {
+    // iOS mutes the microphone of a hidden page, which would read as the reader going quiet.
+    const hidden = () => {
+      const session = capture.current;
+      if (document.visibilityState === 'hidden' && session && !session.mock && !session.stopping) interrupt(session);
+    };
+    document.addEventListener('visibilitychange', hidden);
+    return () => document.removeEventListener('visibilitychange', hidden);
+  });
 
   return { status, toggle: () => ['recording', 'finishing', 'waiting'].includes(status)
     ? (continuous ? pause() : stop()) : begin(), retry: begin };

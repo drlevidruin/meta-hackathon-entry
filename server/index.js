@@ -2,7 +2,7 @@ import http from 'node:http';
 import https from 'node:https';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { createApp } from './app.js';
+import { createApp, logRequests } from './app.js';
 import { teacherPinError, listenOptions, tlsOptions, startupMessages, phonemeMessage } from './startup.js';
 import { hearPhonemes, phonemesReady, phonemeUrl } from '../ear/phonemes.js';
 
@@ -32,7 +32,8 @@ const app = createApp({
   coachModel: process.env.COACH_MODEL, dataDir: process.env.DATA_DIR,
   ...(url ? { phonemes: audio => hearPhonemes(audio, { url }) } : {}),
 });
-const server = tls ? https.createServer(tls, app) : http.createServer(app);
+const logged = logRequests(app);
+const server = tls ? https.createServer(tls, logged) : http.createServer(logged);
 const ready = await phonemesReady({ url });
 server.listen(port, host, () => {
   for (const line of startupMessages({

@@ -161,6 +161,23 @@ function childFields(value, partial = false) {
   return value;
 }
 
+// One line per API request: method, path, status and time. Never the query, body or headers, and
+// any path part that is not a fixed route word (a child id, for one) is replaced with :id.
+export function logRequests(app, log = console.log) {
+  return function logged(req, res) {
+    const pathname = String(req.url || '').split('?')[0];
+    if (pathname.startsWith('/api/')) {
+      const started = performance.now();
+      res.once('close', () => {
+        const route = pathname.split('/').map(part => !part || /^[a-z]+$/.test(part) ? part : ':id').join('/');
+        const status = res.writableFinished ? res.statusCode : 'aborted';
+        log(`${req.method} ${route} ${status} ${Math.round(performance.now() - started)}ms`);
+      });
+    }
+    return app(req, res);
+  };
+}
+
 export function createApp({
   items, listen, gradeLine, chooseNextSet, startProfile, startTurn = resetTurn, explain, turnFacts, staticDir, phonemes,
   dataDir = process.env.DATA_DIR, teacherPin = process.env.TEACHER_PIN,

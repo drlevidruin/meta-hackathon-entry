@@ -5,7 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, renderHook, screen } from '@testing-library/react';
 import App from './App.jsx';
 import { CurrentLine, ReadScreen } from './Game.jsx';
-import { useRecorder } from './useRecorder.js';
+import { openAudioContext, useRecorder } from './useRecorder.js';
 import { useTurn } from './useTurn.js';
 import { TURN_KEY } from './storage.js';
 import * as api from './api.js';
@@ -37,10 +37,16 @@ function microphone(sampleRate = 16000, loadModule = async () => {}) {
     sampleRate = sampleRate;
     currentTime = 0;
     destination = {};
+    state = 'suspended';
+    listeners = new Set();
     audioWorklet = { addModule: vi.fn(loadModule) };
-    resume = vi.fn(async () => {});
-    close = vi.fn(async () => {});
-    constructor() { contexts.push(this); }
+    resume = vi.fn(() => this.change('running'));
+    suspend = vi.fn(() => this.change('suspended'));
+    close = vi.fn(() => this.change('closed'));
+    constructor(options) { this.options = options; contexts.push(this); }
+    change(state) { this.state = state; this.listeners.forEach(listener => listener()); return Promise.resolve(); }
+    addEventListener(type, listener) { if (type === 'statechange') this.listeners.add(listener); }
+    removeEventListener(type, listener) { this.listeners.delete(listener); }
     createMediaStreamSource() { return { connect: vi.fn(), disconnect: vi.fn() }; }
     createAnalyser() {
       return { fftSize: 2048, disconnect: vi.fn(), getFloatTimeDomainData: samples => samples.fill(level) };
@@ -67,10 +73,11 @@ function microphone(sampleRate = 16000, loadModule = async () => {}) {
     for (let elapsed = 0; elapsed < ms; elapsed += 50) {
       level = loudness;
       vi.advanceTimersByTime(50);
-      contexts.at(-1).currentTime += .05;
-      const input = new Float32Array(sampleRate / 20).fill(loudness);
+      const context = contexts.at(-1), rate = context.sampleRate;
+      context.currentTime += .05;
+      const input = new Float32Array(rate / 20).fill(loudness);
       processors.at(-1)?.port.onmessage?.({ data: { samples: input,
-        startFrame: Math.round((contexts.at(-1).currentTime - .05) * sampleRate) } });
+        startFrame: Math.round((context.currentTime - .05) * rate) } });
     }
   }
   async function line() {
@@ -352,10 +359,13 @@ it('pauses without submitting, releases the track and resumes the same partial l
   act(() => result.current.toggle());
   expect(result.current.status).toBe('ready');
   expect(mic.tracks[0].stop).toHaveBeenCalledOnce();
-  expect(mic.contexts[0].close).toHaveBeenCalledOnce();
+  expect(mic.contexts[0].suspend).toHaveBeenCalledOnce();
+  expect(mic.contexts[0].close).not.toHaveBeenCalled();
   expect(onStop).not.toHaveBeenCalled();
   act(() => vi.advanceTimersByTime(5000));
   await act(async () => result.current.toggle());
+  expect(mic.contexts).toHaveLength(1);
+  expect(mic.contexts[0].resume).toHaveBeenCalledTimes(2);
   await mic.line();
   expect(onStop).toHaveBeenCalledOnce();
   expect(mic.getUserMedia).toHaveBeenCalledTimes(2);
@@ -663,7 +673,7 @@ it('dates a follow snapshot by its last captured sample while the audio context 
   expect(onStop.mock.calls[0][0].size).toBe(44 + 5600 * 16 * 2);
 });
 
-it('lets a follow snapshot become stale as speech continues across a paused audio context', async () => {
+it('lets a follow snapshot become stale as speech continues across a paused audio context the system closed', async () => {
   const mic = microphone(), onStop = vi.fn(), onFollow = vi.fn(async () => 0);
   const { result } = renderHook(() => useRecorder(onStop, false,
     { continuous: true, lineKey: 'one', lineText: 'בָּ בָּ בָּ', onFollow }));
@@ -673,6 +683,7 @@ it('lets a follow snapshot become stale as speech continues across a paused audi
   onFollow.mockResolvedValue(null);
   act(() => result.current.toggle());
   act(() => vi.advanceTimersByTime(10000));
+  mic.contexts[0].state = 'closed';
   await act(async () => result.current.toggle());
   expect(mic.contexts[1].currentTime).toBe(0);
   await act(async () => { mic.audio(.1, 3000); });
@@ -812,4 +823,202 @@ it('keeps a delayed input block from before a screen change out of the new line 
   const bytes = new DataView(await onStop.mock.calls[1][0].arrayBuffer());
   expect(bytes.getInt16(44, true)).toBe(6553);
   expect(bytes.byteLength).toBe(44 + 3000 * 16 * 2);
+});
+
+// iOS WebKit starts an AudioContext only while the tap's user activation is live; a resume()
+// requested after an await stays pending forever, so these pin the order inside the tap.
+it.each([true, false])('creates and resumes the audio context inside the tap, before the microphone answers, in continuous mode %s', async continuous => {
+  const mic = microphone(), onStop = vi.fn(), granted = deferred();
+  mic.getUserMedia.mockImplementationOnce(() => granted.promise);
+  const { result } = renderHook(() => useRecorder(onStop, false, { continuous, lineKey: 'one' }));
+  let starting;
+  act(() => { starting = result.current.toggle(); });
+  expect(mic.contexts).toHaveLength(1);
+  expect(mic.contexts[0].resume).toHaveBeenCalledOnce();
+  expect(mic.getUserMedia).toHaveBeenCalledOnce();
+  expect(result.current.status).toBe('requesting');
+  const track = { stop: vi.fn(), onended: null };
+  mic.tracks.push(track);
+  await act(async () => { granted.resolve({ getTracks: () => [track] }); await starting; });
+  expect(result.current.status).toBe('recording');
+  expect(mic.contexts).toHaveLength(1);
+  expect(mic.contexts[0].resume).toHaveBeenCalledOnce();
+});
+
+it('reuses the same context on the next tap and resumes it before the microphone answers', async () => {
+  const mic = microphone(), onStop = vi.fn();
+  const { result } = renderHook(() => useRecorder(onStop, false, { continuous: true, lineKey: 'one' }));
+  await act(async () => result.current.toggle());
+  act(() => result.current.toggle());
+  const granted = deferred();
+  mic.getUserMedia.mockImplementationOnce(() => granted.promise);
+  let starting;
+  act(() => { starting = result.current.toggle(); });
+  expect(mic.contexts).toHaveLength(1);
+  expect(mic.contexts[0].resume).toHaveBeenCalledTimes(2);
+  expect(mic.contexts[0].audioWorklet.addModule).toHaveBeenCalledOnce();
+  await act(async () => { granted.resolve({ getTracks: () => [] }); await starting; });
+  expect(result.current.status).toBe('recording');
+  expect(mic.contexts[0].audioWorklet.addModule).toHaveBeenCalledOnce();
+});
+
+it('opens no audio context in mock mode', async () => {
+  const mic = microphone(), onStop = vi.fn();
+  const { result } = renderHook(() => useRecorder(onStop, true, { continuous: true, lineKey: 'one' }));
+  await act(async () => result.current.toggle());
+  expect(result.current.status).toBe('recording');
+  expect(mic.contexts).toHaveLength(0);
+});
+
+it.each([true, false])('returns from starting when the microphone prompt is denied, closes the context and records on retry, in continuous mode %s', async continuous => {
+  const mic = microphone(), onStop = vi.fn();
+  mic.getUserMedia.mockRejectedValueOnce(new DOMException('Permission denied', 'NotAllowedError'));
+  const { result } = renderHook(() => useRecorder(onStop, false, { continuous, lineKey: 'one' }));
+  await act(async () => result.current.toggle());
+  expect(result.current.status).toBe('off');
+  expect(mic.contexts[0].close).toHaveBeenCalledOnce();
+  expect(mic.tracks).toHaveLength(0);
+  await act(async () => result.current.retry());
+  expect(result.current.status).toBe('recording');
+  expect(mic.contexts).toHaveLength(2);
+  expect(mic.contexts[1].resume).toHaveBeenCalledOnce();
+});
+
+it('falls back to the device rate when WebKit rejects a requested sample rate', () => {
+  const made = [];
+  class Strict {
+    constructor(options) {
+      if (options?.sampleRate) throw new DOMException('sampleRate is not in range', 'NotSupportedError');
+      this.sampleRate = 44100;
+      made.push(this);
+    }
+  }
+  vi.stubGlobal('AudioContext', Strict);
+  expect(openAudioContext(48000).sampleRate).toBe(44100);
+  expect(openAudioContext().sampleRate).toBe(44100);
+  expect(made).toHaveLength(2);
+  vi.stubGlobal('AudioContext', undefined);
+  vi.stubGlobal('webkitAudioContext', Strict);
+  expect(openAudioContext(16000)).toBeInstanceOf(Strict);
+  vi.stubGlobal('webkitAudioContext', undefined);
+  expect(() => openAudioContext()).toThrow('Web Audio is unavailable');
+});
+
+it('continues a paused 48 kHz line in a 44.1 kHz replacement context that rejects the old rate, as one clip at one rate', async () => {
+  const mic = microphone(48000), onStop = vi.fn();
+  const { result } = renderHook(() => useRecorder(onStop, false, { continuous: true, lineKey: 'one' }));
+  await act(async () => result.current.toggle());
+  act(() => mic.audio(.1, 200));
+  act(() => result.current.toggle());
+  mic.contexts[0].state = 'closed';
+  const Base = globalThis.AudioContext;
+  vi.stubGlobal('AudioContext', class extends Base {
+    constructor(options) {
+      if (options?.sampleRate) throw new DOMException('sampleRate is not in range', 'NotSupportedError');
+      super();
+      this.sampleRate = 44100;
+    }
+  });
+  await act(async () => result.current.toggle());
+  expect(result.current.status).toBe('recording');
+  expect(mic.contexts).toHaveLength(2);
+  expect(mic.contexts[1].sampleRate).toBe(44100);
+  await mic.line();
+  expect(onStop).toHaveBeenCalledOnce();
+  const clip = new DataView(await onStop.mock.calls[0][0].arrayBuffer());
+  expect(clip.getUint32(24, true)).toBe(44100);
+  // 200 ms resampled from 48 kHz is 8820 frames, then 3 s captured at 44.1 kHz.
+  expect(clip.getUint32(40, true)).toBe((8820 + 132300) * 2);
+  expect(clip.getInt16(44, true)).toBe(3277);
+});
+
+it('pauses when WebKit interrupts the context and continues the same line on the next tap', async () => {
+  const mic = microphone(), onStop = vi.fn();
+  const { result } = renderHook(() => useRecorder(onStop, false, { continuous: true, lineKey: 'one' }));
+  await act(async () => result.current.toggle());
+  act(() => mic.audio(.1, 200));
+  act(() => { mic.contexts[0].change('interrupted'); });
+  expect(result.current.status).toBe('ready');
+  expect(mic.tracks[0].stop).toHaveBeenCalledOnce();
+  expect(onStop).not.toHaveBeenCalled();
+  let starting;
+  act(() => { starting = result.current.toggle(); });
+  expect(mic.contexts[0].resume).toHaveBeenCalledTimes(2);
+  await act(async () => starting);
+  expect(result.current.status).toBe('recording');
+  expect(mic.contexts).toHaveLength(1);
+  await mic.line();
+  expect(onStop).toHaveBeenCalledOnce();
+  expect(onStop.mock.calls[0][0].size).toBe(44 + 3200 * 16 * 2);
+});
+
+it('returns a single recording to ready when the context is interrupted', async () => {
+  const mic = microphone(), onStop = vi.fn();
+  const { result } = renderHook(() => useRecorder(onStop, false));
+  await act(async () => result.current.toggle());
+  act(() => mic.audio(.1, 200));
+  act(() => { mic.contexts[0].change('interrupted'); });
+  expect(result.current.status).toBe('ready');
+  expect(onStop).not.toHaveBeenCalled();
+  expect(mic.tracks[0].stop).toHaveBeenCalledOnce();
+});
+
+it('returns to ready when the audio never starts, so the next tap can start it', async () => {
+  const mic = microphone(), onStop = vi.fn();
+  const { result } = renderHook(() => useRecorder(onStop, false, { continuous: true, lineKey: 'one' }));
+  const Base = globalThis.AudioContext;
+  vi.stubGlobal('AudioContext', class extends Base { resume = vi.fn(() => new Promise(() => {})); });
+  await act(async () => result.current.toggle());
+  expect(result.current.status).toBe('recording');
+  act(() => vi.advanceTimersByTime(2950));
+  expect(result.current.status).toBe('recording');
+  act(() => vi.advanceTimersByTime(50));
+  expect(result.current.status).toBe('ready');
+  expect(mic.tracks[0].stop).toHaveBeenCalledOnce();
+  act(() => { result.current.toggle(); });
+  expect(mic.contexts[0].resume).toHaveBeenCalledTimes(2);
+});
+
+it('pauses when the page is hidden and keeps the partial line', async () => {
+  const mic = microphone(), onStop = vi.fn();
+  const { result } = renderHook(() => useRecorder(onStop, false, { continuous: true, lineKey: 'one' }));
+  await act(async () => result.current.toggle());
+  act(() => mic.audio(.1, 200));
+  const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+  act(() => { document.dispatchEvent(new Event('visibilitychange')); });
+  visibility.mockRestore();
+  expect(result.current.status).toBe('ready');
+  expect(mic.tracks[0].stop).toHaveBeenCalledOnce();
+  await act(async () => result.current.toggle());
+  await mic.line();
+  expect(onStop.mock.calls[0][0].size).toBe(44 + 3200 * 16 * 2);
+});
+
+it('loads the capture worklet from its own file, not an inlined data URL', async () => {
+  const mic = microphone(), onStop = vi.fn();
+  const { result } = renderHook(() => useRecorder(onStop, false, { continuous: true, lineKey: 'one' }));
+  await act(async () => result.current.toggle());
+  const [url] = mic.contexts[0].audioWorklet.addModule.mock.calls[0];
+  expect(String(url)).toMatch(/capture-worklet\.js(\?|$)/);
+  expect(String(url)).not.toMatch(/^data:/);
+});
+
+it('keeps the newer tap recording when an older microphone request fails after the page was hidden', async () => {
+  const mic = microphone(), onStop = vi.fn(), first = deferred();
+  mic.getUserMedia.mockImplementationOnce(() => first.promise);
+  const { result } = renderHook(() => useRecorder(onStop, false, { continuous: true, lineKey: 'one' }));
+  let starting;
+  act(() => { starting = result.current.toggle(); });
+  const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+  act(() => { document.dispatchEvent(new Event('visibilitychange')); });
+  visibility.mockRestore();
+  expect(result.current.status).toBe('ready');
+  await act(async () => result.current.toggle());
+  expect(result.current.status).toBe('recording');
+  await act(async () => { first.reject(new DOMException('Permission denied', 'NotAllowedError')); await starting; });
+  expect(result.current.status).toBe('recording');
+  expect(mic.contexts).toHaveLength(1);
+  expect(mic.contexts[0].close).not.toHaveBeenCalled();
+  await mic.line();
+  expect(onStop).toHaveBeenCalledOnce();
 });
