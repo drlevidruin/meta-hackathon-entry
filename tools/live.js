@@ -56,7 +56,7 @@ function newestChange(entry) {
 export function stationIsStale(root = ROOT) {
   const built = path.join(root, 'station/dist/index.html');
   if (!fs.existsSync(built)) return true;
-  const sources = ['station/src', 'station/index.html'].map(name => path.join(root, name)).filter(fs.existsSync);
+  const sources = ['station/src', 'station/index.html', 'station/vite.config.js', 'rulebook'].map(name => path.join(root, name)).filter(fs.existsSync);
   return Math.max(...sources.map(newestChange)) > fs.statSync(built).mtimeMs;
 }
 
@@ -80,7 +80,8 @@ async function waitForPhonemes(url, service) {
 
 async function main() {
   const env = { ...process.env };
-  delete env.SAVE_ATTEMPTS;
+  // A defined value stops loadEnv from filling SAVE_ATTEMPTS in from .env.
+  env.SAVE_ATTEMPTS = '0';
   const key = secret('META_API_KEY', 'meta-model-api', env);
   const pin = secret('TEACHER_PIN', 'kriah-teacher-pin', env);
   if (key) env.META_API_KEY = key;

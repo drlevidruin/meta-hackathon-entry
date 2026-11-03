@@ -285,6 +285,9 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, lin
           const silent = createSilenceDetector();
           const mimeType = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/ogg;codecs=opus']
             .find(type => MediaRecorder.isTypeSupported(type));
+          // A later tap may already own a new context by the time onstop fires.
+          const own = session.context;
+          const closeOwnAudio = () => { if (audio.current?.context === own) closeAudio(); };
           session.recorder = new MediaRecorder(session.stream, mimeType ? { mimeType } : undefined);
           session.recorder.ondataavailable = event => { if (!session.discard && event.data.size) session.chunks.push(event.data); };
           session.recorder.onstop = () => {
@@ -292,7 +295,7 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, lin
             session.chunks = [];
             release(session);
             // One recording per tap here, and the next tap opens a fresh context inside its gesture.
-            closeAudio();
+            closeOwnAudio();
             if (!session.discard && mounted.current) {
               setStatus('ready');
               callback.current(blob);
@@ -303,7 +306,7 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, lin
             if (session.recorder.state === 'recording') session.recorder.stop();
             session.chunks = [];
             release(session);
-            closeAudio();
+            closeOwnAudio();
             if (mounted.current) setStatus('off');
           };
           session.recorder.start();
