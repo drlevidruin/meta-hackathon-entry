@@ -1,164 +1,125 @@
-# Demo video shot list
+# Demo video script
 
-Three minutes after editing. Only an adult appears or reads. No child's voice or face. All names are invented. Record a complete turn, then cut between the shots below. Keep one real grade's wait visible at normal speed.
+Hard limit 3:00. Rabbi Dr. Levi Druin reads and narrates. Only an adult appears or reads: no child's voice, face or name. Every number spoken below is in `docs/ear-test.md`, `docs/live-run.md` or `docs/build-log.md`.
 
-The live shots use the real server. The terminal shots use typed sounds to check the grader alone. Mock mode is only for the fuller class history. Its built-in gray Demo pill must stay visible, so keep the header in frame on every mock shot.
+Lines marked [CHECK] need a fact confirmed on the live station before recording.
 
-## Before recording
+## The script
 
-Use Node 22.12 or newer and the installed station dependencies. Use a desktop view at 1440 pixels wide and a phone view at 390 pixels wide. Keep both on the computer running the server, at localhost, so the microphone works.
+### 0:00 to 0:20 | The problem
 
-Keep `.env` and PIN entry out of frame. In the root `.env`, set `META_API_KEY` and a `TEACHER_PIN` of 4 to 12 digits. Leave the ear model and reasoning settings at their `.env.example` defaults. Use a terminal with no exported key, PIN or model overrides. The blank Baseten key in the command below turns off the fallback ear, so every line in the film is heard by Muse Wonder 1.0. Missing or invalid PINs stop startup. Without a Meta key, this demo command cannot hear; failed lines stay gray.
+**Screen:** The live station's Who's reading screen at 1440 by 900. Lower third: "Rabbi Dr. Levi Druin, Principal" and "Built October 26 to November 4, 2026".
 
-Start the phoneme service first, in its own terminal at the repo root, so the referee is on. Run `npm run phonemes:setup` once beforehand if `phonemes/.venv` is missing. Wait for `Model pinned in memory`, and leave it running.
+**Voiceover:**
+"I'm Levi Druin. I run a Jewish day school, and I teach kriah: reading Hebrew with its vowels. A teacher can't hear every child read every day. And the mistakes that matter are tiny. One vowel. One dot. So I built a station that listens."
 
-```bash
-npm run phonemes
-```
+### 0:20 to 1:05 | A live reading
 
-Copy this one block from the repo root, in a second terminal. It builds the station and starts the server with an empty temporary data folder. Its startup lines must include `Phoneme referee: on`:
+**Screen:** Tap Levi. Read three lines aloud, one after another, with the microphone on. Keep the reading audible. Keep the first line's grade at normal speed, wait included. Cut the other waits. Hold on line 2 when its marks appear, then zoom on the planted vowel.
 
-```bash
-npm --prefix station run build -- --configLoader native
-DATA_DIR="$(mktemp -d)" BASETEN_API_KEY= TRACE=1 COACH_MODEL=on \
-  HOST=127.0.0.1 PORT=8787 npm start
-```
+**On camera, read:** the three lines the station shows, in Ashkenazi pronunciation. On line 2, read one kamatz as a patach: a instead of o. See "Lines and the planted mistake" below.
 
-Leave that terminal running. Open `http://localhost:8787/`, without `?mock`. Tap Teacher, enter the PIN, then Roster. Add these three invented children for the Who's reading shot:
+**Voiceover, over line 1's marks:**
+"Green means I read it right. Every letter, every vowel."
 
-| First name | Avatar | Preset |
-| --- | --- | --- |
-| Bim | lion | Ashkenazi |
-| Zuzu | turtle | Ashkenazi |
-| Nubo | owl | Ashkenazi |
+**Voiceover, over line 2's marks:**
+"On this line I made a mistake on purpose. This is a kamatz. I read it as a patach: na, not no. The mark lands on that one vowel. Purple means the vowel was wrong. Orange would mean the letter. Underneath is what the ear heard."
 
-In Roster, tap Edit for Nubo, choose Level 2, then Save. Leave all three unread until filming. Nubo's first set is:
+**Voiceover, over line 3:**
+"The microphone stays on. Each line grades while I read the next one."
 
-1. `סָץ שֻׁס בּוֹס סוּם סֵית`. Say `sotz shus vos sum seys`, reading v for b in the third word.
-2. `בֻּץ בִּיךְ בִּן בֵּין בִּיל`. Read as printed.
-3. `דָן אָץ דָךְ רָן לָם`. Read as printed.
+If a correctly read syllable is also marked, keep it in the take and add: "This one I read correctly. It still gets marked sometimes. I'll show you how often."
 
-Read every other sound in Ashkenazi pronunciation, the preset Nubo uses. A sound read another way gets its own amber mark. In a rehearsal with an Israeli synthetic voice, line 1 showed three extra amber marks for that reason. The October 27 adult rounds found the same with a real Ashkenazi voice: the ear wrote Israeli vowels. The phoneme referee now corrects most of them, but on the sealed words a correct vowel was still marked in two of three runs, so one may show amber. See the [ear test](ear-test.md#round-1e-results-october-27).
+### 1:05 to 1:45 | The ear never sees the text
 
-Allow microphone access before capture. For each line, tap the microphone, read the whole line without a long pause, then stay quiet. Recording stops by itself about a second after speech ends, with a 20 second maximum. Never tap again after it stops. Wait for the marks before reading the next line.
+**Screen:** The How it works diagram in the README, rendered on GitHub at 1440 wide [CHECK: the diagram is still in the README]. Highlight each box as it is named: the ear, then the vowel meter and the phoneme model, then the rulebook and grader.
 
-A full turn is eight sets, about 25 lines, and ends on its own after the eighth checkpoint. In the synthetic rehearsal each line took about 4 seconds to grade and the whole turn took about 2.5 minutes. A person reading aloud takes longer. Tap Start only when ready. A set left open for four minutes ends the turn at its next checkpoint, if it has a graded line, before the model can pick another set. This includes time spent waiting for grades. Film the whole turn and its trace within 30 minutes of Start. The server expires the turn then. Do not restart the server or start another Nubo turn before capturing its trace.
+**Voiceover:**
+"Here's the part that matters. The ear is Muse Wonder, through the Meta Model API. It gets my audio and a sound alphabet, and never the printed line. A model that knows the word tends to hear the word. So the ear only writes sounds. We ask it five times and grade on the first three answers. Then two checks that also never see the text: a vowel meter, and Meta's open wav2vec2 phoneme model, running on this computer. Both compare my vowels with my own voice card. Last, plain code: a rulebook that knows every letter and vowel."
 
-The marks on the reading screen are the live shot. Keep the actual result. If the bet is not amber, describe the marks that appear. This adult demo is not the planned real-voice test round.
+### 1:45 to 2:00 | One reading, two traditions
 
-Finish the full turn before filming the trace and saved teacher log. After the done screen, tap Next friend, Teacher, Class, Nubo, then look under Turns. Tap Coach trace on the newest turn. Checkpoint 0 comes from rules. For the model shot, choose a middle row whose Source is `model`. The last row is the stop rule. If all rows say `rule`, the coach used its fallback. Describe that result instead of claiming a model answer. If the trace is no longer available, record a new full turn and use its saved link.
-
-For class history only, open a separate tab at `http://localhost:8787/?mock#/teacher`. Any PIN of 4 to 12 digits opens it. Keep its header and gray Demo pill in frame, including during the cut between class and map.
-
-## 0:00 to 0:20 | The problem
-
-**Screen:** Real Who's reading? screen at 1440 wide, showing Bim, Zuzu and Nubo.
-
-**Path:** `http://localhost:8787/#/`.
-
-**Voiceover:** “One teacher cannot listen to every child read every day. And the mistakes that matter can be small: one letter, or one vowel. Kriah Listener listens to a line and marks the sounds to practice.”
-
-## 0:20 to 0:55 | A real reading
-
-**Screen:** Real station at 390 wide. Keep the adult's planted reading audible. Hold on the first line's marks while the next line is below it. Keep the first grade's wait at normal speed.
-
-**Path:** Nubo → Start. A new reader gets the voice check card first. Tap the microphone and read its fifteen sounds right to left, row by row, in Ashkenazi pronunciation, with a short pause after each sound. Keep each pause under a second, then stay quiet. The first line follows. For each of the three lines, tap the microphone, read the whole line without a long pause, then stay quiet. It stops by itself. Never tap again after it stops. Wait for each grade. Save the end-of-set footage for the checkpoint shot.
-
-**Voiceover:** “This is an adult reading on an invented profile. I read the b as v. These are the marks returned through the real server.”
-
-If the bet is amber, add: “The bet is amber.” Do not claim the exact sounds returned by the ear from the mark alone. Keep the actual marks in the take.
-
-## 0:55 to 1:10 | Isolate the mistake
-
-**Screen:** Terminal at 1440 wide. Show the bet's `wrong_letter`, `heard=vo` and `expected=bo`.
-
-**Command, from the repo root:**
-
-```bash
-npm run grade -- --preset ashkenazi --line "שַׁבָּת" --heard "sha-vos"
-```
-
-**Voiceover:** “Here is the same letter mistake in Shabbos: sha-vos. These sounds are typed. The printed bet needs b, and the grader marks v as the wrong letter. This checks the grader on its own.”
-
-This command needs no key. The committed bank has no שַׁבָּת item, so the live station uses בּוֹס for the letter mistake.
-
-## 1:10 to 1:20 | The route through the system
-
-**Screen:** The rendered How it works diagram in [README](../README.md#how-it-works), at 1440 wide. Point from audio to the ear, then from syllables and printed line to the grader.
-
-**Voiceover:** “The ear gets audio and a sound alphabet. It never sees the printed line. Code compares the heard sounds with the rulebook.”
-
-## 1:20 to 1:40 | One reading, two traditions
-
-**Screen:** Terminal outputs side by side. Show three `ok` marks for Ashkenazi, then Sephardi's `wrong_vowel` and `wrong_letter`.
-
-**Commands, from the repo root:**
+**Screen:** Two terminal panes side by side at 1440 wide, large font. Left pane shows the Ashkenazi result, three `ok`. Right pane shows the Sephardi result, `wrong_vowel` and `wrong_letter`.
 
 ```bash
 npm run grade -- --preset ashkenazi --line "שַׁבָּת" --heard "sha-bos"
 npm run grade -- --preset sephardi --line "שַׁבָּת" --heard "sha-bos"
 ```
 
-**Voiceover:** “Both commands get the same typed sha-bos. Ashkenazi accepts all three sounds. Sephardi expects sha-bat, so the vowel and final letter are marked. The pronunciation tradition changes the verdict.”
+**Voiceover:**
+"Same sounds, sha-bos. In Ashkenazi reading, that's right. In Sephardi reading, it's two mistakes. The rulebook judges each child by their own tradition."
 
-## 1:40 to 1:52 | The checkpoint
+### 2:00 to 2:25 | The teacher view
 
-**Screen:** Saved footage from the real turn at 390 wide. Show the checkpoint star after the third line stops and all grades return, then the next set.
+**Screen:** Teacher, PIN entered off camera, then Class, then Levi: the reading map with its legend. Then Print packet: Warm up, Practice and Challenge in frame. For a fuller class, cut to the mock teacher view with its gray Demo pill in frame [CHECK: https://levis-new-mac-mini.tail8bd372.ts.net/?mock#/teacher opens mock mode].
 
-**Voiceover, when the trace confirms that checkpoint's Source is `model`:** “After the set, Muse Spark 1.3 picks bank ids. Code checks every pick. In the synthetic server run, it answered all seven coach checkpoints.”
+**Voiceover:**
+"The teacher gets a reading map: every letter with every vowel, solid, shaky, or not tested yet. Children are grouped by what to practice next. Muse Spark picks the next lines from the bank, and code checks every pick. The packet has a warm-up, practice and a challenge. No model writes Hebrew a child reads."
 
-If the live checkpoint used a rule, say: “After the set, a rule picked the next practice. In the recorded synthetic server run, Muse Spark 1.3 answered all seven coach checkpoints.”
+If the mock class is on screen, add: "This class is simulated."
 
-The seven-of-seven count comes from [live-run.md](live-run.md). Finish the remaining sets off camera before recording the next two shots.
+### 2:25 to 2:50 | Honest results
 
-## 1:52 to 2:01 | The coach trace
+**Screen:** A plain results card, white ground, large type, held for the whole section:
 
-**Screen:** Real Coach trace at 1440 wide. Frame the checkpoint number, Source, Explain and Reason. Use a later model row if one is available.
+> One adult voice, planted mistakes, sealed rounds.
+> Six sealed rounds run. Five failed. One passed.
+> Round 1i, three of three runs: 12 of 12 planted mistakes caught. No correct reading marked wrong.
+> Muse Wonder alone: 5 or 6 false marks a run. With the meter and Meta's phoneme model: 0.
+> No child round yet.
 
-**Path:** After finishing, Next friend → Teacher → Class → Nubo → Turns → Coach trace on the newest turn. Enter the PIN off camera if asked.
+**Voiceover:**
+"I tested it on my own voice, with mistakes planted on purpose. In a sealed round, nobody hears the answers until the rules are frozen and the pass rule is written down. Five sealed rounds failed. They're all published. Round 1i passed all three runs. Every planted mistake caught. Nothing marked wrong by mistake."
 
-**Voiceover:** “The model's reason is in this PIN-protected trace. The child's screen and the teacher's turn log use fixed sentences.”
+### 2:50 to 3:00 | Close
 
-Use the current trace, not the example reason in the run notes. If only rule rows are available, say: “This turn used the rule fallback. Its decisions are in the PIN-protected trace.”
+**Screen:** Back to the live station, Who's reading screen. End card: "Kriah Listener" and the repo URL, github.com/drlevidruin/meta-hackathon-entry.
 
-## 2:01 to 2:10 | What the teacher sees
+**Voiceover:**
+"Next is a child's voice, with parent consent. Kriah Listener. Built for my teachers."
 
-**Screen:** Real Nubo child detail at 1440 wide. Show the same checkpoint's fixed sentence under Turns. Match it to Explain in the trace.
+## Lines and the planted mistake
 
-**Path:** Use the browser's Back button to return from the trace to Nubo's Turns.
+The station chooses the lines, so the exact lines depend on the set it serves. Before recording, set Levi to Ashkenazi at Level 5 in Roster, so the lines are short siddur phrases [CHECK: Levi's preset and level on the live roster].
 
-**Voiceover:** “The turn log uses a fixed sentence from decision fields. If the model fails, a rule chooses the practice.”
+- **Line 1:** read as printed, Ashkenazi: kamatz as o, cholam as oy, a sav without a dot as s.
+- **Line 2:** read one kamatz in the middle of a word as a patach, a instead of o. Pick one inside a word, not on its last syllable. Read the rest as printed.
+- **Line 3:** read as printed.
 
-## 2:10 to 2:20 | Practice groups
+The bank's line `הָעוֹלָם אֲשֶׁר נָתַן לַשֶּׂכְוִי בִינָה` is the model case. Read it ho-oy-lom a-sher na-san la-sech-vi vi-no, with נָתַן read na-san for no-san. The grader marks that kamatz `wrong_vowel` and nothing else in the line:
 
-**Screen:** Fuller class view in the mock tab at 1440 wide. Keep the header and Demo pill in frame.
+```bash
+npm run grade -- --preset ashkenazi --line "הָעוֹלָם אֲשֶׁר נָתַן לַשֶּׂכְוִי בִינָה" --heard "ho-oy-lom a-sher na-san la-sech-vi vi-no"
+```
 
-**Path:** `http://localhost:8787/?mock#/teacher` → Class.
+The same plant was in Round 1k. After the fixes measured on Round 1k, the replay caught it in every run.
 
-**Voiceover:** “These groups and the next map use simulated history. The teacher view groups children by their next skill to practice.”
+## Shot list
 
-## 2:20 to 2:30 | Letter and vowel map
+| Time | Shot | Source |
+| --- | --- | --- |
+| 0:00 | Who's reading screen, lower third | Live station, 1440 by 900 |
+| 0:20 | Three lines read, marks appear, zoom on the planted vowel | Live station, screen recording with room audio |
+| 1:05 | How it works diagram, boxes highlighted in turn | README on GitHub |
+| 1:45 | Two grader commands side by side | Terminal |
+| 2:00 | Reading map, then practice packet, then mock class | Live teacher view; mock tab with Demo pill |
+| 2:25 | Results card | Title card in the editor |
+| 2:50 | Station and end card | Live station; title card |
 
-**Screen:** Mock Bim's reading map at 1440 wide. Show Solid, Shaky and Untested. Keep the header, Demo pill and map legend in frame.
+## Recording checklist
 
-**Path:** Mock Class → Bim → Reading map.
-
-**Voiceover:** “The map pairs letters with vowels. Real cells use recent graded reads. Untested means there is not enough evidence yet.”
-
-This is simulated history, not evidence from children.
-
-## 2:30 to 2:40 | Packet preview
-
-**Screen:** Real Nubo packet at 1440 wide. Show Warm up, Practice and Challenge, with the challenge item in frame.
-
-**Path:** Real tab → Teacher → Class → Nubo → Print packet. This is the preview. The Print button opens the print dialog.
-
-**Voiceover:** “Each packet includes a challenge from the bank. No model writes the Hebrew a child reads.”
-
-## 2:40 to 3:00 | Evidence and next rounds
-
-**Screen:** At 1440 wide, show the Round 1e results in [ear-test.md](ear-test.md#round-1e-results-october-27), then the results and limits in [live-run.md](live-run.md). End on the real station. Keep this card readable: “One adult voice, 12 sealed words, three runs: false marks 10 without the phoneme referee, 6 with it; plants caught 10 of 12 both ways. No run passed yet. Synthetic server run: 25/25 lines; coach 7/7. No child round yet.”
-
-**Voiceover:** “On twelve sealed words read by an adult, Meta's open phoneme model, running on this computer, cut false marks from ten to six and caught as many planted mistakes. No run has passed yet. A synthetic server run graded all twenty-five lines. The child round comes after the adult round passes. Audio stays in memory and is never written to disk; standard tier only.”
-
-These are recorded observations. Completed grades do not measure correct verdicts. One adult voice does not establish a grader accuracy rate. The child round requires a passing adult round, written parent consent and a paid Meta plan with free credits off. Make no claim of classroom use or of accuracy on children's voices.
+- [ ] Chrome, one window, sized to 1440 by 900. Bookmarks bar hidden (Cmd+Shift+B). No other tabs, no extensions in the toolbar.
+- [ ] Do Not Disturb on. Notifications off.
+- [ ] Quiet room, no fan or music. Same microphone for the voice card and the lines.
+- [ ] Microphone allowed for https://levis-new-mac-mini.tail8bd372.ts.net in Chrome's site settings before the take.
+- [ ] Levi on the live roster, Ashkenazi, Level 5 [CHECK].
+- [ ] Voice card read off camera before the take, in the same room and on the same microphone. If the server restarts, read it again: the card lives only in memory.
+- [ ] Line 2's planted mistake chosen: one kamatz inside a word, read as a.
+- [ ] Teacher PIN entered off camera.
+- [ ] Terminal font large enough to read at 1440 wide. No keys or `.env` in frame.
+- [ ] Mock teacher tab open with its Demo pill in frame, if it is used.
+- [ ] Record two or three takes of the live reading. Keep the take as it happened, false marks included. Never edit a mark.
+- [ ] Voiceover recorded separately, read from this script, then laid over the footage.
+- [ ] Final cut timed at 3:00 or less.
+- [ ] No child's voice, face or name anywhere in the video.
+- [ ] Video uploaded and the link opened in a logged-out browser before it goes into the form [CHECK: hosting and visibility rules on the submit form].
