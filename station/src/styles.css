@@ -219,7 +219,7 @@ main > section, main > div { animation: screen-arrive .32s ease-out both; }
 .line-frame { min-width: 0; width: 100%; display: grid; align-items: center; position: relative; }
 .challenge-badge { position: absolute; top: -4px; right: 4px; display: grid; place-items: center; background: var(--gold-tint); border-radius: 50%; padding: 8px; }
 .challenge-badge .star { width: 22px; height: 22px; }
-.current-line { min-width: 0; width: 100%; max-height: 62svh; overflow: auto; font: 700 clamp(60px, 16vw, 88px)/2.15 var(--font-hebrew); color: var(--deep-navy); padding: .2em 8px .3em; overflow-wrap: anywhere; transition: opacity .25s ease; }
+.current-line { min-width: 0; width: 100%; max-height: min(62svh, calc(100svh - 330px)); overflow: auto; font: 700 clamp(60px, 16vw, 88px)/2.15 var(--font-hebrew); color: var(--deep-navy); padding: .2em 8px .3em; overflow-wrap: anywhere; transition: opacity .25s ease; }
 .reading-stage[data-state="paused"] .current-line { opacity: .38; }
 .current-line-text > .star { width: 72px; height: 72px; vertical-align: middle; }
 .reading-word { display: inline-block; max-width: 100%; transform-origin: center; transition: transform .18s ease-out, color .18s ease-out; scroll-margin: .3em; }
