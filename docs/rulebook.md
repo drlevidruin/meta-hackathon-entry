@@ -4,6 +4,15 @@ The rulebook encodes expected sounds for pointed Hebrew words. It is plain code 
 
 AI reviewers checked every distinct siddur word in all three traditions. A second AI review confirmed each finding. Fixes have regression tests and a before and after comparison of every word. No human kriah teacher has reviewed the rulebook yet. The [Shema page](check/shema.md) is the page for that hand check. See the [review record](check/rulebook-review.md).
 
+## Ruling of 2026-10-30
+
+Rabbi Dr. Levi Druin, principal of Pardes Day School and a kriah teacher, ruled on two questions for the Ashkenazi preset. He answered no to both.
+
+- **A quiet h is not a mistake.** A ה carrying a sheva nach may be left unsaid, so its consonant may be `h` or nothing. The example is לִהְיוֹת read "li-yoys". This covers ה with a sheva nach only. Every other ה is unchanged, and Sephardi and Chassidish are unchanged.
+- **A tzere read as "e" is not a mistake.** Ashkenazi tzere now accepts `e` as well as `ey`. The example is יִשְׂרָאֵל read "Yis-ro-el". Sephardi already accepted both, and Chassidish still takes `ey` only.
+
+Test rounds run before this date were scored under the old rules and stand as recorded. The files under `docs/runs/` were not changed. Scoring a saved run again today uses the new rules.
+
 ## Sound alphabet
 
 Consonants: `b v g d h z ch t y k l m n s p f tz r sh`. Vowels: `a e i o u oy ey`. A silent letter produces nothing (`''`).
@@ -16,7 +25,7 @@ Consonants: `b v g d h z ch t y k l m n s p f tz r sh`. Vowels: `a e i o u oy ey
 | kamatz | a | o | o, u |
 | kamatz katan, chataf kamatz | o | o | o |
 | segol, chataf segol | e | e | e |
-| tzere | e, ey | ey | ey |
+| tzere | e, ey | ey, e | ey |
 | chirik | i | i | i |
 | cholam | o | o, oy, ey | o, oy, ey |
 | kubutz, shuruk | u | u | u |
@@ -34,7 +43,7 @@ A word splits into pairs. A pair is one sounding letter plus its vowel. Silent l
 | בּ / ב | b / v |
 | גּ ג | g |
 | דּ ד | d |
-| ה | h. Last letter, no vowel, no mappik: silent, joins the pair before. הּ (mappik) is h. |
+| ה | h. Last letter, no vowel, no mappik: silent, joins the pair before. הּ (mappik) is h. In Ashkenazi, a ה with a sheva nach may also be silent (`''`). |
 | ו | v, except as cholam male or shuruk (below) |
 | ז | z |
 | ח | ch |

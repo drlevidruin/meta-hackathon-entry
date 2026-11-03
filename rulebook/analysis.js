@@ -31,6 +31,8 @@ export function soundPairs(groups, pairs, preset, divine) {
       consonants = ['', 'k'];
       pair.flags.push('divine_name');
     }
+    // Levi, 2026-10-30: in Ashkenazi a hei with a sheva nach may go unsaid (li-yoys).
+    if (preset === 'ashkenazi' && pair.letter === 'ה' && pair.vowel === 'sheva_nach') consonants = ['h', ''];
     let vowels = [...PRESETS[preset][pair.vowel]];
     if (pair.flags.includes('kamatz_katan')) vowels = [...new Set([...vowels, 'o'])];
     pair.furtive = pair.index === groups.length - 1 && pair.vowel === 'patach'

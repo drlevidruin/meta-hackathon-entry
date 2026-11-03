@@ -29,14 +29,14 @@ for (const entry of golden.flagOnly) for (const preset of presets) {
 }
 
 const reviewedWords = [
-  { word: 'חֵטְא', sephardi: ['che|chey', 't'], ashkenazi: ['chey', 't'], chassidish: ['chey', 't'], flags: [] },
-  { word: 'וַיֵּרְא', sephardi: ['va', 'ye|yey', 'r'], ashkenazi: ['va', 'yey', 'r'], chassidish: ['va', 'yey', 'r'], flags: [] },
-  { word: 'וֵאלֹהֵי', sephardi: ['ve|vey', 'lo', 'he|hey|ke|key'], ashkenazi: ['vey', 'lo|loy|ley', 'hey|key'],
+  { word: 'חֵטְא', sephardi: ['che|chey', 't'], ashkenazi: ['chey|che', 't'], chassidish: ['chey', 't'], flags: [] },
+  { word: 'וַיֵּרְא', sephardi: ['va', 'ye|yey', 'r'], ashkenazi: ['va', 'yey|ye', 'r'], chassidish: ['va', 'yey', 'r'], flags: [] },
+  { word: 'וֵאלֹהֵי', sephardi: ['ve|vey', 'lo', 'he|hey|ke|key'], ashkenazi: ['vey|ve', 'lo|loy|ley', 'hey|he|key|ke'],
     chassidish: ['vey', 'lo|loy|ley', 'hey|key'], flags: ['divine_name'] },
-  { word: 'לֵאלֹהִים', sephardi: ['le|ley', 'lo', 'hi|ki', 'm'], ashkenazi: ['ley', 'lo|loy|ley', 'hi|ki', 'm'],
+  { word: 'לֵאלֹהִים', sephardi: ['le|ley', 'lo', 'hi|ki', 'm'], ashkenazi: ['ley|le', 'lo|loy|ley', 'hi|ki', 'm'],
     chassidish: ['ley', 'lo|loy|ley', 'hi|ki', 'm'], flags: ['divine_name'] },
   { word: 'לֵאלֹהֵיכֶם', sephardi: ['le|ley', 'lo', 'he|hey|ke|key', 'che', 'm'],
-    ashkenazi: ['ley', 'lo|loy|ley', 'hey|key', 'che', 'm'],
+    ashkenazi: ['ley|le', 'lo|loy|ley', 'hey|he|key|ke', 'che', 'm'],
     chassidish: ['ley', 'lo|loy|ley', 'hey|key', 'che', 'm'], flags: ['divine_name'] },
   { word: 'אֱלוֹהַי', sephardi: ['e', 'lo', 'ha|ka', 'y'], ashkenazi: ['e', 'lo|loy|ley', 'ha|ka', 'y'],
     chassidish: ['e', 'lo|loy|ley', 'ha|ka', 'y'], flags: ['divine_name'] },
@@ -57,7 +57,7 @@ for (const entry of reviewedWords) for (const preset of presets) {
 
 const nameReadings = {
   sephardi: [['a', 'do', 'na', 'y'], ['ha', 'she|shey', 'm']],
-  ashkenazi: [['a', 'do|doy|dey', 'no', 'y'], ['ha', 'shey', 'm']],
+  ashkenazi: [['a', 'do|doy|dey', 'no', 'y'], ['ha', 'shey|she', 'm']],
   chassidish: [['a', 'do|doy|dey', 'no|nu', 'y'], ['ha', 'shey', 'm']],
 };
 for (const [word, prefix, sounds] of [
@@ -318,4 +318,27 @@ test('merged cholam leaves matres, silent alef, explicit vowels and unpointed re
     assert.ok(expectedSounds(word, 'sephardi').flags.includes('unpointed'), word);
   }
   assert.equal(expectedSounds('וּשֶׁ', 'sephardi').pairs[0].vowel, 'shuruk');
+});
+
+// Levi's ruling, 2026-10-30, Ashkenazi only: a quiet h and a tzere read as "e" are not mistakes.
+test('Ashkenazi accepts a silent hei that carries a sheva nach, and no other hei', () => {
+  const sounds = (word, preset, index) => expectedSounds(word, preset).pairs[index].sounds;
+  assert.equal(expectedSounds('לִהְיוֹת', 'ashkenazi').pairs[1].vowel, 'sheva_nach');
+  assert.deepEqual(new Set(sounds('לִהְיוֹת', 'ashkenazi', 1)), new Set(['h', '']));
+  assert.deepEqual(sounds('לִהְיוֹת', 'sephardi', 1), ['h']);
+  assert.deepEqual(sounds('לִהְיוֹת', 'chassidish', 1), ['h']);
+  assert.deepEqual(sounds('הְיוּ', 'ashkenazi', 0), ['he']);
+  assert.deepEqual(sounds('הֶיוּ', 'ashkenazi', 0), ['he']);
+  assert.deepEqual(sounds('נָהַר', 'ashkenazi', 1), ['ha']);
+  assert.deepEqual(sounds('אֶהְיֶה', 'ashkenazi', 0), ['e']);
+  assert.deepEqual(new Set(sounds('אֶהְיֶה', 'ashkenazi', 1)), new Set(['h', '']));
+  assert.deepEqual(sounds('לָהּ', 'ashkenazi', 1), ['h']);
+});
+
+test('Ashkenazi tzere accepts e as well as ey, and the other presets keep their sets', () => {
+  assert.deepEqual(PRESETS.ashkenazi.tzere, ['ey', 'e']);
+  assert.deepEqual(PRESETS.sephardi.tzere, ['e', 'ey']);
+  assert.deepEqual(PRESETS.chassidish.tzere, ['ey']);
+  assert.deepEqual(new Set(expectedSounds('יִשְׂרָאֵל', 'ashkenazi').pairs[3].sounds), new Set(['ey', 'e']));
+  assert.deepEqual(expectedSounds('יִשְׂרָאֵל', 'chassidish').pairs[3].sounds, ['ey']);
 });

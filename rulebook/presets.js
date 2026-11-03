@@ -6,7 +6,7 @@ const common = {
 
 export const PRESETS = Object.fromEntries(Object.entries({
   sephardi: { kamatz: ['a'], tzere: ['e', 'ey'], cholam: ['o'] },
-  ashkenazi: { kamatz: ['o'], tzere: ['ey'], cholam: ['o', 'oy', 'ey'] },
+  ashkenazi: { kamatz: ['o'], tzere: ['ey', 'e'], cholam: ['o', 'oy', 'ey'] },
   chassidish: { kamatz: ['o', 'u'], tzere: ['ey'], cholam: ['o', 'oy', 'ey'] },
 }).map(([name, vowels]) => [name, Object.freeze(Object.fromEntries(
   Object.entries({ ...common, ...vowels }).map(([vowel, sounds]) => [vowel, Object.freeze([...sounds])]),

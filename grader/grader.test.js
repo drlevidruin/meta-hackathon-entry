@@ -396,7 +396,7 @@ test('glide normalization never crosses a heard syllable boundary', () => {
 });
 
 test('a missing tzere glide is a vowel error with a Sephardi explanation', () => {
-  const result = grade('אֱלֹהֵינוּ', 'ashkenazi', 'e-loy-ke-nu');
+  const result = grade('אֱלֹהֵינוּ', 'chassidish', 'e-loy-ke-nu');
   assert.deepEqual(verdicts(result.words[0]), ['ok', 'ok', 'wrong_vowel', 'ok']);
   assert.equal(result.words[0].pairs[2].heard, 'ke');
   assert.equal(result.words[0].pairs[2].otherTradition, 'sephardi');
@@ -424,7 +424,7 @@ test('the third preset and acceptance of another tradition work', () => {
 
 test('mixed line summary counts sounded pairs, extras and sorted unique missed skills', () => {
   const result = grade('שַׁבָּת מֶלֶךְ אֶחָד שַׁבָּת אֱלֹהֵינוּ הָעוֹלָם', 'ashkenazi',
-    'sha-vos mech e-cho-de ba sha-? e-loy-ke-nu ha-ma-kom');
+    'sha-vos mech e-cho-de ba sha-? e-loy-ki-nu ha-ma-kom');
   assert.deepEqual(result.summary, {
     pairs: 20, ok: 11, wrong_letter: 1, wrong_vowel: 1, skipped: 1,
     extra: 2, uncertain: 2, not_decoded: 4,
@@ -512,4 +512,16 @@ test('a prefixed divine name needs the whole substitute, not the prefix alone', 
     const result = grade('שֶׁיְהֹוָה', preset, heard);
     assert.equal(result.summary.ok, result.summary.pairs, `${preset} ${heard}`);
   }
+});
+
+test('Ashkenazi grading accepts a quiet hei with sheva nach and a tzere read as e (Levi, 2026-10-30)', () => {
+  for (const heard of ['li-yoys', 'lih-yoys']) {
+    assert.deepEqual(grade('לִהְיוֹת', 'ashkenazi', heard).verdicts.filter((entry) => entry.verdict !== 'ok'), [], heard);
+  }
+  assert.deepEqual(extras(grade('לִהְיוֹת', 'ashkenazi', 'li-yoys')), []);
+  assert.deepEqual(grade('יִשְׂרָאֵל', 'ashkenazi', 'yis-ro-el').verdicts.filter((entry) => entry.verdict !== 'ok'), []);
+  assert.deepEqual(grade('יִשְׂרָאֵל', 'ashkenazi', 'yis-ro-eyl').verdicts.filter((entry) => entry.verdict !== 'ok'), []);
+  // Other presets are unchanged: a Sephardi reader still has to say the h, and Chassidish still needs ey.
+  assert.notDeepEqual(grade('לִהְיוֹת', 'sephardi', 'li-yos').verdicts.filter((entry) => entry.verdict !== 'ok'), []);
+  assert.notDeepEqual(grade('יִשְׂרָאֵל', 'chassidish', 'yis-ro-el').verdicts.filter((entry) => entry.verdict !== 'ok'), []);
 });
