@@ -94,7 +94,8 @@ export function ClassView() {
       </div></section>
       <section className="class-children"><h2>Children</h2><div className="child-rows">{data.children.map(child =>
         <a className="child-row" key={child.id} href={`#/teacher/child/${encode(child.id)}`}>
-          <Avatar name={child.avatar} small /><strong>{child.name}</strong><span className="level-badge">Level {child.level}</span>
+          <Avatar name={child.avatar} small /><div className="child-name"><strong>{child.name}</strong>
+            {child.lastTurn?.pairs > 0 && <span className="sound-bar" aria-hidden="true"><span style={{ width: `${Math.round(100 * child.lastTurn.ok / child.lastTurn.pairs)}%` }} /></span>}</div><span className="level-badge">Level {child.level}</span>
           <span>{child.next ? skillLabel(child.next) : child.lastTurn ? 'All practiced' : ''}</span>
           <span className="last-turn">{child.lastTurn ? `${child.lastTurn.ok} of ${child.lastTurn.pairs} sounds` : 'No turns yet'}</span>
         </a>)}</div></section>
