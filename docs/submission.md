@@ -145,12 +145,12 @@ The code is MIT licensed. The siddur text keeps its CC-BY license.
 
 ## Testing instructions
 
-1. Open https://levis-new-mac-mini.tail8bd372.ts.net in Chrome on a computer with a microphone.
+1. Open https://levis-new-mac-mini.tail8bd372.ts.net in Chrome on a computer with a microphone, or in Safari on an iPhone.
 2. Allow the microphone when Chrome asks.
 3. Tap a reader: Levi reads in Ashkenazi pronunciation, Guest in Sephardi.
 4. A new reader first sees a voice card of fifteen sounds. Tap the microphone and read the card right to left, row by row, with a short pause after each sound.
 5. Read each line as it appears. The microphone stays on. For Levi, read in Ashkenazi pronunciation: kamatz as o, a sav without a dot as s. For Guest, read in Sephardi pronunciation.
-6. To test a mistake, read one kamatz as a patach, a instead of o. Its vowel points should turn purple, with the heard syllable under it. A wrong letter shows orange. Each line takes a few seconds to grade.
+6. To test a mistake, read one kamatz as a patach, a instead of o. Its vowel points should turn purple, with the heard syllable under it. A wrong letter shows orange. Each line takes 5 to 12 seconds to grade, while the next line is already showing.
 7. For the teacher view, tap Teacher and enter the PIN given in the private judge notes of this form. Open Class, then a reader, to see the reading map and turn log. Tap Print packet for the practice packet.
 
 Without a microphone, the repo has a keyless preview with invented children and simulated grades: `npm --prefix station ci`, then `npm run demo`, then open http://localhost:5173/?mock. The grader can be tried alone, with no key: `npm run grade -- --preset ashkenazi --line "שַׁבָּת" --heard "sha-vos"`.
