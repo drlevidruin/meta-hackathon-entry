@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mic test | Kriah Listener</title>
+<style>
+:root { --navy: #161c42; --green: #10653c; --gold: #b88a3a; --bg: #f1f3f8; }
+body { margin: 0; padding: 24px 16px; background: var(--bg); color: var(--navy); font: 600 18px/1.4 system-ui, sans-serif; }
+main { max-width: 520px; margin: 0 auto; display: grid; gap: 16px; }
+h1 { margin: 0; font-size: 32px; }
+button { height: 72px; border: 0; border-radius: 999px; background: var(--green); color: #fff; font: 800 22px system-ui, sans-serif; }
+button:disabled { opacity: .5; }
+.row { display: flex; justify-content: space-between; padding: 14px 16px; background: #fff; border-radius: 14px; }
+.yes { color: var(--green); } .no { color: #b3261e; }
+#say { font-size: 26px; text-align: center; min-height: 36px; }
+</style></head>
+<body><main>
+<h1>Mic test</h1>
+<button id="go">Start</button>
+<div id="say"></div>
+<div id="rows"></div>
+</main>
+<script>
+const MS = 2500;
+const rows = document.getElementById('rows');
+const say = document.getElementById('say');
+const results = [];
+function show(name, result) {
+  results.push(result);
+  const row = document.createElement('div');
+  row.className = 'row';
+  row.innerHTML = `<span>${name}</span><span class="${result.heard === 'voice' ? 'yes' : 'no'}">${result.heard} · ${result.state} · ${result.rate}</span>`;
+  rows.append(row);
+}
+const classify = peak => peak < 0 ? 'noinput' : peak === 0 ? 'zero' : peak < 0.02 ? 'quiet' : 'voice';
+async function viaWorklet(ctx, stream) {
+  try { await ctx.resume(); } catch {}
+  await ctx.audioWorklet.addModule('mic-test-worklet.js');
+  const source = ctx.createMediaStreamSource(stream);
+  const node = new AudioWorkletNode(ctx, 'peak');
+  let peak = -1;
+  node.port.onmessage = e => { peak = Math.max(peak, e.data); };
+  source.connect(node); node.connect(ctx.destination);
+  await new Promise(r => setTimeout(r, MS));
+  source.disconnect(); node.disconnect();
+  return { heard: classify(peak), state: ctx.state, rate: ctx.sampleRate };
+}
+async function viaScript(ctx, stream) {
+  try { await ctx.resume(); } catch {}
+  const source = ctx.createMediaStreamSource(stream);
+  const node = ctx.createScriptProcessor(2048, 1, 1);
+  let peak = -1;
+  node.onaudioprocess = e => {
+    const input = e.inputBuffer.getChannelData(0);
+    let p = 0; for (let i = 0; i < input.length; i++) p = Math.max(p, Math.abs(input[i]));
+    peak = Math.max(peak, p);
+  };
+  source.connect(node); node.connect(ctx.destination);
+  await new Promise(r => setTimeout(r, MS));
+  source.disconnect(); node.disconnect();
+  return { heard: classify(peak), state: ctx.state, rate: ctx.sampleRate };
+}
+async function viaRecorder(stream) {
+  if (!window.MediaRecorder) return { heard: 'none', state: 'none', rate: 0 };
+  const rec = new MediaRecorder(stream);
+  let bytes = 0;
+  rec.ondataavailable = e => { bytes += e.data.size; };
+  rec.start();
+  await new Promise(r => setTimeout(r, MS));
+  await new Promise(r => { rec.onstop = r; rec.stop(); });
+  return { heard: bytes > 2000 ? 'voice' : 'zero', state: 'bytes', rate: bytes };
+}
+async function run(test) { try { return await test(); } catch (e) { return { heard: 'error', state: (e && e.name || 'error').toLowerCase().replace(/[^a-z]/g, ''), rate: 0 }; } }
+document.getElementById('go').onclick = async event => {
+  event.target.disabled = true;
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  // A: the station's order, context made inside the tap before the microphone opens.
+  const early = new Ctx();
+  early.resume().catch(() => {});
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: false, noiseSuppression: false } });
+  } catch (e) {
+    say.textContent = 'Microphone blocked';
+    fetch(`/api/miclog/blocked/${(e.name || 'error').toLowerCase().replace(/[^a-z]/g, '')}`).catch(() => {});
+    return;
+  }
+  say.textContent = 'Count out loud to twenty';
+  show('A', await run(() => viaWorklet(early, stream)));
+  const late = new Ctx();
+  show('B', await run(() => viaWorklet(late, stream)));
+  show('C', await run(() => viaScript(late, stream)));
+  show('D', await run(() => viaRecorder(stream)));
+  stream.getTracks().forEach(t => t.stop());
+  const plain = await navigator.mediaDevices.getUserMedia({ audio: true });
+  const third = new Ctx();
+  show('E', await run(() => viaWorklet(third, plain)));
+  plain.getTracks().forEach(t => t.stop());
+  say.textContent = 'Done';
+  const device = /iPhone|iPad/.test(navigator.userAgent) ? 'iphone' : 'other';
+  const browser = /CriOS/.test(navigator.userAgent) ? 'chrome' : /FxiOS/.test(navigator.userAgent) ? 'firefox' : 'safari';
+  const path = results.map(r => `${r.heard}/${r.state}`).join('/');
+  fetch(`/api/miclog/${device}/${browser}/${path}`).catch(() => {});
+};
+</script>
+</body></html>
