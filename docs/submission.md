@@ -28,7 +28,7 @@ The teacher sees each child's reading map, every letter with every vowel, marked
 
 **How it works.** It is not a chatbot. There is no chat window and no free-text AI feedback anywhere, for children, teachers or parents. It is a listening and grading pipeline with five stages:
 
-1. **The ear.** Muse Wonder 1.0, through the Meta Model API, gets the audio, the reader's voice card and a sound alphabet. It never sees the printed line, so it cannot fill in the word it expects. It writes syllables, like `sha-vos`.
+1. **The ear.** Muse Wonder 1.0, through the Meta Model API, gets the audio and a sound alphabet. It never sees the printed line, so it cannot fill in the word it expects. It writes syllables, like `sha-vos`.
 2. **The vowel meter.** Plain signal code measures each vowel in the audio against how this reader said a, o, e and i on a short voice card read once at the start.
 3. **The phoneme referee.** Meta's open wav2vec2 phoneme model runs on the same computer as the server. It writes what it hears in IPA, with no word list behind it. It checks the ear's a, o and e against the reader's own card.
 4. **The rulebook and grader.** Plain code knows what every letter and vowel should sound like in Sephardi, Ashkenazi and Chassidish reading. The grader lines up what was heard with what was printed and marks each letter-vowel pair: right, wrong letter, wrong vowel, skipped or extra.
@@ -39,14 +39,14 @@ Every Hebrew word a child sees comes from the item bank: lines cut from the sidd
 **What is new.** Three things.
 
 - The ear is text-blind by design. A model that knows the word tends to hear the word: in our tests one Meta model wrote back a word the reader had skipped, from memory alone. So the model gets audio only, and the judgment happens in code that does know the text.
-- The model is calibrated to one reader. Before each line, Muse Wonder hears the child's own voice card as a second recording in the same request, so it can compare this child's kamatz and patach in one voice.
+- The checks are calibrated to one reader. The vowel meter and Meta's phoneme model compare each vowel with the child's own voice card, read once at the start.
 - Tradition is a rule, not a guess. Each tradition is a set of accepted sounds per vowel and letter. The same reading can be right for one child and wrong for another, and the grader says so.
 
 ## How Meta's models are used
 
 | Job | Meta model | How |
 | --- | --- | --- |
-| The ear | Muse Wonder 1.0 (`muse-wonder-1.0`), Meta Model API | Audio in, syllables out. At minimal reasoning. The station asks it five times at once and grades as soon as three answers arrive, keeping the most common answer word by word. The reader's voice card goes with each call as a second audio part when the card kept each vowel pair apart. |
+| The ear | Muse Wonder 1.0 (`muse-wonder-1.0`), Meta Model API | Audio in, syllables out. At minimal reasoning. The station asks it five times at once and grades the first answer back. In the lab rounds the reader's voice card went with each call as a second audio part; the live station sends the reading alone (see below). |
 | The phoneme referee | wav2vec2 Large LV-60 phonemes (`facebook/wav2vec2-lv-60-espeak-cv-ft`), open weights, on the server computer | Writes IPA phonemes with no word list or language model. Calibrated on the reader's voice card. Checks only the ear's a, o and e. The audio for this check never leaves the computer. |
 | Following the reader | The same wav2vec2 model | Every 400 milliseconds the line read so far goes to the phoneme model, audio only. The station counts the vowels heard and enlarges the word being read. It never changes a grade. |
 | The coach | Muse Spark 1.3 (`muse-spark-1.3`), Meta Model API | Picks the next bank ids at each checkpoint. Code checks every id and level. Its reason is shown only in a PIN-protected developer trace. |
@@ -65,10 +65,10 @@ Every Hebrew word a child sees comes from the item bank: lines cut from the sidd
 - Muse Wonder writes Israeli vowels for an Ashkenazi reader. On the first adult round the grader caught 9 of 10 planted mistakes, but 7 or 8 correct sounds per run were marked wrong. Prompt changes and more reasoning did not fix it. That finding drove the meter and the referee.
 - More thinking hid more mistakes. At medium reasoning the ear wrote the word it recognized and hid 6 of 22 planted mistakes, against 2 at minimal, and took 25 seconds a reading instead of 6.
 - More calls did not fix a steady mistake. One, three and five calls per reading left the same false marks, because the ear repeats its mistake on a recording. The vote does fix answers that vary from call to call.
-- Hearing the reader's voice card helped. On sealed Round 1d, with the meter, the card caught 10 of 12 planted mistakes against 9 and left 14 false marks against 20 over three runs.
+- Hearing the reader's voice card helped, until a and o were left open. On sealed Round 1d, with the meter, the card caught 10 of 12 planted mistakes against 9 and left 14 false marks against 20 over three runs. But it more than tripled the audio in every call, and on an iPhone a Level 5 line took 9 to 11 seconds to check. On November 3, with a and o left open, 75 of Levi's clips were heard three ways: with the card and three answers, 6 of 6 remaining plants caught and 2 false marks; without the card, 6 of 6 and 1 false mark, with three answers or with one. So the live ear now hears the reading alone and grades the first of five answers.
 - Meta's open phoneme model is the strongest check on vowels. On the saved adult clips it was right on 90% of kamatz and patach syllables, against 66% for the ear and meter.
 
-**Muse Code.** Muse Code was set up as an outside reviewer. When it was called on this code, its plan quota was used up, so no review in this repo came from it. The code was written by Claude Code and OpenAI Codex to my brief. See "What was built during the event".
+**Muse Code.** Muse Code was set up as an outside reviewer. Its plan quota ran out during the build, so the earlier work was reviewed by Codex instead. On November 3 Muse Code reviewed the last changes: the iPhone recording fix, side-by-side grading, the voice card switch and the coach calls. Its findings were fixed in the commits that followed, or answered in their messages. The code was written by Claude Code and OpenAI Codex to my brief. See "What was built during the event".
 
 Only standard tier is used. No model id ending in `-contributor` is used, and the ear refuses those ids.
 

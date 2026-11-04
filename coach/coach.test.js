@@ -522,7 +522,9 @@ test('valid model picks use the specified provider and produce a decision about 
     why: 'mixed', misses: 0, challengeId: null,
   });
   assert.equal(explain(picked.decision), 'Dropped to syllables.');
-  assert.equal(fetcher.mock.callCount(), 1);
+  // The same question goes out three times at once; the first usable answer is kept.
+  assert.equal(fetcher.mock.callCount(), 3);
+  assert.equal(new Set(fetcher.mock.calls.map(call => call.arguments[1].body)).size, 1);
 });
 
 test('valid two- and three-line model answers are accepted', async t => {

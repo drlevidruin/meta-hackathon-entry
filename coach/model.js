@@ -35,6 +35,20 @@ function promptFor(profile, results, levels, candidates) {
 
 // A slow answer falls back to the rule pick, so the reader never waits long between sets.
 const COACH_TIMEOUT_MS = 8_000;
+// The same question goes out three times at once and the first usable answer is kept,
+// because one slow reply should not hold up the next set.
+const COACH_CALLS = 3;
+
+function firstUsable(requests) {
+  return new Promise(resolve => {
+    let left = requests.length;
+    const settle = value => {
+      if (value) resolve(value);
+      else if (--left === 0) resolve(null);
+    };
+    for (const request of requests) request.then(settle, () => settle(null));
+  });
+}
 
 export async function modelPick(profile, results, rule, levels, candidates, fetcher = globalThis.fetch) {
   // Omit malformed metadata rather than forwarding arbitrary text into a prompt.
@@ -74,11 +88,13 @@ export async function modelPick(profile, results, rule, levels, candidates, fetc
       if (!levels.includes(level) || selected.some(item => item.level !== level)) return null;
       return { itemIds, level, reason };
     };
-    return await Promise.race([request(), timeout]);
+    return await Promise.race([firstUsable(Array.from({ length: COACH_CALLS }, request)), timeout]);
   } catch {
     // Never return or log provider errors: they may contain authorization data.
     return null;
   } finally {
     clearTimeout(timer);
+    // Stop the calls still running once an answer is kept or the wait runs out.
+    controller.abort();
   }
 }

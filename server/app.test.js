@@ -24,7 +24,7 @@ const privateReason = 'PRIVATE_MODEL_REASON';
 const privateHeard = 'PRIVATE_HEARD_SOUND';
 const betKamatz = 'letter:bet|vowel:kamatz';
 const betPatach = 'letter:bet|vowel:patach';
-const gradeVotes = { votes: 5, use: 3 };
+const gradeVotes = { votes: 5, use: 1 };
 const items = [
   ...Array.from({ length: 6 }, (_, i) => ({ id: `kamatz-${i}`, level: i < 3 ? 1 : 2,
     text: 'בָּ', words: ['בָּ'], skills: ['letter:bet', 'vowel:kamatz'], focus: 'vowel:kamatz', flags: [], source: { generated: true } })),
@@ -70,7 +70,7 @@ test('API fixtures use the system temp folder', () => {
 
 function setup(overrides = {}) {
   const dependencies = {
-    items, staticDir, teacherPin: PIN, trace: false, coachModel: undefined,
+    items, staticDir, teacherPin: PIN, trace: false, coachModel: undefined, earCard: true,
     dataDir: overrides.dataDir || fs.mkdtempSync(path.join(root, 'data-')),
     listen: mock.fn(async () => ({ words: [['ba']], model: 'fake-ear' })),
     gradeLine: mock.fn(() => gradeFor()),
@@ -800,6 +800,20 @@ test('a failed profile save leaves the in-memory recording unchanged', async t =
   }
 });
 
+test('with the card kept from the ear, grading hears the reading alone and a restart needs no new voice check', async () => {
+  const { app, dataDir, listen } = setup({ earCard: false });
+  const child = await add(app);
+  assert.equal((await voice(app, child)).status, 200);
+  const turn = await start(app, child.id);
+  const data = Buffer.from('reading fixture');
+  assert.equal((await grade(app, turn.turnId, 'kamatz-0', { data })).status, 200);
+  assert.deepEqual(listen.mock.calls.at(-1).arguments, [{ data, format: 'wav' }, gradeVotes]);
+  const reloaded = setup({ dataDir, earCard: false });
+  const view = (await get(reloaded.app, '/api/children')).json[0];
+  assert.equal(view.voiceStatus, 'done');
+  assert.equal(view.voiceCheck, true);
+});
+
 test('a restart needs a new recording before grading sends the voice card again', async () => {
   const { app, dataDir, listen } = setup();
   const child = await add(app);
@@ -1452,7 +1466,7 @@ test('grade keeps five votes using three when the voice card is included', async
   const data = Buffer.from('reading fixture');
   assert.equal((await grade(app, turn.turnId, 'kamatz-0', { data })).status, 200);
   assert.deepEqual(listen.mock.calls[0].arguments, [
-    { data, format: 'wav' }, { votes: 5, use: 3, reference: { data: card, format: 'wav' } },
+    { data, format: 'wav' }, { votes: 5, use: 1, reference: { data: card, format: 'wav' } },
   ]);
 });
 

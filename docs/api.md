@@ -106,12 +106,16 @@ where `expected` is the captured card's length.
 Measured classes with at least two tokens each must also hold a usable pair,
 otherwise the audio returns 422 `{ error: "quiet" }`. Malformed WAV or a WAV
 outside 16 kHz mono returns 415 `{ error: "Use 16 kHz mono WAV" }`. Success
-clears `voiceSkipped`. When the card would go to the ear under the rule below,
-the recording stays in the server's memory only. It is never written to disk,
+clears `voiceSkipped`. The card recording goes to the ear only when the server
+runs with `EAR_CARD=1`; by default the ear hears each reading alone, and the card
+tunes only the vowel meter and the phoneme referee. With `EAR_CARD=1`, when the
+card would go to the ear under the rule below, the recording stays in the
+server's memory only. It is never written to disk,
 logged or returned. It is dropped when the voice check is cleared, skipped
 or made stale by a learned-vowel or preset change, when the child is removed,
-and when the server stops. After a restart, a child whose card would go to the
-ear reports `voiceStatus` `needed` and reads the card again at their next turn.
+and when the server stops. With `EAR_CARD=1`, after a restart, a child whose card
+would go to the ear reports `voiceStatus` `needed` and reads the card again at
+their next turn. By default the saved profile is enough and the status stays `done`.
 Each reading goes to the ear together with the recording only when it is in
 memory and the saved profile keeps each usable vowel pair apart by the meter's
 separation rule. When the card shows kamatz and the preset gives it any sound
@@ -134,15 +138,16 @@ meter profile without a phoneme calibration. Refused voice checks save nothing.
 
 Grade accepts an item only from the turn's current set. An unknown or expired
 turn, a finished turn, or an item outside the current set returns 404. The ear
-receives audio alone, never the item text, name or preset. With a card recording
+receives audio alone, never the item text, name or preset. With `EAR_CARD=1`, a card recording
 in memory and a saved voice profile that keeps each usable vowel pair apart by
 the meter's separation rule and passes the kamatz check above, it receives
 `{ data, format: 'wav' }` with
 `{ reference: { data: card, format: 'wav' } }`. Otherwise it receives only the
-reading. The primary ear is asked `EAR_VOTES` times (default 3) in parallel with
-the same audio and card when present. The most common word count is kept, then
-the answer most calls agree on is kept word by word. The earliest answer breaks
-ties. The fallback is asked once and receives only the reading.
+reading. At the station the primary ear is asked five times in parallel with
+the same audio and card when present, and the first answer back is graded; the
+other calls are stopped. Elsewhere, as in the ear test, it is asked `EAR_VOTES`
+times (default 3): the most common word count is kept, then the answer most
+calls agree on is kept word by word, and the earliest answer breaks ties. The fallback is asked once and receives only the reading.
 When the phoneme calibration keeps o and a apart, the reading's audio also goes
 to the local phoneme service alongside the ear call. It never leaves this
 computer for that service. The referee sees only the ear's answer after the
@@ -469,7 +474,8 @@ No key or part of a key is printed. Configuration:
 | `TEACHER_PIN` | Required teacher header secret, exactly 4 to 12 digits; invalid values stop startup |
 | `TRACE` | Exactly `1` enables the protected trace endpoint |
 | `COACH_MODEL` | Exactly `off` disables model calls at next checkpoints |
-| `COACH_REASONING_EFFORT` | Coach reasoning effort, default `minimal`; requests allow 16000 tokens and time out after 8 seconds, when the rule pick is used |
+| `EAR_CARD` | Exactly `1` plays the reader's voice card to the ear before each reading; off by default, because it triples the audio in every ear call |
+| `COACH_REASONING_EFFORT` | Coach reasoning effort, default `minimal`; three identical requests go out at once and the first usable answer is kept; requests allow 16000 tokens and time out after 8 seconds, when the rule pick is used |
 | `DATA_DIR` | Store directory, default `<repo>/data` |
 | `SAVE_ATTEMPTS` | Exactly `1` saves graded live WAV and JSON pairs under `DATA_DIR/attempts`; off by default |
 | `HOST` | Listen address, default `127.0.0.1`; use `0.0.0.0` and TLS for network tablets |

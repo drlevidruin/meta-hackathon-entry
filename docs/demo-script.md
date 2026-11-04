@@ -35,7 +35,7 @@ If a correctly read syllable is also marked, keep it in the take and add: "This 
 **Screen:** The How it works diagram in the README, rendered on GitHub at 1440 wide. Highlight each box as it is named: the ear, then the vowel meter and the phoneme model, then the rulebook and grader.
 
 **Voiceover:**
-"Here's the part that matters. The ear is Muse Wonder, through the Meta Model API. It gets my audio and a sound alphabet, and never the printed line. A model that knows the word tends to hear the word. So the ear only writes sounds. We ask it five times and grade on the first three answers. Then two checks that also never see the text: a vowel meter, and Meta's open wav2vec2 phoneme model, running on this computer. Both compare my vowels with my own voice card. Last, plain code: a rulebook that knows every letter and vowel."
+"Here's the part that matters. The ear is Muse Wonder, through the Meta Model API. It gets my audio and a sound alphabet, and never the printed line. A model that knows the word tends to hear the word. So the ear only writes sounds. We ask it five times at once and grade the first answer back. Then two checks that also never see the text: a vowel meter, and Meta's open wav2vec2 phoneme model, running on this computer. Both compare my vowels with my own voice card. Last, plain code: a rulebook that knows every letter and vowel."
 
 ### 1:45 to 2:00 | One reading, two traditions
 
@@ -113,7 +113,7 @@ Since November 3 the live station does not mark a against o on a kamatz or patac
 - [ ] Quiet room, no fan or music. Same microphone for the voice card and the lines.
 - [ ] Microphone allowed for https://levis-new-mac-mini.tail8bd372.ts.net in Chrome's site settings before the take.
 - [x] Levi on the live roster, Ashkenazi, Level 5 (set November 3). Do Levi's voice card once before recording.
-- [ ] Voice card read off camera before the take, in the same room and on the same microphone. If the server restarts, read it again: the card lives only in memory.
+- [ ] Voice card read off camera before the take, in the same room and on the same microphone. It is saved as vowel measurements, so a server restart does not need it again.
 - [ ] Line 2's planted mistake chosen: one sin read as a shin.
 - [ ] Teacher PIN entered off camera.
 - [ ] Terminal font large enough to read at 1440 wide. No keys or `.env` in frame.

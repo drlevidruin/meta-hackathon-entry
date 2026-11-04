@@ -62,6 +62,29 @@ test('round 2.10: model timeout is eight seconds and still aborts stalled reques
 });
 
 
+test('the first usable of three coach answers is kept, and the others are stopped', async () => {
+  const previous = process.env.META_API_KEY;
+  process.env.META_API_KEY = 'offline-test-token';
+  try {
+    const signals = [];
+    let call = 0;
+    const answer = content => ({ ok: true, json: async () => ({ choices: [{ message: { content } }] }) });
+    const picked = await modelPick(startProfile(), [], rule, [1], candidates, async (_url, init) => {
+      signals.push(init.signal);
+      call += 1;
+      if (call === 1) return new Promise(() => {});
+      if (call === 2) return answer('not an answer');
+      return answer(`ids: ${candidates[0].id}, ${candidates[1].id}\nreason: Practice.`);
+    });
+    assert.deepEqual(picked?.itemIds, [candidates[0].id, candidates[1].id]);
+    assert.equal(signals.length, 3);
+    assert.ok(signals.every(signal => signal.aborted));
+  } finally {
+    if (previous === undefined) delete process.env.META_API_KEY;
+    else process.env.META_API_KEY = previous;
+  }
+});
+
 test('coach model id stays on the standard tier despite contributor environment overrides', async t => {
   for (const name of ['COACH_MODEL', 'COACH_MODEL_ID']) {
     const previous = process.env[name];

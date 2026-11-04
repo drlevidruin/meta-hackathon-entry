@@ -20,7 +20,9 @@ const AVATARS = new Set(['lion', 'owl', 'fox', 'bear', 'rabbit', 'turtle', 'whal
 const ID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const TURN_TTL = 30 * 60 * 1000;
 const AUDIO_LIMIT = 25 * 1024 * 1024;
-const GRADE_VOTES = Object.freeze({ votes: 5, use: 3 });
+// Five calls go out at once and the first answer is graded. On 75 of Levi's clips, November 3,
+// one answer left the same marks as the most common of three, at about half the wait.
+const GRADE_VOTES = Object.freeze({ votes: 5, use: 1 });
 const JSON_LIMIT = 1024 * 1024;
 const TYPES = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -183,6 +185,8 @@ export function createApp({
   dataDir = process.env.DATA_DIR, teacherPin = process.env.TEACHER_PIN,
   saveAttempts = process.env.SAVE_ATTEMPTS === '1',
   trace = process.env.TRACE === '1', coachModel = process.env.COACH_MODEL, now = Date.now,
+  // The voice card makes every ear call hear about three times as much audio. Off unless EAR_CARD=1.
+  earCard = process.env.EAR_CARD === '1',
 }) {
   const byId = new Map(items.map(item => [item.id, item]));
   const store = createStore(dataDir);
@@ -194,7 +198,7 @@ export function createApp({
   const voiceVersions = new Map();
   const traceEnabled = trace === true || trace === '1';
   const itemsFor = child => itemsForVowels(items, child.vowels);
-  const viewChild = child => childView(child, voiceCards.has(child.id));
+  const viewChild = child => childView(child, !earCard || voiceCards.has(child.id));
 
   function snapChildLevel(child) {
     const levels = [...new Set(itemsFor(child).filter(item => !item.source?.challenge).map(item => item.level))]
@@ -418,7 +422,7 @@ export function createApp({
               delete child.voiceSkipped;
               return child;
             });
-            if (voiceCardToEar(child.voice, child.vowels, child.preset)) voiceCards.set(id, data);
+            if (earCard && voiceCardToEar(child.voice, child.vowels, child.preset)) voiceCards.set(id, data);
             else voiceCards.delete(id);
             voiceVersions.set(id, Symbol());
           });
@@ -516,7 +520,7 @@ export function createApp({
           let words, tokens, raw, metered, replayPhonemes;
           try {
             const child = getChild(turn.childId);
-            const card = voiceCardToEar(child.voice, child.vowels, child.preset) ? voiceCards.get(turn.childId) : undefined;
+            const card = earCard && voiceCardToEar(child.voice, child.vowels, child.preset) ? voiceCards.get(turn.childId) : undefined;
             const calibration = child.voice?.phonemes;
             const phonemeResult = phonemes && refereeSettings(calibration).on
               ? (async () => {
