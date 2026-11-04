@@ -23,6 +23,19 @@ export function openAudioContext(sampleRate) {
   return new AudioContextClass();
 }
 
+// iPhone and iPad browsers all run WebKit; iPadOS reports itself as a Mac with touch.
+export function isAppleMobile(nav = globalThis.navigator) {
+  return /iPhone|iPad|iPod/.test(nav?.userAgent || '') || (nav?.platform === 'MacIntel' && nav?.maxTouchPoints > 1);
+}
+
+// Noise suppression and echo cancellation reshape vowels, so the ear hears the voice as the sealed
+// rounds recorded it, with automatic gain on. iOS ties automatic gain to its voice processing, so with
+// echo cancellation off an iPhone gives the raw microphone near 0.02, under the speech level, and
+// no line ever starts. iPhones and iPads keep the browser's defaults, measured there at speech level.
+export function microphoneConstraints(nav = globalThis.navigator) {
+  return isAppleMobile(nav) ? true : { channelCount: 1, echoCancellation: false, noiseSuppression: false };
+}
+
 function join(chunks) {
   const samples = new Float32Array(chunks.reduce((size, chunk) => size + chunk.length, 0));
   let offset = 0;
@@ -189,11 +202,7 @@ export function useRecorder(onStop, mockMode, { continuous = false, lineKey, lin
     setStatus('requesting');
     try {
       if (!mockMode) {
-        // Noise suppression and echo cancellation reshape vowels, so the ear hears the voice
-        // as the sealed rounds recorded it. Automatic gain stays on: it changes loudness only.
-        const microphone = navigator.mediaDevices.getUserMedia({
-          audio: { channelCount: 1, echoCancellation: false, noiseSuppression: false },
-        });
+        const microphone = navigator.mediaDevices.getUserMedia({ audio: microphoneConstraints() });
         let shared;
         try {
           shared = wakeAudio(paused.current?.sampleRate);

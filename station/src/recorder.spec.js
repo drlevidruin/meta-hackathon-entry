@@ -5,7 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, renderHook, screen } from '@testing-library/react';
 import App from './App.jsx';
 import { CurrentLine, ReadScreen } from './Game.jsx';
-import { openAudioContext, useRecorder } from './useRecorder.js';
+import { microphoneConstraints, openAudioContext, useRecorder } from './useRecorder.js';
 import { useTurn } from './useTurn.js';
 import { TURN_KEY } from './storage.js';
 import * as api from './api.js';
@@ -1021,4 +1021,13 @@ it('keeps the newer tap recording when an older microphone request fails after t
   expect(mic.contexts[0].close).not.toHaveBeenCalled();
   await mic.line();
   expect(onStop).toHaveBeenCalledOnce();
+});
+
+it('keeps raw audio on a computer and the browser defaults on an iPhone or iPad', () => {
+  const mac = { userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Chrome/140.0', platform: 'MacIntel', maxTouchPoints: 0 };
+  const iphone = { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 19_0 like Mac OS X) CriOS/140.0 Mobile/15E148', platform: 'iPhone', maxTouchPoints: 5 };
+  const ipad = { userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Version/19.0 Safari/605.1.15', platform: 'MacIntel', maxTouchPoints: 5 };
+  expect(microphoneConstraints(mac)).toEqual({ channelCount: 1, echoCancellation: false, noiseSuppression: false });
+  expect(microphoneConstraints(iphone)).toBe(true);
+  expect(microphoneConstraints(ipad)).toBe(true);
 });
