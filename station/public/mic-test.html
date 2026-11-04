@@ -27,36 +27,37 @@ function show(name, result) {
   results.push(result);
   const row = document.createElement('div');
   row.className = 'row';
-  row.innerHTML = `<span>${name}</span><span class="${result.heard === 'voice' ? 'yes' : 'no'}">${result.heard} · ${result.state} · ${result.rate}</span>`;
+  row.innerHTML = `<span>${name}</span><span class="${['voice', 'loud'].includes(result.heard) ? 'yes' : 'no'}">${result.heard} · ${result.level != null ? result.level.toFixed(4) : result.rate} · ${result.state}</span>`;
   rows.append(row);
 }
-const classify = peak => peak < 0 ? 'noinput' : peak === 0 ? 'zero' : peak < 0.02 ? 'quiet' : 'voice';
+// Buckets of the loudest block's rms; the station needs 0.025 to count speech.
+const classify = level => level < 0 ? 'noinput' : level === 0 ? 'zero' : level < 0.005 ? 'tiny' : level < 0.015 ? 'low' : level < 0.025 ? 'under' : level < 0.08 ? 'voice' : 'loud';
 async function viaWorklet(ctx, stream) {
   try { await ctx.resume(); } catch {}
   await ctx.audioWorklet.addModule('mic-test-worklet.js');
   const source = ctx.createMediaStreamSource(stream);
   const node = new AudioWorkletNode(ctx, 'peak');
-  let peak = -1;
-  node.port.onmessage = e => { peak = Math.max(peak, e.data); };
+  let level = -1;
+  node.port.onmessage = e => { if (e.data) level = Math.max(level, e.data.rms); };
   source.connect(node); node.connect(ctx.destination);
   await new Promise(r => setTimeout(r, MS));
   source.disconnect(); node.disconnect();
-  return { heard: classify(peak), state: ctx.state, rate: ctx.sampleRate };
+  return { heard: classify(level), state: ctx.state, rate: ctx.sampleRate, level };
 }
 async function viaScript(ctx, stream) {
   try { await ctx.resume(); } catch {}
   const source = ctx.createMediaStreamSource(stream);
   const node = ctx.createScriptProcessor(2048, 1, 1);
-  let peak = -1;
+  let level = -1;
   node.onaudioprocess = e => {
     const input = e.inputBuffer.getChannelData(0);
-    let p = 0; for (let i = 0; i < input.length; i++) p = Math.max(p, Math.abs(input[i]));
-    peak = Math.max(peak, p);
+    let sum = 0; for (let i = 0; i < input.length; i++) sum += input[i] * input[i];
+    level = Math.max(level, Math.sqrt(sum / input.length));
   };
   source.connect(node); node.connect(ctx.destination);
   await new Promise(r => setTimeout(r, MS));
   source.disconnect(); node.disconnect();
-  return { heard: classify(peak), state: ctx.state, rate: ctx.sampleRate };
+  return { heard: classify(level), state: ctx.state, rate: ctx.sampleRate, level };
 }
 async function viaRecorder(stream) {
   if (!window.MediaRecorder) return { heard: 'none', state: 'none', rate: 0 };
