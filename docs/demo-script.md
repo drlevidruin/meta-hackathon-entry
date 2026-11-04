@@ -24,11 +24,13 @@ Hard limit 3:00. Rabbi Dr. Levi Druin reads and narrates. Only an adult appears 
 "On this line I made a mistake on purpose. This is a sin. I read it as a shin: sh, not s. The mark lands on that one letter. Orange means the letter was wrong. Purple would mean the vowel. Underneath, crossed out, is what the ear heard, and under that, what it should have been."
 
 **Voiceover, over line 3:**
-"The microphone stays on. Each line grades while I read the next one."
+"The microphone stays on. Each line grades while I read the next one." Then tap Done, so the session reaches the teacher view.
 
 If a correctly read syllable is also marked, keep it in the take and add: "This one I read correctly. It still gets marked sometimes. I'll show you how often."
 
 ### 1:05 to 1:45 | The ear never sees the text
+
+**Captions, one per beat:** "Muse Wonder hears. It never sees the text." Then "Meta's phoneme model checks the vowels, on this Mac." Then "A rulebook grades every letter. No model writes the Hebrew."
 
 **Screen:** The How it works diagram in the README, rendered on GitHub at 1440 wide. Highlight each box as it is named: the ear, then the vowel meter and the phoneme model, then the rulebook and grader.
 
@@ -74,7 +76,7 @@ If the mock class is on screen, add: "This class is simulated."
 **Screen:** Back to the live station, Who's reading screen. End card: "Kriah Listener" and the repo URL, github.com/drlevidruin/meta-hackathon-entry.
 
 **Voiceover:**
-"Next is a child's voice, with parent consent. Kriah Listener. Built for my teachers."
+"Every child who reads Hebrew deserves a listener who catches the one dot. Next is a child's voice, with parent consent, in my own school. Kriah Listener."
 
 ## Lines and the planted mistake
 
