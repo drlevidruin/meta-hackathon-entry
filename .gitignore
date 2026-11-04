@@ -20,3 +20,4 @@ recordings/synthetic/
 phonemes/.venv/
 __pycache__/
 phonemes/.models/
+.lab/

@@ -2,8 +2,6 @@
 
 Answers for the Cerebral Valley form, Meta Global AI Developer Hackathon. Indie Developer track. Solo entry: Rabbi Dr. Levi Druin. Problem statement: Build for Your World.
 
-Lines marked [CHECK] need a fact confirmed before pasting.
-
 ## Project name
 
 Kriah Listener
@@ -68,7 +66,7 @@ Every Hebrew word a child sees comes from the item bank: lines cut from the sidd
 - Hearing the reader's voice card helped, until a and o were left open. On sealed Round 1d, with the meter, the card caught 10 of 12 planted mistakes against 9 and left 14 false marks against 20 over three runs. But it more than tripled the audio in every call, and on an iPhone a Level 5 line took 9 to 11 seconds to check. On November 3, with a and o left open, 75 of Levi's clips were heard three ways: with the card and three answers, 6 of 6 remaining plants caught and 2 false marks; without the card, 6 of 6 and 1 false mark, with three answers or with one. So the live ear now hears the reading alone and grades the first of five answers.
 - Meta's open phoneme model is the strongest check on vowels. On the saved adult clips it was right on 90% of kamatz and patach syllables, against 66% for the ear and meter.
 
-**Muse Code.** Muse Code was set up as an outside reviewer. Its plan quota ran out during the build, so the earlier work was reviewed by Codex instead. On November 3 Muse Code reviewed the last changes: the iPhone recording fix, side-by-side grading, the voice card switch and the coach calls. Its findings were fixed in the commits that followed, or answered in their messages. The code was written by Claude Code and OpenAI Codex to my brief. See "What was built during the event".
+**Muse Code.** Muse Code was set up as an outside reviewer. Codex reviewed the earlier work; Muse Code reviewed the final changes of November 3: the iPhone recording fix, side-by-side grading, the voice card switch and the coach calls. Its findings were fixed in the commits that followed, or answered in their messages. The code was written by Claude Code and OpenAI Codex to my brief. See "What was built during the event".
 
 Only standard tier is used. No model id ending in `-contributor` is used, and the ear refuses those ids.
 
@@ -84,7 +82,7 @@ Only standard tier is used. No model id ending in `-contributor` is used, and th
 
 **Sealed test rounds.** Every result below comes from my own adult voice, reading with mistakes planted on purpose. For a sealed round, the words are recorded, then left unheard by anyone until the rules are frozen and the pass rule is written down. A run passes only when every clip is graded once, the ear answers every clip, every planted mistake is caught, no correct reading is marked wrong, and at most two syllables are uncertain. A round passes only when all three runs pass. Failed rounds are published with the passing one.
 
-| Sealed round | Date | Planted mistakes caught | False marks | Result |
+| Sealed round | Date | Planted mistakes caught, all runs | False marks | Result |
 | --- | --- | --- | --- | --- |
 | 1c, 11 words, one run | Oct 27 | 4 of 4 | 15, against 17 for the ear alone | Fail |
 | 1d, 12 words, three runs | Oct 27 | 10 of 12 | 14, against 20 without the voice card | Fail |
@@ -97,13 +95,13 @@ On Round 1i, Muse Wonder alone left 6, 5 and 6 false marks in its three runs, mo
 
 Round 1k, ten connected prayer lines from the bank, is a design set used for tuning, not a test. Muse Wonder alone left 12 to 19 false marks a run. The phoneme referee cut them to 3, 3 and 5. Fixes found on those lines brought the replay to 2 a run with every planted mistake caught, and my two Ashkenazi rulings cover both of the two left. Because these lines shaped the rules, those numbers prove nothing about new readings.
 
-**Tests and tools.** On November 4, 1,297 server-side tests, 250 station tests and 36 phoneme service tests passed. They cover the rulebook in all three traditions, alignment with restarts, rereads and skips, the vote, the meter, the referee, saved progress, packets and the station screens. `npm run ear-score` grades a saved run against a pass rule fixed in advance. `npm run ear-replay` replays a saved run's referee without calling the ear. On 15,687 practice-bank lines, each read with one made-up skip, reread or restart, the October 27 grader marked 88.6% exactly right.
+**Tests and tools.** On November 4, 1,298 server-side tests, 259 station tests and 36 phoneme service tests passed. They cover the rulebook in all three traditions, alignment with restarts, rereads and skips, the vote, the meter, the referee, saved progress, packets and the station screens. `npm run ear-score` grades a saved run against a pass rule fixed in advance. `npm run ear-replay` replays a saved run's referee without calling the ear. On 15,687 practice-bank lines, each read with one made-up skip, reread or restart, the October 27 grader marked 88.6% exactly right.
 
 **Privacy.** The ear never sees the text. Keys stay on the server. By default the station and server grade audio in memory and never write it to disk or a log. The saved store holds first names, avatars, presets, progress and stars, with no audio, transcripts or model reasons. An opt-in setting, `SAVE_ATTEMPTS=1`, saves adult test readings for replay; it is off by default, and off on the live demo.
 
 ## What was built during the event
 
-Everything in the repository was built during the event. The first commit, `3fbef66`, is the project brief, made on October 26, 2026 at 9:07 PM Eastern. All 214 commits are from October 26 onward [CHECK: recount at submission time]. Nothing is copied from earlier projects.
+Everything in the repository was built during the event. The first commit, `3fbef66`, is the project brief, made on October 26, 2026 at 9:07 PM Eastern. Every commit is from October 26 onward. Nothing is copied from earlier projects.
 
 I designed it and directed the build. My brief, committed first, set the design: an ear that never sees the page, a rulebook as the answer key, traditions as sets of accepted sounds, a coach that picks from the bank and never writes Hebrew, and no leaderboard. I recorded every adult test reading, set every pass rule before its round ran, and made the rulings on what counts as a mistake. Claude Code and OpenAI Codex wrote the code and tests to the brief, in review rounds recorded in `docs/reviews` and `docs/build-log.md`.
 
@@ -125,7 +123,7 @@ The code is MIT licensed. The siddur text keeps its CC-BY license.
 - Every real-voice result is one adult reader, me, in Ashkenazi pronunciation. No child has used it yet. Sephardi and Chassidish are tested only offline.
 - One sealed round has passed out of six, and it was single words. Connected prayer lines have only been used as design data.
 - Muse Wonder still confuses a and o, and the checks behind it carry the grade. Nothing yet checks i against e; that missed one syllable in Round 1h.
-- The first live test, on October 31, did not go well: lines ended at the first pause, grading took 6 to 10 seconds a line, and two correct words were marked wrong. The live flow was rebuilt after it. On November 3, through the public link, a short Level 1 line graded in about 4 to 5 seconds and a Level 5 siddur line read on an iPhone in about 11 to 12 seconds. The next line appears while the last one is graded, so the reader does not wait. That evening the lines of a set began to be graded side by side, and the live ear stopped hearing the voice card with each line and began grading its first answer (see above). Through the live server, Level 5 lines of 7.6 seconds then graded in 2.9 to 4.2 seconds, and the next set came 4.2 to 5.1 seconds after the last grade.
+- The first live test, on October 31, did not go well: lines ended at the first pause, grading took 6 to 10 seconds a line, and two correct words were marked wrong. The live flow was rebuilt after it. On November 3, through the public link, a short Level 1 line graded in about 4 to 5 seconds and a Level 5 siddur line read on an iPhone in about 9 to 12 seconds. The next line appears while the last one is graded, so the reader does not wait. That evening the lines of a set began to be graded side by side, and the live ear stopped hearing the voice card with each line and began grading its first answer (see above). Through the live server, Level 5 lines of 7.6 seconds then graded in 2.9 to 4.2 seconds, and the next set came 4.2 to 5.1 seconds after the last grade.
 - No kriah teacher other than me has checked the rulebook by hand.
 - It has not been tested on a classroom tablet over the school network.
 
@@ -150,7 +148,7 @@ The code is MIT licensed. The siddur text keeps its CC-BY license.
 3. Tap a reader: Levi reads in Ashkenazi pronunciation, Guest in Sephardi.
 4. A new reader first sees a voice card of fifteen sounds. Tap the microphone and read the card right to left, row by row, with a short pause after each sound.
 5. Read each line as it appears. The microphone stays on. For Levi, read in Ashkenazi pronunciation: kamatz as o, a sav without a dot as s. For Guest, read in Sephardi pronunciation.
-6. To test a mistake, read a letter wrong, such as a שׂ (sin) as a שׁ (shin), or a vowel other than kamatz and patach, such as a chirik as e. A wrong letter shows orange and a wrong vowel purple, with the heard syllable under it. The live station does not mark a against o on a kamatz or patach. Each line takes about 3 to 4 seconds to grade, while the next line is already showing.
+6. To test a mistake, read a letter wrong, such as a שׂ (sin) as a שׁ (shin), or a vowel other than kamatz and patach, such as a chirik as e. A wrong letter shows orange and a wrong vowel purple, with the heard syllable under it. The live station does not mark a against o on a kamatz or patach. Each line takes about 3 to 5 seconds to grade, while the next line is already showing.
 7. For the teacher view, open https://levis-new-mac-mini.tail8bd372.ts.net/?mock#/teacher. It is a simulated class of invented children, marked Demo, and opens without a PIN. Open a reader to see the reading map, the pairs that need practice and the turn log. Tap Print packet for the practice packet. The live teacher view behind the PIN holds the real roster and stays locked.
 
 Without a microphone, the repo has a keyless preview with invented children and simulated grades: `npm --prefix station ci`, then `npm run demo`, then open http://localhost:5173/?mock. The grader can be tried alone, with no key: `npm run grade -- --preset ashkenazi --line "שַׁבָּת" --heard "sha-vos"`.

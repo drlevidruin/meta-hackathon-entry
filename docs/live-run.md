@@ -30,7 +30,7 @@ The model's reasons named the child's actual confusions. For example: "Misses cl
 
 ## Second live run, 2026-10-30
 
-One turn through the station Levi's son will use, on the code at `309f79e`: the new station look, the three-vote ear, the vowel meter and the phoneme referee.
+One turn through the station, on the code at `309f79e`: the new station look, the three-vote ear, the vowel meter and the phoneme referee.
 
 - A script added one invented child (Ashkenazi, level 1) through the teacher's roster, sent its voice card, read 12 lines, finished the turn and deleted the child.
 - Each line was spoken by the macOS Hebrew voice Carmit, saved as a 16 kHz WAV and posted to `/api/grade`. No person was recorded.

@@ -2,8 +2,6 @@
 
 Hard limit 3:00. Rabbi Dr. Levi Druin reads and narrates. Only an adult appears or reads: no child's voice, face or name. Every number spoken below is in `docs/ear-test.md`, `docs/live-run.md` or `docs/build-log.md`.
 
-Lines marked [CHECK] need a fact confirmed on the live station before recording.
-
 ## The script
 
 ### 0:00 to 0:20 | The problem
@@ -64,7 +62,7 @@ If the mock class is on screen, add: "This class is simulated."
 
 > One adult voice, planted mistakes, sealed rounds.
 > Six sealed rounds run. Five failed. One passed.
-> Round 1i, three of three runs: 12 of 12 planted mistakes caught. No correct reading marked wrong.
+> Round 1i, three of three runs: all 4 planted mistakes caught in each run. No correct reading marked wrong.
 > Muse Wonder alone: 5 or 6 false marks a run. With the meter and Meta's phoneme model: 0.
 > No child round yet.
 
@@ -122,4 +120,4 @@ Since November 3 the live station does not mark a against o on a kamatz or patac
 - [ ] Voiceover recorded separately, read from this script, then laid over the footage.
 - [ ] Final cut timed at 3:00 or less.
 - [ ] No child's voice, face or name anywhere in the video.
-- [ ] Video uploaded and the link opened in a logged-out browser before it goes into the form [CHECK: hosting and visibility rules on the submit form].
+- [ ] Video uploaded to YouTube as Unlisted (the form asks for a video link) and opened in a logged-out browser before it goes into the form.
