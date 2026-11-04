@@ -1,45 +1,72 @@
 # Demo video script
 
-Hard limit 3:00. Rabbi Dr. Levi Druin reads and narrates. Only an adult appears or reads: no child's voice, face or name. Every number spoken below is in `docs/ear-test.md`, `docs/live-run.md` or `docs/build-log.md`.
+Length 2:57.93, under the 3:00 limit. Rabbi Dr. Levi Druin records the voiceover to the timed script. Only an adult appears or reads: no child's voice, face or name. Every number in the video is in `docs/ear-test.md`, `docs/live-run.md` or `docs/build-log.md`; the sources are listed under "Where each number lives".
 
-## The script
+## How the video is built
 
-### 0:00 to 0:20 | The problem
+The video is built from still screens with ffmpeg: crossfades, one slow zoom, and burned-in subtitles of every voiceover line. Nothing is a screen recording. Every screen is real station output or a page rendered from the repo's own text, and every screen from the mock class carries the label "Simulated class".
 
-**Screen:** The live station's Who's reading screen at 1440 by 900. Lower third: "Rabbi Dr. Levi Druin, Principal" and "Built October 26 to November 4, 2026".
+The only audio is Levi's own recorded reading in scene 2. The voiceover is recorded separately, to the timed script, and mixed in afterwards. Two cuts are made: one with the voiceover subtitles burned in, and one without them. Labels stay in both.
+
+## The scenes
+
+Times are from the final cut.
+
+### 0:00 | 1. The problem
+
+**Screen:** The Who's reading screen from the simulated class, with a "Simulated class" label. Lower third for the first 5 seconds: "Rabbi Dr. Levi Druin, Principal" and "Built October 26 to November 4, 2026".
 
 **Voiceover:**
 "I'm Levi Druin. I run a Jewish day school, and I teach kriah: reading Hebrew with its vowels. A teacher can't hear every child read every day. And the mistakes that matter are tiny. One vowel. One dot. So I built a station that listens."
 
-### 0:20 to 1:05 | A live reading
+### 0:15.87 | 2. Reading
 
-**Screen:** Tap Levi. Read three lines aloud, one after another, with the microphone on. Keep the reading audible. Keep the first line's grade at normal speed, wait included. Cut the other waits. Hold on line 2 when its marks appear, then zoom on the planted letter.
+**Screen:** The real reading screen, for Levi, Ashkenazi, with the Demo pill from demo mode. A label stays at the top of the screen: "Levi's recorded reading, Oct 30. Graded Nov 4."
 
-**On camera, read:** the three lines the station shows, in Ashkenazi pronunciation. On line 2, read one sin as a shin: sh instead of s. See "Lines and the planted mistake" below.
+The reading is three of Levi's adult recordings from October 30: `line01_modeh-ani_clean`, `line07_anochi_segol-for-chirik` and `line02_shehechezarta_clean`. They were run on November 4 through the ear, the vowel meter and Meta's phoneme model, with Voice check 4 as the card. The run is recorded in `docs/ear-test.md`, "A fresh run, November 4", and in `docs/ear-test.md`, Round 1k. Each line plays with its real audio and no subtitles. The grades on screen come from the same grader function the server uses, with the Ashkenazi preset.
 
-**Voiceover, over line 1's marks:**
-"Green means I read it right. Every letter, every vowel."
+The planted mistake is on line 2: the chirik under the כ in אָנֹכִי, read as che. The grader marks that one vowel purple, with the struck-through "che" and the right sound "chi" under it. The screen slowly zooms toward it. Lines 1 and 3 are all green.
 
-**Voiceover, over line 2's marks:**
-"On this line I made a mistake on purpose. This is a sin. I read it as a shin: sh, not s. The mark lands on that one letter. Orange means the letter was wrong. Purple would mean the vowel. Underneath, crossed out, is what the ear heard, and under that, what it should have been."
+| Start | What is on screen |
+| --- | --- |
+| 0:15.87 | Line 1 big. Levi's recording plays, 0:16.67 to 0:24.29. |
+| 0:24.80 | Line 1 marked, all green. A card reads "Muse Wonder heard: le-fa-ne-cha" and "After the vowel checks: le-fo-ne-cho". Then line 2 big, and Levi's recording plays, 0:37.38 to 0:47.46. |
+| 0:47.97 | Line 2 marked, with the zoom on כִי. A tag reads "Heard by Muse Wonder. Vowels checked by Meta's phoneme model." Then line 3 big, and Levi's recording plays, 1:07.28 to 1:14.18. |
+| 1:14.67 | Line 3 marked, all green. |
 
-**Voiceover, over line 3:**
-"The microphone stays on. Each line grades while I read the next one." Then tap Done, so the session reaches the teacher view.
+**Voiceover, after line 1:**
+"Green means I read it right. Every letter, every vowel. The ear first heard fa here, the Israeli way. The vowel checks compared it with my own voice and set it back to fo."
 
-If a correctly read syllable is also marked, keep it in the take and add: "This one I read correctly. It still gets marked sometimes. I'll show you how often."
+**Voiceover, after line 2:**
+"On this line I made a mistake on purpose. Under this kaf is a chirik: ki. I read it che. The mark lands on that one vowel. Purple means the vowel was wrong. Orange would mean the letter. Crossed out is what I said. Under it, what it should have been."
 
-### 1:05 to 1:45 | The ear never sees the text
+**Voiceover, after line 3:**
+"Every line comes back marked, letter by letter."
 
-**Captions, one per beat:** "Muse Wonder hears. It never sees the text." Then "Meta's phoneme model checks the vowels, on this Mac." Then "A rulebook grades every letter. No model writes the Hebrew."
+### 1:18.30 | 3a. The ear never sees the text
 
-**Screen:** The How it works diagram in the README, rendered on GitHub at 1440 wide. Highlight each box as it is named: the ear, then the vowel meter and the phoneme model, then the rulebook and grader.
+**Screen:** The How it works diagram from the README, drawn as a still page with the README's own boxes and wording. Only the ear box is highlighted. Top caption: "Muse Wonder hears. It never sees the text."
 
 **Voiceover:**
-"Here's the part that matters. The ear is Muse Wonder, through the Meta Model API. It gets my audio and a sound alphabet, and never the printed line. A model that knows the word tends to hear the word. So the ear only writes sounds. We ask it five times at once and grade the first answer back. Then two checks that also never see the text: a vowel meter, and Meta's open wav2vec2 phoneme model, running on this computer. Both compare my vowels with my own voice card. Last, plain code: a rulebook that knows every letter and vowel."
+"Here's the part that matters. The ear is Muse Wonder, through the Meta Model API. It gets my audio and a sound alphabet, and never the printed line. A model that knows the word tends to hear the word. So the ear only writes sounds."
 
-### 1:45 to 2:00 | One reading, two traditions
+### 1:34.27 | 3b. Four Meta models, four jobs
 
-**Screen:** Two terminal panes side by side at 1440 wide, large font. Left pane shows the Ashkenazi result, three `ok`. Right pane shows the Sephardi result, `wrong_vowel` and `wrong_letter`.
+**Screen:** A card titled "Four Meta models, four jobs". Four rows fade in one after another as the voiceover names them, each with the model name, its host and its job:
+
+| Model | Host | Job |
+| --- | --- | --- |
+| Muse Wonder 1.0 | Meta Model API | The ear. Hears the sounds, never the text. |
+| wav2vec2 phoneme model | Meta open weights, on this Mac | Checks every vowel against the reader's voice card. |
+| Muse Spark 1.3 | Meta Model API | Picks the next lines. Code checks every pick. |
+| Muse Spark Open | Baseten | Tested as the ear. Wired in as the backup. |
+
+**Voiceover:**
+"I use four Meta models, each picked by testing. Muse Wonder is the ear. We ask it five times at once and grade the first answer back. Meta's open wav2vec2 phoneme model runs on this Mac and checks every vowel against my own voice. Muse Spark picks the next lines. Muse Spark Open, on Baseten, was tested as the ear and is wired in as the backup."
+
+### 1:57.77 | 4. One reading, two traditions
+
+**Screen:** Two terminal panes side by side, with the real commands and their real output. Left pane: Ashkenazi, three `ok`. Right pane: Sephardi, `wrong_vowel` and `wrong_letter`.
 
 ```bash
 npm run grade -- --preset ashkenazi --line "שַׁבָּת" --heard "sha-bos"
@@ -49,77 +76,52 @@ npm run grade -- --preset sephardi --line "שַׁבָּת" --heard "sha-bos"
 **Voiceover:**
 "Same sounds, sha-bos. In Ashkenazi reading, that's right. In Sephardi reading, it's two mistakes. The rulebook judges each child by their own tradition."
 
-### 2:00 to 2:25 | The teacher view
+### 2:06.17 | 5. The teacher view
 
-**Screen:** Teacher, PIN entered off camera, then Class, then Levi: the reading map with its legend. Then Print packet: Warm up, Practice and Challenge in frame. For a fuller class, cut to the mock teacher view with its gray Demo pill in frame (https://levis-new-mac-mini.tail8bd372.ts.net/?mock#/teacher; it opens without a PIN).
+**Screen:** Three screens from the simulated class, each with the labels "Simulated class" and "Next lines picked by Muse Spark 1.3": a child's reading map with its legend, the Class view with its practice groups, and the practice packet, panned from its top to its Challenge.
 
 **Voiceover:**
-"The teacher gets a reading map: every letter with every vowel, solid, shaky, or not tested yet. Children are grouped by what to practice next. Muse Spark picks the next lines from the bank, and code checks every pick. The packet has a warm-up, practice and a challenge. No model writes Hebrew a child reads."
+"The teacher gets a reading map: every letter with every vowel, solid, shaky, or not tested yet. Children are grouped by what to practice next. Muse Spark picks the next lines from the bank, and code checks every pick. The packet has a warm-up, practice and a challenge. No model writes Hebrew a child reads. This class is simulated."
 
-If the mock class is on screen, add: "This class is simulated."
+### 2:27.93 | 6. Honest results
 
-### 2:25 to 2:50 | Honest results
-
-**Screen:** A plain results card, white ground, large type, held for the whole section:
+**Screen:** A plain results card, white ground, large navy type, held for the whole section:
 
 > One adult voice, planted mistakes, sealed rounds.
 > Six sealed rounds run. Five failed. One passed.
 > Round 1i, three of three runs: all 4 planted mistakes caught in each run. No correct reading marked wrong.
 > Muse Wonder alone: 5 or 6 false marks a run. With the meter and Meta's phoneme model: 0.
+> Muse Wonder caught 9 of 10 planted mistakes where Muse Spark Open caught 6. Minimal reasoning took it from 15 s a clip to 2.4 s.
 > No child round yet.
 
 **Voiceover:**
 "I tested it on my own voice, with mistakes planted on purpose. In a sealed round, nobody hears the answers until the rules are frozen and the pass rule is written down. Five sealed rounds failed. They're all published. Round 1i passed all three runs. Every planted mistake caught. Nothing marked wrong by mistake."
 
-### 2:50 to 3:00 | Close
+### 2:46.97 | 7. Close
 
-**Screen:** Back to the live station, Who's reading screen. End card: "Kriah Listener" and the repo URL, github.com/drlevidruin/meta-hackathon-entry.
+**Screen:** The Who's reading screen from the simulated class, then an end card: "Kriah Listener" and "github.com/drlevidruin/meta-hackathon-entry".
 
 **Voiceover:**
 "Every child who reads Hebrew deserves a listener who catches the one dot. Next is a child's voice, with parent consent, in my own school. Kriah Listener."
 
-## Lines and the planted mistake
+## Where each number lives
 
-The station chooses the lines, so the exact lines depend on the set it serves. Before recording, set Levi to Ashkenazi at Level 5 in Roster, so the lines are short siddur phrases.
+- Round 1i, three runs, 4 planted mistakes caught, no correct reading marked wrong, and Muse Wonder alone leaving 5 or 6 false marks a run: `docs/build-log.md`, the Round 1i paragraph, and `docs/ear-test.md`, "Round 1i: sealed test" and "Round 1i results".
+- Muse Wonder catching 9 of 10 planted mistakes: `docs/ear-test.md` line 112 and `README.md` line 73.
+- Muse Spark Open catching 6 of the 10: `docs/ear-test.md` line 113.
+- 15 seconds a clip down to 2.4 with minimal reasoning: `docs/ear-test.md` lines 45 to 53, on 13 synthetic clips.
+- The ear's first answer for line 1, `le-fa-ne-cha`, and the checked answer, `le-fo-ne-cho`, and the mark on כִי: `docs/ear-test.md`, "A fresh run, November 4".
+- Five calls at once and the first answer graded: `README.md`, "How it works", step 1.
+- The Round 1i planted mistakes are listed in `docs/ear-test.md`, "Round 1i: sealed test".
 
-- **Line 1:** read as printed, Ashkenazi: kamatz as o, cholam as oy, a sav without a dot as s.
-- **Line 2:** read one שׂ (sin) as a שׁ (shin), sh instead of s. Read the rest as printed.
-- **Line 3:** read as printed.
+## Recording the voiceover
 
-The bank's line `הָעוֹלָם אֲשֶׁר נָתַן לַשֶּׂכְוִי בִינָה` is the model case. Read it ho-oy-lom a-sher no-san la-shech-vi vi-no, with לַשֶּׂכְוִי read la-shech-vi for la-sech-vi. The grader marks that sin `wrong_letter`, in orange, and nothing else in the line:
-
-```bash
-npm run grade -- --preset ashkenazi --line "הָעוֹלָם אֲשֶׁר נָתַן לַשֶּׂכְוִי בִינָה" --heard "ho-oy-lom a-sher no-san la-shech-vi vi-no"
-```
-
-Since November 3 the live station does not mark a against o on a kamatz or patach (see the ruling in `docs/rulebook.md`), so the demo plants a letter instead.
-
-## Shot list
-
-| Time | Shot | Source |
-| --- | --- | --- |
-| 0:00 | Who's reading screen, lower third | Live station, 1440 by 900 |
-| 0:20 | Three lines read, marks appear, zoom on the planted letter | Live station, screen recording with room audio |
-| 1:05 | How it works diagram, boxes highlighted in turn | README on GitHub |
-| 1:45 | Two grader commands side by side | Terminal |
-| 2:00 | Reading map, then practice packet, then mock class | Live teacher view; mock tab with Demo pill |
-| 2:25 | Results card | Title card in the editor |
-| 2:50 | Station and end card | Live station; title card |
-
-## Recording checklist
-
-- [ ] Chrome, one window, sized to 1440 by 900. Bookmarks bar hidden (Cmd+Shift+B). No other tabs, no extensions in the toolbar.
-- [ ] Do Not Disturb on. Notifications off.
-- [ ] Quiet room, no fan or music. Same microphone for the voice card and the lines.
-- [ ] Microphone allowed for https://levis-new-mac-mini.tail8bd372.ts.net in Chrome's site settings before the take.
-- [x] Levi on the live roster, Ashkenazi, Level 5 (set November 3). Do Levi's voice card once before recording.
-- [ ] Voice card read off camera before the take, in the same room and on the same microphone. It is saved as vowel measurements, so a server restart does not need it again.
-- [ ] Line 2's planted mistake chosen: one sin read as a shin.
-- [ ] Teacher PIN entered off camera.
-- [ ] Terminal font large enough to read at 1440 wide. No keys or `.env` in frame.
-- [ ] Mock teacher tab open with its Demo pill in frame, if it is used.
-- [ ] Record two or three takes of the live reading. Keep the take as it happened, false marks included. Never edit a mark.
-- [ ] Voiceover recorded separately, read from this script, then laid over the footage.
+- [ ] Read from `kriah-demo-voiceover-script.txt`, which lists every line with its start and end time. The video leaves silence for each line and plays Levi's recorded reading by itself at 0:16.67, 0:37.38 and 1:07.28.
+- [ ] Quiet room, no fan or music. One microphone for the whole voiceover.
+- [ ] Say nothing during the three reading windows.
+- [ ] Each line fits its window. If a line runs long, re-record it faster; do not shorten the words.
+- [ ] Mix the voiceover over the clean cut, keeping Levi's reading at natural volume.
 - [ ] Final cut timed at 3:00 or less.
 - [ ] No child's voice, face or name anywhere in the video.
+- [ ] Every mock screen carries "Simulated class".
 - [ ] Video uploaded to YouTube as Unlisted (the form asks for a video link) and opened in a logged-out browser before it goes into the form.
