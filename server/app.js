@@ -483,7 +483,7 @@ export function createApp({
         }
       } else if (req.method === 'POST' && url.pathname === '/api/grade') {
         const gradeStartedAt = performance.now();
-        await turnOperation(url.searchParams.get('turn'), async turn => {
+        const position = turn => {
           const setIndex = turn.checkpoint;
           const hasPosition = url.searchParams.has('set') || url.searchParams.has('line');
           const lineIndex = hasPosition ? Number(url.searchParams.get('line'))
@@ -496,9 +496,22 @@ export function createApp({
           }
           const item = turn.set.find(candidate => candidate.id === url.searchParams.get('item'));
           if (!item) throw new RequestError(404, 'Unknown item');
-          if (contentType(req) !== 'audio/wav') throw new RequestError(415, 'Use audio/wav');
+          return { setIndex, lineIndex, item };
+        };
+        // Listening starts at once, so lines read back to back are heard at the same time. The grade
+        // still takes its place in the turn's queue on arrival, so grades and checkpoints keep their order.
+        const turn = turns.get(url.searchParams.get('turn'));
+        if (!turn) throw new RequestError(404, 'Unknown turn');
+        checkTurn(turn);
+        const { item } = position(turn);
+        if (contentType(req) !== 'audio/wav') throw new RequestError(415, 'Use audio/wav');
+        // A set's lines may be heard together, but no more than that at once.
+        if ((turn.listening || 0) >= turn.set.length) throw new RequestError(429, 'Too many readings at once');
+        turn.listening = (turn.listening || 0) + 1;
+        const listening = (async () => {
           let data = await body(req, AUDIO_LIMIT);
           if (!data.length) throw new RequestError(400, 'Empty audio');
+          checkTurn(turn);
           const attemptAudio = saveAttempts ? data : null;
           let words, tokens, raw, metered, replayPhonemes;
           try {
@@ -542,6 +555,13 @@ export function createApp({
           } finally {
             data = null;
           }
+          return { attemptAudio, words, raw, metered, replayPhonemes };
+        })().finally(() => { turn.listening--; });
+        listening.catch(() => {});
+        await turnOperation(turn.id, async queued => {
+          if (queued !== turn) throw new RequestError(404, 'Unknown turn');
+          const { attemptAudio, words, raw, metered, replayPhonemes } = await listening;
+          const { setIndex, lineIndex } = position(turn);
           checkTurn(turn);
           const grade = await gradeLine({ heard: words, text: item.text, preset: turn.preset }, { openAO: true });
           const result = { itemId: item.id, summary: summaryOnly(grade.summary), verdicts: grade.verdicts };

@@ -2189,7 +2189,7 @@ test('a failed teacher level write preserves the live turn as well as the saved 
   assert.equal((await grade(app, turn.turnId)).status, 200);
 });
 
-test('queued live grades retain their own lines and checkpoints wait, while stale set coordinates cannot grade a repeated item', async () => {
+test('live grades listen side by side, keep their own lines, and checkpoints wait, while stale set coordinates cannot grade a repeated item', async () => {
   const entered = deferred(), release = deferred();
   let calls = 0;
   const listen = mock.fn(async () => {
@@ -2206,8 +2206,9 @@ test('queued live grades retain their own lines and checkpoints wait, while stal
   await entered.promise;
   const second = positioned(0, 1);
   const checkpoint = next(app, turn.turnId);
-  await new Promise(resolve => setImmediate(resolve));
-  assert.equal(listen.mock.callCount(), 1);
+  await new Promise(resolve => setTimeout(resolve, 20));
+  assert.equal(listen.mock.callCount(), 2);
+  assert.equal(gradeLine.mock.callCount(), 0);
   assert.equal(chooseNextSet.mock.callCount(), 1);
   release.resolve();
   const responses = await Promise.all([first, second, checkpoint]);
@@ -2219,6 +2220,22 @@ test('queued live grades retain their own lines and checkpoints wait, while stal
   assert.equal(listen.mock.callCount(), 2);
   assert.equal((await positioned(1, 0)).status, 200);
   assert.equal((await positioned(1, 1, 'kamatz-0')).status, 409);
+});
+
+test('a turn hears no more readings at once than its set has lines', async () => {
+  const release = deferred();
+  const listen = mock.fn(async () => { await release.promise; return { words: [['ka']] }; });
+  const { app } = setup({ listen });
+  const child = await add(app), turn = await start(app, child.id);
+  const lines = turn.set.length;
+  const send = line => request(app, `/api/grade?turn=${turn.turnId}&item=${turn.set[line].id}&set=0&line=${line}`,
+    { type: 'audio/wav', data: Buffer.from('FAKE_AUDIO_BYTES') });
+  const pending = Array.from({ length: lines }, (_, line) => send(line));
+  await new Promise(resolve => setTimeout(resolve, 20));
+  assert.equal((await send(0)).status, 429);
+  release.resolve();
+  assert.deepEqual((await Promise.all(pending)).map(response => response.status), Array(lines).fill(200));
+  assert.equal(listen.mock.callCount(), lines);
 });
 
 for (const enabled of [false, true]) {

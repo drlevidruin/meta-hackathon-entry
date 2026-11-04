@@ -33,6 +33,9 @@ function promptFor(profile, results, levels, candidates) {
   ].join('\n');
 }
 
+// A slow answer falls back to the rule pick, so the reader never waits long between sets.
+const COACH_TIMEOUT_MS = 8_000;
+
 export async function modelPick(profile, results, rule, levels, candidates, fetcher = globalThis.fetch) {
   // Omit malformed metadata rather than forwarding arbitrary text into a prompt.
   candidates = candidates.filter(item => identifier.test(item.id) &&
@@ -42,7 +45,7 @@ export async function modelPick(profile, results, rule, levels, candidates, fetc
   let timer;
   try {
     const timeout = new Promise((resolve) => {
-      timer = setTimeout(() => { controller.abort(); resolve(null); }, 30_000);
+      timer = setTimeout(() => { controller.abort(); resolve(null); }, COACH_TIMEOUT_MS);
     });
     const request = async () => {
       const response = await fetcher('https://api.meta.ai/v1/chat/completions', {

@@ -42,7 +42,7 @@ test('round 2.10: prompt supplies profile, levels and candidates without the rul
   assert.doesNotMatch(prompt, /Rule pick|Rule reason|Start at level 1/);
 });
 
-test('round 2.10: model timeout is thirty seconds and still aborts stalled requests', async t => {
+test('round 2.10: model timeout is eight seconds and still aborts stalled requests', async t => {
   const realSetTimeout = globalThis.setTimeout;
   const durations = [];
   t.mock.method(globalThis, 'setTimeout', (callback, duration) => {
@@ -58,7 +58,7 @@ test('round 2.10: model timeout is thirty seconds and still aborts stalled reque
   });
   assert.equal(picked, null);
   assert.equal(signal.aborted, true);
-  assert.deepEqual(durations, [30_000]);
+  assert.deepEqual(durations, [8_000]);
 });
 
 

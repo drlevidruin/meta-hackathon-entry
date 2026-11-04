@@ -615,7 +615,7 @@ test('30 second timeout aborts and falls back even if fetch ignores the signal',
     signal = init.signal;
     return new Promise(() => {});
   });
-  assert.deepEqual(durations, [30_000]);
+  assert.deepEqual(durations, [8_000]);
   assert.equal(signal.aborted, true);
   assert.equal(picked.source, 'rule');
 });

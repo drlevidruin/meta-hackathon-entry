@@ -469,7 +469,7 @@ No key or part of a key is printed. Configuration:
 | `TEACHER_PIN` | Required teacher header secret, exactly 4 to 12 digits; invalid values stop startup |
 | `TRACE` | Exactly `1` enables the protected trace endpoint |
 | `COACH_MODEL` | Exactly `off` disables model calls at next checkpoints |
-| `COACH_REASONING_EFFORT` | Coach reasoning effort, default `minimal`; requests allow 16000 tokens and time out after 30 seconds |
+| `COACH_REASONING_EFFORT` | Coach reasoning effort, default `minimal`; requests allow 16000 tokens and time out after 8 seconds, when the rule pick is used |
 | `DATA_DIR` | Store directory, default `<repo>/data` |
 | `SAVE_ATTEMPTS` | Exactly `1` saves graded live WAV and JSON pairs under `DATA_DIR/attempts`; off by default |
 | `HOST` | Listen address, default `127.0.0.1`; use `0.0.0.0` and TLS for network tablets |
