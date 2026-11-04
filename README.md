@@ -109,7 +109,7 @@ npm --prefix station ci
 npm run demo
 ```
 
-Open http://localhost:5173/?mock. The gray Demo pill labels mock mode. It shows invented children, fixed simulated grades and teacher screens without a microphone, API keys or a backend. About a third of lines have one or two amber marks. Any PIN of 4 to 12 digits opens the mock teacher view. See the [station README](station/README.md) for screen routes.
+Open http://localhost:5173/?mock. The gray Demo pill labels mock mode. It shows invented children, fixed simulated grades and teacher screens without a microphone, API keys or a backend. About a third of lines have one or two amber marks. The mock teacher view opens without a PIN. See the [station README](station/README.md) for screen routes.
 
 For the real station, use a fresh terminal at the repo root:
 

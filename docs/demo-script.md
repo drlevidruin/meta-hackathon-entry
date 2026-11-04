@@ -51,7 +51,7 @@ npm run grade -- --preset sephardi --line "שַׁבָּת" --heard "sha-bos"
 
 ### 2:00 to 2:25 | The teacher view
 
-**Screen:** Teacher, PIN entered off camera, then Class, then Levi: the reading map with its legend. Then Print packet: Warm up, Practice and Challenge in frame. For a fuller class, cut to the mock teacher view with its gray Demo pill in frame (https://levis-new-mac-mini.tail8bd372.ts.net/?mock#/teacher; any four digits open it).
+**Screen:** Teacher, PIN entered off camera, then Class, then Levi: the reading map with its legend. Then Print packet: Warm up, Practice and Challenge in frame. For a fuller class, cut to the mock teacher view with its gray Demo pill in frame (https://levis-new-mac-mini.tail8bd372.ts.net/?mock#/teacher; it opens without a PIN).
 
 **Voiceover:**
 "The teacher gets a reading map: every letter with every vowel, solid, shaky, or not tested yet. Children are grouped by what to practice next. Muse Spark picks the next lines from the bank, and code checks every pick. The packet has a warm-up, practice and a challenge. No model writes Hebrew a child reads."

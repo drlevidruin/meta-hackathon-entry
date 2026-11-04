@@ -6,6 +6,7 @@ import App from './App.jsx';
 import { Avatar, AVATARS } from './Avatar.jsx';
 import { ClassView, ChildDetail, Packet, Roster } from './Teacher.jsx';
 import * as api from './api.js';
+import * as mock from './api.mock.js';
 import { loadPin, savePin } from './storage.js';
 import { VOWEL_IDS } from '../../rulebook/vowels.js';
 
@@ -14,8 +15,10 @@ const vowelNames = ['Kamatz', 'Patach', 'Segol', 'Tzere', 'Chirik', 'Cholam', 'S
 beforeEach(() => { sessionStorage.clear(); window.history.replaceState(null, '', '/?mock#/teacher'); });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
-it('requires a checked PIN and keeps it in session storage', async () => {
-  const check = vi.spyOn(api, 'checkPin');
+it('requires a checked PIN on the live station and keeps it in session storage', async () => {
+  window.history.replaceState(null, '', '/#/teacher');
+  const check = vi.spyOn(api, 'checkPin').mockResolvedValue({ ok: true });
+  vi.spyOn(api, 'classView').mockImplementation(() => mock.classView());
   render(React.createElement(App));
   expect(screen.getByRole('heading', { name: 'Teacher PIN' })).toBeTruthy();
   expect(screen.queryByRole('heading', { name: 'Class' })).toBeNull();
@@ -27,6 +30,15 @@ it('requires a checked PIN and keeps it in session storage', async () => {
   expect(within(screen.getByRole('navigation', { name: 'Teacher' })).getByRole('link', { name: 'Roster' })).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Lock' }));
   expect(screen.getByRole('heading', { name: 'Teacher PIN' })).toBeTruthy(); expect(loadPin()).toBe('');
+});
+
+it('opens the demo class without a PIN and without a Lock button', async () => {
+  const check = vi.spyOn(api, 'checkPin');
+  render(React.createElement(App));
+  expect(await screen.findByRole('heading', { name: 'Class' })).toBeTruthy();
+  expect(screen.queryByRole('heading', { name: 'Teacher PIN' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Lock' })).toBeNull();
+  expect(check).not.toHaveBeenCalled();
 });
 
 it('renders groups before children and opens a skill packet', async () => {
@@ -259,7 +271,7 @@ it.each(['#/', '#/teacher'])('has compact header classes and styles for 320 px o
   window.history.replaceState(null, '', `/?mock${hash}`);
   savePin('2468');
   render(React.createElement(App));
-  if (hash.includes('teacher')) await screen.findByRole('button', { name: 'Lock' });
+  if (hash.includes('teacher')) await screen.findByRole('heading', { name: 'Class' });
   const header = document.querySelector(hash.includes('teacher') ? '.teacher-header' : '.child-header');
   expect(header.querySelector('.wordmark .brand-mark')).toBeTruthy();
   expect(header.querySelector('.demo-badge').textContent).toBe('Demo');

@@ -8,7 +8,7 @@ From the repo root, with station dependencies installed:
 npm --prefix station run dev
 ```
 
-Open http://localhost:5173/?mock for invented children and fixed simulated grades. The header shows Demo. No microphone, API keys or server are needed. Any PIN of 4 to 12 digits opens the mock teacher screens. `npm run demo` runs the same dev server. See the [root README](../README.md#run-it) for the real server.
+Open http://localhost:5173/?mock for invented children and fixed simulated grades. The header shows Demo. No microphone, API keys or server are needed. The mock teacher screens open without a PIN. `npm run demo` runs the same dev server. See the [root README](../README.md#run-it) for the real server.
 
 | Screen | Hash route |
 | --- | --- |

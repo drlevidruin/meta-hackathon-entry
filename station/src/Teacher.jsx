@@ -44,8 +44,10 @@ export function PinPad({ onUnlock }) {
 }
 
 export function TeacherGate({ children, developer = false }) {
-  const [pin, setPin] = useState(loadPin);
-  const [verified, setVerified] = useState(false);
+  // The demo class has invented children only, so it opens without a PIN.
+  const demo = api.isMockMode();
+  const [pin, setPin] = useState(() => demo ? 'demo' : loadPin());
+  const [verified, setVerified] = useState(demo);
   const [error, setError] = useState('');
   const [revision, setRevision] = useState(0);
   useEffect(() => {
@@ -67,7 +69,7 @@ export function TeacherGate({ children, developer = false }) {
   return <div className={`teacher-shell ${developer ? 'developer-shell' : ''}`}>
     <header className="teacher-header no-print"><Brand />
       {!developer && verified && <nav aria-label="Teacher"><a href="#/teacher">Class</a><a href="#/teacher/roster">Roster</a></nav>}
-      {verified && <button className="secondary" onClick={lock}>Lock</button>}
+      {verified && !demo && <button className="secondary" onClick={lock}>Lock</button>}
       <a className="secondary readers-link" href="#/">Readers</a>
     </header>
     <main tabIndex={-1}>
