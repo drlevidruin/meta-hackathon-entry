@@ -186,7 +186,7 @@ Codex then built the live-flow fixes on the branch `live-flow`, unattended, at m
 
 ## November 3: an iPhone, a ruling, and faster checks
 
-Levi tested the station on his iPhone. The microphone heard nothing in Safari or Chrome. A test page on the station showed why: with the browser's voice processing turned off, iOS gave a level about a seventh of the station's speech threshold. On iPhones and iPads the station now keeps the browser's microphone defaults, and the iPhone hears.
+Levi tested the station on his iPhone. The microphone heard nothing in Safari or Chrome. A test page on the station showed why: with the browser's voice processing turned off, iOS gave about a seventh of the level it gave with the browser's defaults, too quiet for the station to hear a line start. On iPhones and iPads the station now keeps the browser's microphone defaults, and the iPhone hears.
 
 On the iPhone the last errors were Muse Wonder writing o for a and a for o. Levi ruled that the live station should not contest them: a kamatz or patach heard as either a or o is not marked. Offline scoring keeps the strict rule. Other vowels and every letter are still marked.
 
