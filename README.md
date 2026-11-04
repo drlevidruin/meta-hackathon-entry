@@ -106,6 +106,10 @@ Meta may train on content sent in contributor mode, so only standard tier is use
 - Turn Meta Model API free credits off and a paid plan on. Meta's free-credit terms allow content to be used for product improvement.
 - Pass an adult sealed round first. Done: Round 1i, October 30.
 
+### The pledge
+
+A tenth of any prize this entry wins goes to tzedakah, charity. The rest goes to bringing the station to the world: the consent form, the child round and the first classroom pilot. Every child deserves to be heard.
+
 ## Data and privacy
 
 The ear never sees the text it grades. No model writes Hebrew a child reads. There is no chat or free-text AI feedback anywhere: child screens, teacher screens and the parent line all use templates. Model reasons appear only in the PIN-protected developer trace when enabled. Keys stay on the server.
