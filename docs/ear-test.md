@@ -910,6 +910,10 @@ A third fix followed at `d5b95e8`: on whole lines the meter now applies only a c
 
 Round 1k is a design set, and these fixes were found on it. The numbers show the fixes do what they were built to do; they prove nothing about new readings. That takes a sealed round. The replays are in [runs/round-1k/fixes](runs/round-1k/fixes/) and, after the third fix, [runs/round-1k/fixes-3](runs/round-1k/fixes-3/).
 
+### A fresh run, November 4
+
+Round 1k ran once more on November 4 at `89b13d7`, with three votes, the meter, the voice card to the ear and the referee on, and Voice check 4 as the card. It took 2 minutes for the ten lines. Every plant was caught, 5 of 5, with one false mark: the final ךָ of לְבָנֶיךָ, a kamatz heard as patach. The ear alone left 16 false marks; after the meter, 5. The scorer still marks a against o on a kamatz or patach, which the live station no longer does since the November 3 ruling, so on the live station that mark would not show. Three of these lines, with their grades, are the reading in the demo video. This is still a design set, so it proves nothing about new readings. The record is [runs/round-1k/run-2026-11-04.tsv](runs/round-1k/run-2026-11-04.tsv).
+
 ## Round 2: a child's voice
 
 The adult round must pass first. Recording a child requires written parent consent. Turn Meta Model API free credits off and use a paid plan before sending children's audio. Meta's free-credit terms allow content to be used for product improvement.
