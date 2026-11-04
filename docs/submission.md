@@ -125,7 +125,7 @@ The code is MIT licensed. The siddur text keeps its CC-BY license.
 - Every real-voice result is one adult reader, me, in Ashkenazi pronunciation. No child has used it yet. Sephardi and Chassidish are tested only offline.
 - One sealed round has passed out of six, and it was single words. Connected prayer lines have only been used as design data.
 - Muse Wonder still confuses a and o, and the checks behind it carry the grade. Nothing yet checks i against e; that missed one syllable in Round 1h.
-- The first live test, on October 31, did not go well: lines ended at the first pause, grading took 6 to 10 seconds a line, and two correct words were marked wrong. The live flow was rebuilt after it. On November 3 the live station graded a line in about 4 to 5 seconds through the public link, and the next line appears while the last one is graded.
+- The first live test, on October 31, did not go well: lines ended at the first pause, grading took 6 to 10 seconds a line, and two correct words were marked wrong. The live flow was rebuilt after it. On November 3, through the public link, a short Level 1 line graded in about 4 to 5 seconds and a Level 5 siddur line read on an iPhone in about 11 to 12 seconds. The next line appears while the last one is graded, so the reader does not wait.
 - No kriah teacher other than me has checked the rulebook by hand.
 - It has not been tested on a classroom tablet over the school network.
 
