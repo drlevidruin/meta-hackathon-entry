@@ -23,7 +23,7 @@ Lines marked [CHECK] need a fact confirmed on the live station before recording.
 "Green means I read it right. Every letter, every vowel."
 
 **Voiceover, over line 2's marks:**
-"On this line I made a mistake on purpose. This is a kamatz. I read it as a patach: na, not no. The mark lands on that one vowel. Purple means the vowel was wrong. Orange would mean the letter. Underneath is what the ear heard."
+"On this line I made a mistake on purpose. This is a sin. I read it as a shin: sh, not s. The mark lands on that one letter. Orange means the letter was wrong. Purple would mean the vowel. Underneath is what the ear heard."
 
 **Voiceover, over line 3:**
 "The microphone stays on. Each line grades while I read the next one."
