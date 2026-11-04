@@ -4,6 +4,10 @@ The rulebook encodes expected sounds for pointed Hebrew words. It is plain code 
 
 AI reviewers checked every distinct siddur word in all three traditions. A second AI review confirmed each finding. Fixes have regression tests and a before and after comparison of every word. No human kriah teacher has reviewed the rulebook yet. The [Shema page](check/shema.md) is the page for that hand check. See the [review record](check/rulebook-review.md).
 
+## Ruling of 2026-11-03
+
+After the first readings on an iPhone, Rabbi Dr. Levi Druin ruled that the live station does not contest a against o. A kamatz, patach, chataf patach, chataf kamatz or kamatz katan heard as either a or o is not marked, in every tradition. The live ear still confuses the two too often, and a correct reading marked wrong does more harm than a missed one. Cholam, every other vowel and every letter are graded as before. The rule is the grader option `openAO`, which the station server turns on; offline scoring and the sealed ear test keep the strict rule, so their published results are unchanged.
+
 ## Ruling of 2026-10-30
 
 Rabbi Dr. Levi Druin, principal of Pardes Day School and a kriah teacher, ruled on two questions for the Ashkenazi preset. He answered no to both.

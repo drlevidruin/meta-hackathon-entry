@@ -15,9 +15,9 @@ Lines marked [CHECK] need a fact confirmed on the live station before recording.
 
 ### 0:20 to 1:05 | A live reading
 
-**Screen:** Tap Levi. Read three lines aloud, one after another, with the microphone on. Keep the reading audible. Keep the first line's grade at normal speed, wait included. Cut the other waits. Hold on line 2 when its marks appear, then zoom on the planted vowel.
+**Screen:** Tap Levi. Read three lines aloud, one after another, with the microphone on. Keep the reading audible. Keep the first line's grade at normal speed, wait included. Cut the other waits. Hold on line 2 when its marks appear, then zoom on the planted letter.
 
-**On camera, read:** the three lines the station shows, in Ashkenazi pronunciation. On line 2, read one kamatz as a patach: a instead of o. See "Lines and the planted mistake" below.
+**On camera, read:** the three lines the station shows, in Ashkenazi pronunciation. On line 2, read one sin as a shin: sh instead of s. See "Lines and the planted mistake" below.
 
 **Voiceover, over line 1's marks:**
 "Green means I read it right. Every letter, every vowel."
@@ -83,23 +83,23 @@ If the mock class is on screen, add: "This class is simulated."
 The station chooses the lines, so the exact lines depend on the set it serves. Before recording, set Levi to Ashkenazi at Level 5 in Roster, so the lines are short siddur phrases.
 
 - **Line 1:** read as printed, Ashkenazi: kamatz as o, cholam as oy, a sav without a dot as s.
-- **Line 2:** read one kamatz in the middle of a word as a patach, a instead of o. Pick one inside a word, not on its last syllable. Read the rest as printed.
+- **Line 2:** read one שׂ (sin) as a שׁ (shin), sh instead of s. Read the rest as printed.
 - **Line 3:** read as printed.
 
-The bank's line `הָעוֹלָם אֲשֶׁר נָתַן לַשֶּׂכְוִי בִינָה` is the model case. Read it ho-oy-lom a-sher na-san la-sech-vi vi-no, with נָתַן read na-san for no-san. The grader marks that kamatz `wrong_vowel` and nothing else in the line:
+The bank's line `הָעוֹלָם אֲשֶׁר נָתַן לַשֶּׂכְוִי בִינָה` is the model case. Read it ho-oy-lom a-sher no-san la-shech-vi vi-no, with לַשֶּׂכְוִי read la-shech-vi for la-sech-vi. The grader marks that sin `wrong_letter`, in orange, and nothing else in the line:
 
 ```bash
-npm run grade -- --preset ashkenazi --line "הָעוֹלָם אֲשֶׁר נָתַן לַשֶּׂכְוִי בִינָה" --heard "ho-oy-lom a-sher na-san la-sech-vi vi-no"
+npm run grade -- --preset ashkenazi --line "הָעוֹלָם אֲשֶׁר נָתַן לַשֶּׂכְוִי בִינָה" --heard "ho-oy-lom a-sher no-san la-shech-vi vi-no"
 ```
 
-The same plant was in Round 1k. After the fixes measured on Round 1k, the replay caught it in every run.
+Since November 3 the live station does not mark a against o on a kamatz or patach (see the ruling in `docs/rulebook.md`), so the demo plants a letter instead.
 
 ## Shot list
 
 | Time | Shot | Source |
 | --- | --- | --- |
 | 0:00 | Who's reading screen, lower third | Live station, 1440 by 900 |
-| 0:20 | Three lines read, marks appear, zoom on the planted vowel | Live station, screen recording with room audio |
+| 0:20 | Three lines read, marks appear, zoom on the planted letter | Live station, screen recording with room audio |
 | 1:05 | How it works diagram, boxes highlighted in turn | README on GitHub |
 | 1:45 | Two grader commands side by side | Terminal |
 | 2:00 | Reading map, then practice packet, then mock class | Live teacher view; mock tab with Demo pill |
@@ -114,7 +114,7 @@ The same plant was in Round 1k. After the fixes measured on Round 1k, the replay
 - [ ] Microphone allowed for https://levis-new-mac-mini.tail8bd372.ts.net in Chrome's site settings before the take.
 - [x] Levi on the live roster, Ashkenazi, Level 5 (set November 3). Do Levi's voice card once before recording.
 - [ ] Voice card read off camera before the take, in the same room and on the same microphone. If the server restarts, read it again: the card lives only in memory.
-- [ ] Line 2's planted mistake chosen: one kamatz inside a word, read as a.
+- [ ] Line 2's planted mistake chosen: one sin read as a shin.
 - [ ] Teacher PIN entered off camera.
 - [ ] Terminal font large enough to read at 1440 wide. No keys or `.env` in frame.
 - [ ] Mock teacher tab open with its Demo pill in frame, if it is used.

@@ -543,7 +543,7 @@ export function createApp({
             data = null;
           }
           checkTurn(turn);
-          const grade = await gradeLine({ heard: words, text: item.text, preset: turn.preset });
+          const grade = await gradeLine({ heard: words, text: item.text, preset: turn.preset }, { openAO: true });
           const result = { itemId: item.id, summary: summaryOnly(grade.summary), verdicts: grade.verdicts };
           const earnedStars = lineStars(grade, item.source?.challenge === true);
           if (saveAttempts) {

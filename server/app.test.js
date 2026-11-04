@@ -383,9 +383,10 @@ test('skipping a saved voice profile grades through the ear alone', async () => 
   await voice(app, child);
   const turn = await start(app, child.id);
   const data = wav(utterance(['o', 'u']));
-  assert.equal((await grade(app, turn.turnId, item.id, { data })).json.summary.wrong_vowel, 0);
+  // Live grading leaves a and o open on a kamatz, so the heard syllable shows the referee's part.
+  assert.equal((await grade(app, turn.turnId, item.id, { data })).json.words[0].pairs[0].heard, 'bo');
   await request(app, `/api/children/${child.id}/voice`, { method: 'PUT', headers: auth, data: { skipped: true } });
-  assert.equal((await grade(app, turn.turnId, item.id, { data })).json.summary.wrong_vowel, 1);
+  assert.equal((await grade(app, turn.turnId, item.id, { data })).json.words[0].pairs[0].heard, 'ba');
 });
 
 test('packet default focus comes from eligible items when the coach has no next skill', async () => {
@@ -1138,19 +1139,18 @@ test('grading uses the current voice profile, and falls back to ear words withou
   const data = wav(utterance(['o', 'u']));
   const before = await grade(app, turn.turnId, item.id, { data });
   assert.equal(before.status, 200);
-  assert.equal(before.json.summary.wrong_vowel, 1);
   assert.deepEqual(gradeLine.mock.calls.at(-1).arguments[0].heard, earWords);
   assert.equal((await voice(app, child)).status, 200);
   const metered = await grade(app, turn.turnId, item.id, { data });
   assert.equal(metered.status, 200);
-  assert.equal(metered.json.summary.wrong_vowel, 0);
   assert.deepEqual(gradeLine.mock.calls.at(-1).arguments[0].heard, [['bo', 'ruch']]);
   const invalid = await grade(app, turn.turnId, item.id);
   assert.equal(invalid.status, 200);
-  assert.equal(invalid.json.summary.wrong_vowel, 1);
+  assert.deepEqual(gradeLine.mock.calls.at(-1).arguments[0].heard, earWords);
   assert.deepEqual(earWords, [['ba', 'ruch']]);
   await request(app, `/api/children/${child.id}/voice`, { method: 'DELETE', headers: auth });
-  assert.equal((await grade(app, turn.turnId, item.id, { data })).json.summary.wrong_vowel, 1);
+  await grade(app, turn.turnId, item.id, { data });
+  assert.deepEqual(gradeLine.mock.calls.at(-1).arguments[0].heard, earWords);
 });
 
 test('a throwing meter still grades the ear words', async () => {
@@ -1437,7 +1437,7 @@ test('grade asks for five votes using three, passes audio, and uses the saved pr
     assert.equal(response.status, 200);
     assert.deepEqual(response.json, { itemId: 'kamatz-0', words: gradeFor().words, summary: gradeFor().summary });
     assert.deepEqual(listen.mock.calls[0].arguments, [{ data, format: 'wav' }, gradeVotes]);
-    assert.deepEqual(gradeLine.mock.calls[0].arguments, [{ heard: [['ba']], text: 'בָּ', preset }]);
+    assert.deepEqual(gradeLine.mock.calls[0].arguments, [{ heard: [['ba']], text: 'בָּ', preset }, { openAO: true }]);
     assert.equal(response.headers['Cache-Control'], 'no-store');
   }
 });

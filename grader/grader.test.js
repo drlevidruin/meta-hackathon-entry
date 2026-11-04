@@ -525,3 +525,13 @@ test('Ashkenazi grading accepts a quiet hei with sheva nach and a tzere read as 
   assert.notDeepEqual(grade('לִהְיוֹת', 'sephardi', 'li-yos').verdicts.filter((entry) => entry.verdict !== 'ok'), []);
   assert.notDeepEqual(grade('יִשְׂרָאֵל', 'chassidish', 'yis-ro-el').verdicts.filter((entry) => entry.verdict !== 'ok'), []);
 });
+
+test('live grading leaves a and o open on kamatz and patach only', () => {
+  const pairs = (text, heard, preset, options) => gradeLine({ heard: [heard], text, preset }, options).words
+    .flatMap(word => word.pairs.map(pair => pair.verdict));
+  assert.deepEqual(pairs('הַשָּׁמַיִם', ['ha', 'sha', 'ma', 'yim'], 'ashkenazi', { openAO: true }), ['ok', 'ok', 'ok', 'ok', 'ok']);
+  assert.deepEqual(pairs('הַשָּׁמַיִם', ['ha', 'sha', 'ma', 'yim'], 'ashkenazi'), ['ok', 'wrong_vowel', 'ok', 'ok', 'ok']);
+  assert.deepEqual(pairs('מָטָר', ['mo', 'tor'], 'sephardi', { openAO: true }), ['ok', 'ok', 'ok']);
+  assert.deepEqual(pairs('שָׁלוֹם', ['sha', 'lam'], 'ashkenazi', { openAO: true }), ['ok', 'wrong_vowel', 'ok']);
+  assert.deepEqual(pairs('נָתַן', ['ni', 'san'], 'ashkenazi', { openAO: true }), ['wrong_vowel', 'ok', 'ok']);
+});

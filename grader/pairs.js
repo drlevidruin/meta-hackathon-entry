@@ -24,6 +24,11 @@ function consonantMatches(tokens, pair) {
   });
 }
 
+// Levi's ruling of November 3, 2026: the live ear cannot reliably tell a from o, so a kamatz or
+// patach heard as either is not marked. Offline scoring keeps the strict rule.
+const OPEN_AO = new Set(['vowel:kamatz', 'vowel:patach', 'vowel:chataf_patach', 'vowel:chataf_kamatz', 'vowel:kamatz_katan']);
+const sameAO = (token) => token === 'o' ? 'a' : token;
+
 function verdictFor(tokens, model, options) {
   const pair = model.pair;
   let verdict;
@@ -36,7 +41,12 @@ function verdictFor(tokens, model, options) {
     text: pair.text, verdict, heard: tokens.join(''), expected: [...pair.sounds],
     skills: [...pair.skills],
   };
-  if (verdict === 'wrong_letter' || verdict === 'wrong_vowel') {
+  if (verdict === 'wrong_vowel' && options.openAO && pair.skills.some(skill => OPEN_AO.has(skill))
+    && model.alternatives.some((alternative) => equal(tokens.map(sameAO), alternative.map(sameAO)))) {
+    result.verdict = 'ok';
+    result.openAO = true;
+  }
+  if (result.verdict === 'wrong_letter' || result.verdict === 'wrong_vowel') {
     const tradition = model.traditions.find(({ alternatives }) => (
       alternatives.some((alternative) => equal(tokens, alternative))
     ));
