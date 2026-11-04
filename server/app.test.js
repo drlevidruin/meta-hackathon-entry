@@ -1257,6 +1257,22 @@ test('round 2.8: parent line stays empty until a finished turn has sounded pairs
   assert.match((await detail()).parentLine, /read 1 of 1/);
 });
 
+test('child detail sends the recent reads of each letter and vowel pair, and only to the teacher', async () => {
+  const { app } = setup();
+  const child = await add(app);
+  assert.deepEqual((await teacherGet(app, `/api/children/${child.id}/detail`)).json.pairs, {});
+  const turn = await start(app, child.id);
+  await grade(app, turn.turnId);
+  const { pairs } = (await teacherGet(app, `/api/children/${child.id}/detail`)).json;
+  const keys = Object.keys(pairs);
+  assert.ok(keys.length > 0);
+  for (const key of keys) {
+    assert.match(key, /^letter:[a-z_]+\|vowel:[a-z_]+$/);
+    assert.ok(pairs[key].length > 0 && pairs[key].every(read => read === 0 || read === 1));
+  }
+  assert.equal((await get(app, `/api/children/${child.id}/detail`)).status, 403);
+});
+
 test('children list is public; teacher check and CRUD require the PIN', async () => {
   const { app } = setup();
   assert.deepEqual((await get(app, '/api/children')).json, []);

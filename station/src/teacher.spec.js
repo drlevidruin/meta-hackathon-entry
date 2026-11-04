@@ -291,3 +291,17 @@ it('provides a distinct inline SVG for every allowed avatar', () => {
   });
   expect(new Set(shapes).size).toBe(16);
 });
+
+it('lists the weakest sounds first with their right share, and nothing when there are no misses', async () => {
+  render(React.createElement(ChildDetail, { childId: 'bim' }));
+  const heading = await screen.findByRole('heading', { name: 'Needs practice' });
+  const rows = [...heading.parentElement.querySelectorAll('.needs-item')].map(row => row.textContent);
+  expect(rows).toEqual(['בַּBet with a dot, Patach2 of 5 right', 'מָMem, Kamatz2 of 4 right', 'לִLamed, Chirik2 of 3 right']);
+  expect(heading.parentElement.querySelector('.needs-sound').getAttribute('lang')).toBe('he');
+  cleanup();
+  const detail = await api.childDetail('bim');
+  vi.spyOn(api, 'childDetail').mockResolvedValue({ ...detail, pairs: { 'letter:bet|vowel:kamatz': [1, 1, 1] } });
+  render(React.createElement(ChildDetail, { childId: 'bim' }));
+  await screen.findByRole('heading', { name: 'Reading map' });
+  expect(screen.queryByRole('heading', { name: 'Needs practice' })).toBeNull();
+});

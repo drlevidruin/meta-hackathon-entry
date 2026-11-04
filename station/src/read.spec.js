@@ -6,7 +6,7 @@ import App, { DoneScreen, GradedLine, LevelUp, ReadScreen } from './App.jsx';
 import * as api from './api.js';
 import { items } from './api.mock.js';
 import { savePin, TURN_KEY } from './storage.js';
-import { lineStars, useTurn } from './useTurn.js';
+import { DONE_WAIT_MS, lineStars, useTurn } from './useTurn.js';
 import { VoiceCheck } from './VoiceCheck.jsx';
 import { voiceCardFor } from '../../rulebook/voice-card.js';
 import { VOWEL_IDS } from '../../rulebook/vowels.js';
@@ -665,4 +665,104 @@ it('a late unknown-turn response does not clear a newer turn', async () => {
   const newer = result.current.turn.turnId;
   await act(async () => { reject(Object.assign(new Error('Unknown turn'), { status: 404 })); await upload; });
   expect(result.current.turn.turnId).toBe(newer);
+});
+
+it('shows the heard sound struck out beside the right sound, with both for screen readers', () => {
+  const pair = (verdict, extra) => ({ text: 'בָּ', verdict, heard: 'she', ...extra });
+  render(React.createElement(GradedLine, { attempt: { status: 'graded', text: 'x', grade: { words: [
+    { verdict: null, pairs: [pair('wrong_letter', { expected: ['se', 'sa'] }), pair('wrong_vowel')] },
+  ] } } }));
+  const [withRight, heardOnly] = [...document.querySelectorAll('.pair-heard')];
+  expect(withRight.querySelector('.heard-wrong').textContent).toBe('she');
+  expect(withRight.querySelector('.heard-right').textContent).toBe('se');
+  expect(withRight.textContent).toBe('Heard she, should be se');
+  expect(heardOnly.textContent).toBe('Heard she');
+  expect(heardOnly.querySelector('.heard-right')).toBeNull();
+});
+
+it('shows a Done button in the reading header', async () => {
+  render(React.createElement(App));
+  await findLine(items[0].text);
+  const done = screen.getByRole('button', { name: 'Done' });
+  expect(done.closest('.stats')).toBeTruthy();
+  expect(done.disabled).toBe(false);
+});
+
+it('Done saves the turn once with the stars earned so far, then shows the finished screen', async () => {
+  vi.spyOn(api, 'grade').mockImplementation(async ({ itemId }) => grade(items.find(item => item.id === itemId)));
+  const choose = vi.spyOn(api, 'next');
+  const finish = vi.spyOn(api, 'finish');
+  let endLine;
+  vi.spyOn(recorder, 'useRecorder').mockImplementation(callback => {
+    endLine = callback;
+    return { status: 'ready', toggle: vi.fn() };
+  });
+  render(React.createElement(App));
+  await findLine(items[0].text);
+  await act(async () => { await endLine(null); });
+  const done = screen.getByRole('button', { name: 'Done' });
+  fireEvent.click(done);
+  fireEvent.click(done);
+  expect(await screen.findByRole('heading', { name: '1 star!' })).toBeTruthy();
+  expect(finish).toHaveBeenCalledOnce();
+  expect(finish.mock.calls[0][0]).toMatchObject({ stars: 1 });
+  expect(choose).not.toHaveBeenCalled();
+  expect(window.location.hash).toBe('#/done');
+});
+
+it('Done waits for a grade that is still coming, then saves with its star', async () => {
+  let settle;
+  vi.spyOn(api, 'grade').mockReturnValueOnce(new Promise(resolve => { settle = resolve; }));
+  const finish = vi.spyOn(api, 'finish');
+  const { result } = renderHook(useTurn);
+  await act(async () => { await result.current.start(child); });
+  act(() => { void result.current.record(null); });
+  act(() => { result.current.stop(); result.current.stop(); });
+  expect(result.current.turn.ending).toBe(true);
+  expect(finish).not.toHaveBeenCalled();
+  await act(async () => { settle(grade(items[0])); });
+  await waitFor(() => expect(result.current.turn.phase).toBe('finished'));
+  expect(finish).toHaveBeenCalledOnce();
+  expect(finish).toHaveBeenCalledWith({ turnId: result.current.turn.turnId, stars: 1 });
+});
+
+it('Done stops waiting for a slow grade after a few seconds and saves what is earned', async () => {
+  vi.useFakeTimers({ toFake: ['setTimeout'] });
+  vi.spyOn(api, 'grade').mockReturnValue(new Promise(() => {}));
+  const finish = vi.spyOn(api, 'finish');
+  const { result } = renderHook(useTurn);
+  await act(async () => { await result.current.start(child); });
+  act(() => { void result.current.record(null); });
+  act(() => { result.current.stop(); });
+  expect(finish).not.toHaveBeenCalled();
+  await act(async () => { await vi.advanceTimersByTimeAsync(DONE_WAIT_MS + 50); });
+  expect(finish).toHaveBeenCalledOnce();
+  expect(finish).toHaveBeenCalledWith({ turnId: result.current.turn.turnId, stars: 0 });
+  expect(result.current.turn.phase).toBe('finished');
+});
+
+it('Done pressed while the coach is choosing ends the turn instead of starting another set', async () => {
+  let answer;
+  vi.spyOn(api, 'grade').mockImplementation(async ({ itemId }) => grade(items.find(item => item.id === itemId)));
+  vi.spyOn(api, 'next').mockReturnValue(new Promise(resolve => { answer = resolve; }));
+  const finish = vi.spyOn(api, 'finish');
+  const { result } = renderHook(useTurn);
+  await act(async () => { await result.current.start(child); });
+  await act(async () => { await result.current.record(null); });
+  await act(async () => { await result.current.record(null); });
+  await waitFor(() => expect(result.current.turn.phase).toBe('choosing'));
+  act(() => { result.current.stop(); });
+  await act(async () => { answer({ done: false, level: 1, levelUp: true, set: items.slice(2, 4) }); });
+  await waitFor(() => expect(result.current.turn.phase).toBe('finished'));
+  expect(finish).toHaveBeenCalledOnce();
+});
+
+it('Done before any line is read leaves for the readers without saving a turn', async () => {
+  const finish = vi.spyOn(api, 'finish');
+  const { result } = renderHook(useTurn);
+  await act(async () => { await result.current.start(child); });
+  act(() => { result.current.stop(); });
+  expect(result.current.turn).toBeNull();
+  expect(finish).not.toHaveBeenCalled();
+  expect(window.location.hash).toBe('#/');
 });

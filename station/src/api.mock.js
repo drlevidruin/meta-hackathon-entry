@@ -110,7 +110,9 @@ export async function grade({ turnId, itemId }) {
     const verdict = amber.has(index) ? ((hash + index) % 2 === 0 ? 'wrong_letter' : 'wrong_vowel') : 'ok';
     summary.pairs++;
     summary[verdict]++;
-    return { text, verdict: null, pairs: [{ text, verdict, skills: ['vowel:kamatz'] }] };
+    const mistake = verdict === 'wrong_letter' ? { heard: 'she', expected: ['se'] }
+      : verdict === 'wrong_vowel' ? { heard: 'bo', expected: ['ba'] } : {};
+    return { text, verdict: null, pairs: [{ text, verdict, ...mistake, skills: ['vowel:kamatz'] }] };
   });
   const result = { itemId, words, summary };
   const db = database();
@@ -192,7 +194,9 @@ export async function childDetail(id) {
     cells[key] = ['solid', 'shaky', 'untested'][(row + column) % 3];
     sample[key] = samples[row][column];
   }));
-  return { child: childView(child), map: { letters, vowels, cells, sample }, turns: turnsFor(db, id),
+  const pairs = { 'letter:bet|vowel:patach': [1, 0, 0, 1, 0], 'letter:mem|vowel:kamatz': [0, 1, 1, 0],
+    'letter:lamed|vowel:chirik': [1, 1, 0], 'letter:bet|vowel:kamatz': [1, 1, 1, 1] };
+  return { child: childView(child), map: { letters, vowels, cells, sample }, pairs, turns: turnsFor(db, id),
     parentLine: `${child.name} read the bet with a dot well today and will practice the sheva next.` };
 }
 export async function addChild(data) {

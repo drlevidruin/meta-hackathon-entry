@@ -4,6 +4,10 @@ import { recordingToWav } from './wav.js';
 import { loadTurn, saveTurn, grayGrade, validSet } from './storage.js';
 import { navigate } from './router.js';
 
+// How long Done waits for grades still being worked out before it saves with the stars already earned.
+export const DONE_WAIT_MS = 4000;
+const STOPPABLE = ['reading', 'checkpoint', 'choosing', 'next_error', 'level_up'];
+
 export function perfectLine(grade) {
   const pairs = grade?.words?.flatMap(word => word.pairs || []) || [];
   return pairs.length > 0 && grade.words.every(word => !word.verdict || word.verdict === 'ok') &&
@@ -113,6 +117,9 @@ export function useTurn() {
       latest = { ...latest, stars, streak, bestStreak, bonusBurst, resolvedThrough: through };
       store(latest);
     }
+    // Done: once every grade is in, save the turn as it stands instead of asking the coach for more lines.
+    if (latest.ending && ['reading', 'checkpoint', 'next_error'].includes(latest.phase)
+      && latest.attempts.every(entry => entry.status !== 'pending')) latest = { ...latest, phase: 'finish_pending' };
     if (latest.phase === 'checkpoint' && latest.attempts.slice(latest.setStart).every(entry => entry.status !== 'pending')) {
       const checkpoint = latest;
       store({ ...latest, phase: 'choosing' });
@@ -120,15 +127,17 @@ export function useTurn() {
         elapsedMs: Math.max(0, Date.now() - latest.setStartedAt) }).then(response => {
         if (current.current?.turnId !== checkpoint.turnId) return;
         if (!response.done && !validSet(response.set)) throw new Error('Invalid set');
-        const phase = response.done ? 'finish_pending' : 'reading';
+        const over = response.done || !!current.current.ending;
+        const levelUp = response.levelUp && !current.current.ending;
+        const phase = over ? 'finish_pending' : 'reading';
         store({ ...current.current, level: response.level, facts: response.facts || {},
           completedSets: checkpoint.completedSets + 1,
-          set: response.done ? checkpoint.set : response.set,
-          lineIndex: response.done ? checkpoint.set.length : 0,
-          setStart: response.done ? checkpoint.setStart : checkpoint.attempts.length,
-          setStartedAt: Date.now() + (response.levelUp ? 2000 : 0),
-          phase: response.levelUp ? 'level_up' : phase, afterLevelUp: phase,
-          levelUpUntil: response.levelUp ? Date.now() + 2000 : null,
+          set: over ? checkpoint.set : response.set,
+          lineIndex: over ? checkpoint.set.length : 0,
+          setStart: over ? checkpoint.setStart : checkpoint.attempts.length,
+          setStartedAt: Date.now() + (levelUp ? 2000 : 0),
+          phase: levelUp ? 'level_up' : phase, afterLevelUp: phase,
+          levelUpUntil: levelUp ? Date.now() + 2000 : null,
         });
       }).catch(error => {
         if (unknownTurn(error, checkpoint.turnId)) return;
@@ -161,5 +170,24 @@ export function useTurn() {
     if (latest?.phase === 'finish_error') store({ ...latest, phase: 'finish_pending' });
   }
 
-  return { turn, starting, startError, start, record, retryNext, clear: () => store(null) };
+  // Done on the reading screen. Saves once; a second tap does nothing.
+  function stop() {
+    const latest = current.current;
+    if (!latest || latest.ending || !STOPPABLE.includes(latest.phase)) return;
+    // Nothing read yet: leave without saving an empty turn to the teacher's log.
+    if (!latest.attempts.length) {
+      store(null);
+      navigate('/', { replace: true });
+      return;
+    }
+    store({ ...latest, ending: true });
+    setTimeout(() => {
+      const waiting = current.current;
+      if (waiting?.turnId === latest.turnId && ['reading', 'checkpoint', 'next_error'].includes(waiting.phase)) {
+        store({ ...waiting, phase: 'finish_pending' });
+      }
+    }, DONE_WAIT_MS);
+  }
+
+  return { turn, starting, startError, start, record, retryNext, stop, clear: () => store(null) };
 }

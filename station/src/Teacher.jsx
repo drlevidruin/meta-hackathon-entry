@@ -116,6 +116,31 @@ export function SkillMap({ map }) {
   </section>;
 }
 
+// Pairs with at least one miss, weakest first. A pair the reading map has no Hebrew sample for is left out.
+export function weakPairs(pairs = {}, sample = {}) {
+  return Object.entries(pairs).flatMap(([key, reads]) => {
+    const right = reads.filter(read => read === 1).length;
+    return reads.length > right && sample[key] ? [{ key, right, total: reads.length }] : [];
+  }).sort((a, b) => a.right / a.total - b.right / b.total || b.total - a.total).slice(0, 8);
+}
+
+const plainName = skill => skillLabel(skill).replace(/ \(.*\)$/, '');
+
+function NeedsPractice({ pairs, map }) {
+  const weak = weakPairs(pairs, map.sample);
+  if (!weak.length) return null;
+  return <section className="needs-practice"><h2>Needs practice</h2>
+    <ul className="needs-list">{weak.map(({ key, right, total }) => {
+      const [letter, vowel] = key.split('|');
+      return <li key={key} className="needs-item">
+        <span className="needs-sound" dir="rtl" lang="he">{map.sample[key]}</span>
+        <strong>{plainName(letter)}, {plainName(vowel)}</strong>
+        <span>{right} of {total} right</span>
+      </li>;
+    })}</ul>
+  </section>;
+}
+
 function ParentLine({ text }) {
   const [state, setState] = useState('Copy');
   const line = useRef(null);
@@ -137,6 +162,7 @@ export function ChildDetail({ childId, trace = false }) {
   return <section className="page detail-page"><Resource resource={resource}>{data => <>
     <div className="page-heading"><div className="child-title"><Avatar name={data.child.avatar} small /><h1>{data.child.name}</h1><span className="level-badge">Level {data.child.level}</span></div>
       <a className="primary" href={`#/teacher/packet/child/${encode(childId)}`}>Print packet</a></div>
+    <NeedsPractice pairs={data.pairs} map={data.map} />
     <div className="detail-layout"><SkillMap map={data.map} /><section className="turn-log"><h2>Turns</h2>
       {data.turns.map((turn, index) => <article className="turn-card" key={`${turn.date}-${index}`}>
         <h3><time dateTime={turn.date}>{dateLabel(turn.date)}</time></h3>

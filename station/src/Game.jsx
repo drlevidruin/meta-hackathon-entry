@@ -8,18 +8,24 @@ import { useRecorder } from './useRecorder.js';
 import { pairLetter } from './pair.js';
 import { wordForSyllables } from './silence.js';
 
-export function Stats({ turn }) {
+const FINISH_PHASES = ['finish_pending', 'finishing', 'finish_error', 'finished'];
+
+export function Stats({ turn, onDone }) {
   return <header className="stats" aria-label="Your progress">
     <div className="reading-brand"><Brand /></div>
     <div className="reader-profile">
       <div className="reader-identity"><Avatar name={turn.child.avatar} small /><strong>{turn.child.name}</strong></div>
       <div className="level-badge">Level {turn.level}</div>
     </div>
-    <dl className="reader-stats">
-      <div className="stat"><dt>Stars</dt><dd><Star filled />{turn.stars}</dd></div>
-      <div className="stat"><dt>Streak</dt><dd>{turn.streak}</dd></div>
-      <div className="stat"><dt>Best streak</dt><dd>{turn.bestStreak}</dd></div>
-    </dl>
+    <div className="reader-end">
+      <dl className="reader-stats">
+        <div className="stat"><dt>Stars</dt><dd><Star filled />{turn.stars}</dd></div>
+        <div className="stat"><dt>Streak</dt><dd>{turn.streak}</dd></div>
+        <div className="stat"><dt>Best streak</dt><dd>{turn.bestStreak}</dd></div>
+      </dl>
+      {onDone && <button className="done-button" onClick={onDone}
+        disabled={!!turn.ending || FINISH_PHASES.includes(turn.phase)}>Done</button>}
+    </div>
   </header>;
 }
 
@@ -37,7 +43,10 @@ export function GradedLine({ attempt }) {
             className={`pair pair-${verdict}`}>
             {pair.text}{verdict === 'wrong_vowel' && <span className="pair-letter" aria-hidden="true">{pairLetter(pair.text)}</span>}
             {['wrong_letter', 'wrong_vowel'].includes(verdict) && pair.heard &&
-              <span className="pair-heard" dir="ltr" lang="en"><span className="sr-only">Heard </span>{pair.heard}</span>}
+              <span className="pair-heard" dir="ltr" lang="en"><span className="sr-only">Heard </span>
+                <span className="heard-wrong">{pair.heard}</span>
+                {pair.expected?.[0] && <><span className="sr-only">, should be </span>
+                  <span className="heard-right">{pair.expected[0]}</span></>}</span>}
             {pair.verdict === 'extra' && <span className="extra-dot" aria-label="Extra word" />}</span>;
         }) : <span>{word.text}</span>}
     </span>)}
@@ -119,7 +128,7 @@ export function ReadScreen({ turn, onRecord, onRetryNext, showPosition = false }
   const [position, setPosition] = useState(null);
   const recorder = useRecorder(onRecord, isMockMode(), { continuous: true, lineKey, lineText: item?.text,
     preset: turn.child.preset,
-    finished: ['finish_pending', 'finishing', 'finish_error', 'finished'].includes(turn.phase)
+    finished: !!turn.ending || FINISH_PHASES.includes(turn.phase)
       || (turn.phase === 'level_up' && turn.afterLevelUp === 'finish_pending'),
     onFollow: async (audio, isCurrent) => {
       if (!isCurrent()) return;
@@ -160,7 +169,7 @@ export function ReadScreen({ turn, onRecord, onRetryNext, showPosition = false }
       <div className="record-area">
         {retry ? <button className="primary" onClick={onRetryNext}>Try again</button> :
           <RecordButton recorder={recorder} continuous paused={started.current && !!item}
-            disabled={!item && recorder.status !== 'recording'} thinking={checkpoint} />}
+            disabled={(!item && recorder.status !== 'recording') || !!turn.ending} thinking={checkpoint || !!turn.ending} />}
       </div>
       </div>
     </div>

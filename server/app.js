@@ -681,7 +681,7 @@ export function createApp({
         const lastSummary = history[0] ? totalSummary(history[0].summaries) : totalSummary([]);
         const historyView = history.slice(0, 20).map(({ id, date, startLevel, endLevel, ok, pairs, stars, log }) =>
           ({ id, date, startLevel, endLevel, ok, pairs, stars, log }));
-        json(res, 200, { child: viewChild(child), map: buildMap(itemsFor(child), child), turns: historyView,
+        json(res, 200, { child: viewChild(child), map: buildMap(itemsFor(child), child), pairs: child.pairs, turns: historyView,
           parentLine: parentLine(child.name, lastSummary, child.preset, factsFor(child).next) });
       } else if (req.method === 'GET' && pathname === '/api/packet') {
         const childId = url.searchParams.get('child');

@@ -177,7 +177,10 @@ main > section, main > div { animation: screen-arrive .32s ease-out both; }
 .reader-identity strong { overflow-wrap: anywhere; font-weight: 800; }
 .reader-identity .avatar { width: 40px; height: 40px; }
 .stats .level-badge:not(.demo-badge) { font-size: 12px; padding: 5px 12px; background: var(--night-line); color: var(--on-night); }
-.reader-stats { display: flex; gap: 18px; margin: 0; width: 100%; padding-top: 8px; border-top: 1px solid var(--night-line); }
+.reader-end { display: flex; align-items: center; gap: 12px; width: 100%; padding-top: 8px; border-top: 1px solid var(--night-line); }
+.reader-stats { display: flex; gap: 18px; margin: 0; flex: 1; min-width: 0; }
+.done-button { margin-left: auto; min-height: 44px; padding: 0 20px; border-radius: var(--control); border: 1px solid var(--on-night-muted); background: transparent; color: var(--on-night); font-size: 15px; font-weight: 700; }
+.done-button:disabled { opacity: .5; }
 .stat { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .stat dt { font-size: 12px; font-weight: 600; color: var(--on-night-muted); }
 .stat dd { display: flex; align-items: center; gap: 5px; font-size: 17px; font-weight: 800; line-height: 1.3; color: var(--on-night); margin: 0; }
@@ -202,7 +205,7 @@ main > section, main > div { animation: screen-arrive .32s ease-out both; }
 .set-dot.done { background: var(--navy); }
 .set-dot.current { background: var(--card); box-shadow: inset 0 0 0 3px var(--green); transform: scale(1.25); }
 .set-dot.challenge.current { box-shadow: inset 0 0 0 3px var(--gold); }
-.previous-line { min-width: 0; font-family: var(--font-hebrew); font-size: clamp(34px, 8vw, 44px); font-weight: 700; line-height: 2.3; color: var(--deep-navy); padding: .12em .3em; align-self: center; overflow-wrap: anywhere; }
+.previous-line { min-width: 0; font-family: var(--font-hebrew); font-size: clamp(34px, 8vw, 44px); font-weight: 700; line-height: 2.3; color: var(--deep-navy); padding: .12em .3em .35em; align-self: center; overflow-wrap: anywhere; }
 .previous-line.empty { padding: 0; }
 .previous-line[aria-busy="true"] { color: var(--muted); animation: grading 1.4s ease-in-out infinite alternate; }
 .graded-word { display: inline-block; max-width: calc(100% - .36em); margin-inline: .18em; position: relative; }
@@ -212,7 +215,9 @@ main > section, main > div { animation: screen-arrive .32s ease-out both; }
 .pair-wrong_letter { color: #c2410c; text-decoration-color: #c2410c; }
 .pair-wrong_vowel { display: inline-block; text-align: start; color: #7c3aed; text-decoration-color: #7c3aed; }
 .pair-letter { position: absolute; inset: 0; color: #1c2350; }
-.pair-heard { position: absolute; top: 100%; left: 50%; transform: translate(-50%, .25em); font-family: var(--font-latin); font-size: .3em; font-weight: 700; line-height: 1; color: inherit; direction: ltr; unicode-bidi: isolate; text-align: center; white-space: nowrap; }
+.pair-heard { position: absolute; top: 100%; left: 50%; transform: translate(-50%, .25em); display: flex; flex-direction: column; align-items: center; gap: .15em; font-family: var(--font-latin); font-size: .3em; font-weight: 700; line-height: 1; color: inherit; direction: ltr; unicode-bidi: isolate; text-align: center; white-space: nowrap; }
+.heard-wrong { text-decoration: line-through; text-decoration-thickness: .12em; }
+.heard-right { color: var(--green); }
 .pair-skipped, .word-skipped { color: #68736e; text-decoration-color: var(--gold); }
 .pair-uncertain, .pair-not_decoded, .word-not_decoded, .word-extra, .pair-extra { color: var(--deep-navy); }
 .extra-dot { display: inline-block; background: var(--gold); width: .17em; height: .17em; border-radius: 50%; position: absolute; top: .5em; inset-inline-end: -.14em; }
@@ -337,6 +342,12 @@ table { border-collapse: separate; border-spacing: 0; width: 100%; }
 .turn-card p { margin: 10px 0 0; font-size: 14px; }
 .turn-meta { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--muted); }
 .turn-meta a { color: var(--green); text-decoration: underline; text-underline-offset: 3px; }
+.needs-practice { margin-bottom: 32px; padding: 22px; border: 1px solid var(--edge); border-radius: var(--radius); background: var(--card); }
+.needs-practice h2 { margin-bottom: 16px; }
+.needs-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.needs-item { display: grid; justify-items: center; gap: 2px; min-width: 0; padding: 10px 8px; border-radius: 12px; background: var(--ground-deep); text-align: center; font-size: 14px; color: var(--deep-navy); }
+.needs-item strong { overflow-wrap: anywhere; }
+.needs-sound { font: 700 44px/1.9 var(--font-hebrew); color: var(--deep-navy); }
 .parent-line { margin-top: 32px; padding: 22px; border: 1px solid var(--edge); border-radius: var(--radius); background: var(--card); }
 .parent-line p { max-width: 70ch; font-size: 16px; color: var(--deep-navy); }
 .packet-actions { display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; margin-bottom: 24px; }
@@ -427,7 +438,8 @@ legend { font-weight: 700; font-size: 14px; color: var(--deep-navy); margin-bott
   .vowel-picker { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .stats { flex-wrap: nowrap; padding-block: 12px; gap: 20px; }
   .reading-brand .wordmark > span:last-child { display: inline; }
-  .reader-stats { width: auto; border-top: 0; padding: 0 0 0 20px; border-left: 1px solid var(--night-line); gap: 24px; }
+  .reader-end { width: auto; padding: 0 0 0 20px; border-top: 0; border-left: 1px solid var(--night-line); gap: 28px; }
+  .reader-stats { flex: none; gap: 24px; }
   .stat { flex-direction: column; align-items: flex-start; gap: 0; }
   .stat dd { font-size: 20px; }
   .reader-identity .avatar { width: 44px; height: 44px; }
@@ -515,6 +527,7 @@ legend { font-weight: 700; font-size: 14px; color: var(--deep-navy); margin-bott
   .teacher-header nav { gap: 4px; }
   .teacher-header nav a { padding-inline: 18px; }
   .class-layout { grid-template-columns: minmax(0, .9fr) minmax(0, 1.3fr); gap: 36px; }
+  .needs-list { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .detail-layout { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 36px; }
   .skill-map th { font-size: 12px; padding-inline: 14px; min-width: 80px; }
   .skill-map th[scope="row"] { min-width: 120px; }

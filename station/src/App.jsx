@@ -78,7 +78,7 @@ export default function App() {
   const demoDone = mock && roster.data?.[0] ? { child: roster.data[0], stars: 5, facts: { best: 'letter:bet', next: 'vowel:sheva_na' } } : null;
   const done = engine.turn?.phase === 'finished' ? engine.turn : demoDone;
   return <div className={`app screen-${route.screen}`}>
-    {reading ? <Stats turn={engine.turn} /> : <header className="child-header"><Brand />
+    {reading ? <Stats turn={engine.turn} onDone={engine.stop} /> : <header className="child-header"><Brand />
       {route.screen === 'home' ? <a className="teacher-link" href="#/teacher">Teacher</a> : <a className="secondary" href="#/">Readers</a>}
     </header>}
     <main tabIndex={-1}>
