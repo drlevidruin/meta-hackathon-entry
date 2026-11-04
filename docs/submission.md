@@ -48,7 +48,7 @@ Every Hebrew word a child sees comes from the item bank: lines cut from the sidd
 | --- | --- | --- |
 | The ear | Muse Wonder 1.0 (`muse-wonder-1.0`), Meta Model API | Audio in, syllables out. At minimal reasoning. The station asks it five times at once and grades the first answer back. In the lab rounds the reader's voice card went with each call as a second audio part; the live station sends the reading alone (see below). |
 | The phoneme referee | wav2vec2 Large LV-60 phonemes (`facebook/wav2vec2-lv-60-espeak-cv-ft`), open weights, on the server computer | Writes IPA phonemes with no word list or language model. Calibrated on the reader's voice card. Checks only the ear's a, o and e. The audio for this check never leaves the computer. |
-| Following the reader | The same wav2vec2 model | Every 400 milliseconds the line read so far goes to the phoneme model, audio only. The station counts the vowels heard and enlarges the word being read. It never changes a grade. |
+| Following the reader | The same wav2vec2 model | Every 400 milliseconds the line read so far goes to the phoneme model, audio only. The station counts the vowels heard to know when the reader has reached the end of the line. It used to enlarge the word being read too; that lagged behind the reader, so since November 4 it is hidden. It never changes a grade. |
 | The coach | Muse Spark 1.3 (`muse-spark-1.3`), Meta Model API | Picks the next bank ids at each checkpoint. Code checks every id and level. Its reason is shown only in a PIN-protected developer trace. |
 | The fallback ear | Muse Spark Open (`meta-models/muse-spark-open-1026`), Baseten | Asked once, only when Muse Wonder gives no usable answer and a Baseten key is set. It never hears the voice card. |
 

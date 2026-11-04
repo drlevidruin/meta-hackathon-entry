@@ -377,7 +377,7 @@ it('pauses without submitting, releases the track and resumes the same partial l
 
 it('releases the microphone immediately when a finished turn also shows a level up', async () => {
   const mic = microphone(), onRecord = vi.fn();
-  const view = render(React.createElement(ReadScreen, { turn: turn(), onRecord }));
+  const view = render(React.createElement(ReadScreen, { showPosition: true, turn: turn(), onRecord }));
   await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Record' })));
   act(() => mic.audio(.1, 100));
   view.rerender(React.createElement(ReadScreen, {
@@ -425,7 +425,7 @@ it('keeps listening after a failed grade and lets the next spoken line reach the
   vi.spyOn(api, 'next').mockResolvedValue({ done: false, level: 1, set: [items[2]] });
   function Reading() {
     const engine = useTurn();
-    return React.createElement(ReadScreen, { turn: engine.turn, onRecord: engine.record, onRetryNext: engine.retryNext });
+    return React.createElement(ReadScreen, { showPosition: true, turn: engine.turn, onRecord: engine.record, onRetryNext: engine.retryNext });
   }
   sessionStorage.setItem(TURN_KEY, JSON.stringify(turn()));
   render(React.createElement(Reading));
@@ -456,12 +456,23 @@ it('dispatches WAV grades in reading order when conversion of the first line is 
   expect(api.next).toHaveBeenCalledOnce();
 });
 
+it('hides the reading position by default while the follow-along keeps running', async () => {
+  const mic = microphone();
+  const following = vi.spyOn(api, 'follow').mockResolvedValue({ syllables: 2 });
+  render(React.createElement(ReadScreen, { turn: turn(), onRecord: vi.fn() }));
+  await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Record' })));
+  await act(async () => { mic.audio(.1, 400); });
+  await act(async () => { mic.audio(.1, 400); });
+  expect(following).toHaveBeenCalled();
+  expect(document.querySelector('.reading-word-current')).toBeNull();
+});
+
 it('polls cumulative line audio every 400 ms with one request at a time, ignores failures and stale replies, and stops at line end', async () => {
   const mic = microphone(), pending = deferred();
   const following = vi.spyOn(api, 'follow').mockReturnValueOnce(pending.promise)
     .mockRejectedValueOnce(new Error('Offline')).mockResolvedValue({ syllables: 2 });
   const onRecord = vi.fn();
-  const view = render(React.createElement(ReadScreen, { turn: turn(), onRecord }));
+  const view = render(React.createElement(ReadScreen, { showPosition: true, turn: turn(), onRecord }));
   await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Record' })));
   await act(async () => { mic.audio(.1, 350); });
   expect(following).not.toHaveBeenCalled();
@@ -481,7 +492,7 @@ it('polls cumulative line audio every 400 ms with one request at a time, ignores
   await act(async () => { mic.audio(.1, 400); });
   await act(async () => { mic.audio(0, 2000); });
   expect(onRecord).toHaveBeenCalledOnce();
-  view.rerender(React.createElement(ReadScreen, { turn: turn({ lineIndex: 1 }), onRecord }));
+  view.rerender(React.createElement(ReadScreen, { showPosition: true, turn: turn({ lineIndex: 1 }), onRecord }));
   await act(async () => { late.resolve({ syllables: 2 }); });
   expect(document.querySelector('.reading-word-current')).toBeNull();
   const calls = following.mock.calls.length;
@@ -498,7 +509,7 @@ it('polls cumulative line audio every 400 ms with one request at a time, ignores
 it('ignores a follow reply after pause and prevents overlap when recording resumes', async () => {
   const mic = microphone(), pending = deferred();
   const following = vi.spyOn(api, 'follow').mockReturnValueOnce(pending.promise).mockResolvedValue({ syllables: 1 });
-  render(React.createElement(ReadScreen, { turn: turn(), onRecord: vi.fn() }));
+  render(React.createElement(ReadScreen, { showPosition: true, turn: turn(), onRecord: vi.fn() }));
   await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Record' })));
   await act(async () => { mic.audio(.1, 400); });
   fireEvent.click(screen.getByRole('button', { name: 'Pause listening' }));
@@ -514,7 +525,7 @@ it('ignores a follow reply after pause and prevents overlap when recording resum
 it.each([48000, 44100])('follows %i Hz capture as 16 kHz PCM without decoding or opening another context', async sampleRate => {
   const mic = microphone(sampleRate), onRecord = vi.fn();
   const following = vi.spyOn(api, 'follow').mockResolvedValue({ syllables: 2 });
-  render(React.createElement(ReadScreen, { turn: turn(), onRecord }));
+  render(React.createElement(ReadScreen, { showPosition: true, turn: turn(), onRecord }));
   await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Record' })));
   await act(async () => { mic.audio(.25, 400); });
   expect(following).toHaveBeenCalledOnce();
@@ -539,7 +550,7 @@ it('only enlarges the next word per answer, never moves back, and starts each ne
   const mic = microphone(), onRecord = vi.fn();
   const following = vi.spyOn(api, 'follow').mockResolvedValue({ syllables: 100 });
   const set = [{ ...items[0], text: items.map(item => item.text).join(' ') }, items[1]];
-  const view = render(React.createElement(ReadScreen, { turn: turn({ set }), onRecord }));
+  const view = render(React.createElement(ReadScreen, { showPosition: true, turn: turn({ set }), onRecord }));
   await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Record' })));
   expect(document.querySelector('.reading-word-current')).toBeNull();
   for (const [word, expected] of [[4, 0], [4, 1], [0, 1], [null, 1], [-1, 1], [1.5, 1], [4, 2], [2, 2], [5, 3], [1, 3]]) {
@@ -548,7 +559,7 @@ it('only enlarges the next word per answer, never moves back, and starts each ne
     const words = [...document.querySelectorAll('.reading-word')];
     expect(words.findIndex(element => element.classList.contains('reading-word-current')), `answer ${word}`).toBe(expected);
   }
-  view.rerender(React.createElement(ReadScreen, { turn: turn({ set, lineIndex: 1 }), onRecord }));
+  view.rerender(React.createElement(ReadScreen, { showPosition: true, turn: turn({ set, lineIndex: 1 }), onRecord }));
   expect(document.querySelector('.reading-word-current')).toBeNull();
   await act(async () => { mic.audio(.1, 400); });
   expect(document.querySelector('.reading-word-current')).toBe(document.querySelector('.reading-word'));
@@ -582,7 +593,7 @@ it('shows finishing while retaining at least 450 ms of soft final vowel, then ke
   const mic = microphone(), onRecord = vi.fn();
   vi.spyOn(api, 'follow').mockResolvedValue({ syllables: 100 });
   const set = [{ id: 'adon', text: 'אֲדוֹן לְבַדּוֹ אֶחָד בְּיָדוֹ' }, items[1]];
-  const view = render(React.createElement(ReadScreen, { turn: turn({ set }), onRecord }));
+  const view = render(React.createElement(ReadScreen, { showPosition: true, turn: turn({ set }), onRecord }));
   await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Record' })));
   await act(async () => { mic.audio(.1, 2400); });
   await act(async () => { mic.audio(0, 1550); });
@@ -599,7 +610,7 @@ it('shows finishing while retaining at least 450 ms of soft final vowel, then ke
     expect(bytes.getInt16(offset, true)).toBe(328);
   }
   expect(onRecord.mock.calls[0][1]).toBe('turn:0:0');
-  view.rerender(React.createElement(ReadScreen, { turn: turn({ set, lineIndex: 1 }), onRecord }));
+  view.rerender(React.createElement(ReadScreen, { showPosition: true, turn: turn({ set, lineIndex: 1 }), onRecord }));
   expect(screen.getByRole('button', { name: 'Pause listening' }).getAttribute('aria-busy')).toBe('false');
   fireEvent.click(screen.getByRole('button', { name: 'Pause listening' }));
   expect(screen.getByRole('button', { name: 'Record' }).getAttribute('aria-pressed')).toBe('false');

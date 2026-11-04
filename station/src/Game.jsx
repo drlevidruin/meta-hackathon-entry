@@ -111,7 +111,9 @@ export function CurrentLine({ item, word, checkpoint }) {
     }) : <Star filled filling={checkpoint} />}</div></div>;
 }
 
-export function ReadScreen({ turn, onRecord, onRetryNext }) {
+// The follow-along still tells the station when a line is done, but its word lags the reader,
+// so the moving highlight stays hidden (Levi, November 4).
+export function ReadScreen({ turn, onRecord, onRetryNext, showPosition = false }) {
   const item = turn.phase === 'reading' ? turn.set[turn.lineIndex] : null;
   const lineKey = item ? `${turn.turnId}:${turn.completedSets}:${turn.lineIndex}` : null;
   const [position, setPosition] = useState(null);
@@ -153,7 +155,7 @@ export function ReadScreen({ turn, onRecord, onRetryNext }) {
       <div className="stage-center">
       <div className={`line-frame ${item?.source?.challenge ? 'challenge-frame' : ''}`} aria-label={item?.source?.challenge ? 'Challenge' : undefined}>
         {item?.source?.challenge && <span className="challenge-badge" aria-hidden="true"><Star filled /></span>}
-        <CurrentLine item={item} word={position?.lineKey === lineKey ? position.word : null} checkpoint={checkpoint} />
+        <CurrentLine item={item} word={showPosition && position?.lineKey === lineKey ? position.word : null} checkpoint={checkpoint} />
       </div>
       <div className="record-area">
         {retry ? <button className="primary" onClick={onRetryNext}>Try again</button> :
