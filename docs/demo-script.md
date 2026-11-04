@@ -1,12 +1,12 @@
 # Demo video script
 
-Length 2:57.93, under the 3:00 limit. Rabbi Dr. Levi Druin records the voiceover to the timed script. Only an adult appears or reads: no child's voice, face or name. Every number in the video is in `docs/ear-test.md`, `docs/live-run.md` or `docs/build-log.md`; the sources are listed under "Where each number lives".
+Length 2:59.40, under the 3:00 limit. Rabbi Dr. Levi Druin records the voiceover to the timed script. Only an adult appears or reads: no child's voice, face or name. Every number in the video is in `docs/ear-test.md`, `docs/live-run.md` or `docs/build-log.md`; the sources are listed under "Where each number lives".
 
 ## How the video is built
 
-The video is built from still screens with ffmpeg: crossfades, one slow zoom, and burned-in subtitles of every voiceover line. Nothing is a screen recording. Every screen is real station output or a page rendered from the repo's own text, and every screen from the mock class carries the label "Simulated class".
+The video is built from still screens with ffmpeg: crossfades, one slow zoom, a title card, and burned-in subtitles of every voiceover line. Nothing is a screen recording. Every screen is real station output or a page rendered from the repo's own text, and every screen from the mock class carries the label "Simulated class".
 
-The only audio is Levi's own recorded reading in scene 2. The voiceover is recorded separately, to the timed script, and mixed in afterwards. Two cuts are made: one with the voiceover subtitles burned in, and one without them. Labels stay in both.
+The only audio is Levi's own recorded reading in scene 2. To fit the time limit, three voiceover sentences were cut: "Orange would mean the letter.", "This class is simulated." (the label stays on screen) and the longer version of the sealed-round sentence. The voiceover is recorded separately, to the timed script, and mixed in afterwards. Two cuts are made: one with the voiceover subtitles burned in, and one without them. Labels stay in both.
 
 ## The scenes
 
@@ -14,12 +14,12 @@ Times are from the final cut.
 
 ### 0:00 | 1. The problem
 
-**Screen:** The Who's reading screen from the simulated class, with a "Simulated class" label. Lower third for the first 5 seconds: "Rabbi Dr. Levi Druin, Principal" and "Built October 26 to November 4, 2026".
+**Screen:** The Who's reading screen from the simulated class, with a "Simulated class" label. Lower third for the first sentence: "Rabbi Dr. Levi Druin, Principal" and "Built October 26 to November 4, 2026". On "Until now." (0:20.47) the screen crossfades to a navy "Kriah Listener" title card in the style of the end card, then into the reading scene at 0:24.17.
 
 **Voiceover:**
-"I'm Levi Druin. I run a Jewish day school, and I teach kriah: reading Hebrew with its vowels. A teacher can't hear every child read every day. And the mistakes that matter are tiny. One vowel. One dot. So I built a station that listens."
+"I'm Rabbi Dr. Levi Druin, principal of a Jewish day school. I've never studied coding. Our children learn kriah in the first grades: reading Hebrew with its vowels. A teacher can't hear every child read every day, and the mistakes that matter are tiny. One vowel. One dot. So kriah is taught only in person, and almost nothing gets tracked. Until now. I built a station that listens."
 
-### 0:15.87 | 2. Reading
+### 0:24.17 | 2. Reading
 
 **Screen:** The real reading screen, for Levi, Ashkenazi, with the Demo pill from demo mode. A label stays at the top of the screen: "Levi's recorded reading, Oct 30. Graded Nov 4."
 
@@ -29,28 +29,28 @@ The planted mistake is on line 2: the chirik under the כ in אָנֹכִי, rea
 
 | Start | What is on screen |
 | --- | --- |
-| 0:15.87 | Line 1 big. Levi's recording plays, 0:16.67 to 0:24.29. |
-| 0:24.80 | Line 1 marked, all green. A card reads "Muse Wonder heard: le-fa-ne-cha" and "After the vowel checks: le-fo-ne-cho". Then line 2 big, and Levi's recording plays, 0:37.38 to 0:47.46. |
-| 0:47.97 | Line 2 marked, with the zoom on כִי. A tag reads "Heard by Muse Wonder. Vowels checked by Meta's phoneme model." Then line 3 big, and Levi's recording plays, 1:07.28 to 1:14.18. |
-| 1:14.67 | Line 3 marked, all green. |
+| 0:24.17 | Line 1 big. Levi's recording plays, 0:24.67 to 0:32.29. |
+| 0:32.50 | Line 1 marked, all green. A card reads "Muse Wonder heard: le-fa-ne-cha" and "After the vowel checks: le-fo-ne-cho". Then line 2 big, and Levi's recording plays, 0:44.23 to 0:54.31. |
+| 0:54.50 | Line 2 marked, with the zoom on כִי. A tag reads "Heard by Muse Wonder. Vowels checked by Meta's phoneme model." Then line 3 big, and Levi's recording plays, 1:10.93 to 1:17.83. |
+| 1:18.03 | Line 3 marked, all green. |
 
 **Voiceover, after line 1:**
 "Green means I read it right. Every letter, every vowel. The ear first heard fa here, the Israeli way. The vowel checks compared it with my own voice and set it back to fo."
 
 **Voiceover, after line 2:**
-"On this line I made a mistake on purpose. Under this kaf is a chirik: ki. I read it che. The mark lands on that one vowel. Purple means the vowel was wrong. Orange would mean the letter. Crossed out is what I said. Under it, what it should have been."
+"On this line I made a mistake on purpose. Under this kaf is a chirik: ki. I read it che. The mark lands on that one vowel. Purple means the vowel was wrong. Crossed out is what I said. Under it, what it should have been."
 
 **Voiceover, after line 3:**
 "Every line comes back marked, letter by letter."
 
-### 1:18.30 | 3a. The ear never sees the text
+### 1:21.10 | 3a. The ear never sees the text
 
 **Screen:** The How it works diagram from the README, drawn as a still page with the README's own boxes and wording. Only the ear box is highlighted. Top caption: "Muse Wonder hears. It never sees the text."
 
 **Voiceover:**
 "Here's the part that matters. The ear is Muse Wonder, through the Meta Model API. It gets my audio and a sound alphabet, and never the printed line. A model that knows the word tends to hear the word. So the ear only writes sounds."
 
-### 1:34.27 | 3b. Four Meta models, four jobs
+### 1:36.23 | 3b. Four Meta models, four jobs
 
 **Screen:** A card titled "Four Meta models, four jobs". Four rows fade in one after another as the voiceover names them, each with the model name, its host and its job:
 
@@ -64,7 +64,7 @@ The planted mistake is on line 2: the chirik under the כ in אָנֹכִי, rea
 **Voiceover:**
 "I use four Meta models, each picked by testing. Muse Wonder is the ear. We ask it five times at once and grade the first answer back. Meta's open wav2vec2 phoneme model runs on this Mac and checks every vowel against my own voice. Muse Spark picks the next lines. Muse Spark Open, on Baseten, was tested as the ear and is wired in as the backup."
 
-### 1:57.77 | 4. One reading, two traditions
+### 1:58.73 | 4. One reading, two traditions
 
 **Screen:** Two terminal panes side by side, with the real commands and their real output. Left pane: Ashkenazi, three `ok`. Right pane: Sephardi, `wrong_vowel` and `wrong_letter`.
 
@@ -76,14 +76,14 @@ npm run grade -- --preset sephardi --line "שַׁבָּת" --heard "sha-bos"
 **Voiceover:**
 "Same sounds, sha-bos. In Ashkenazi reading, that's right. In Sephardi reading, it's two mistakes. The rulebook judges each child by their own tradition."
 
-### 2:06.17 | 5. The teacher view
+### 2:06.53 | 5. The teacher view
 
 **Screen:** Three screens from the simulated class, each with the labels "Simulated class" and "Next lines picked by Muse Spark 1.3": a child's reading map with its legend, the Class view with its practice groups, and the practice packet, panned from its top to its Challenge.
 
 **Voiceover:**
-"The teacher gets a reading map: every letter with every vowel, solid, shaky, or not tested yet. Children are grouped by what to practice next. Muse Spark picks the next lines from the bank, and code checks every pick. The packet has a warm-up, practice and a challenge. No model writes Hebrew a child reads. This class is simulated."
+"The teacher gets a reading map: every letter with every vowel, solid, shaky, or not tested yet. Children are grouped by what to practice next. Muse Spark picks the next lines from the bank, and code checks every pick. The packet has a warm-up, practice and a challenge. No model writes Hebrew a child reads."
 
-### 2:27.93 | 6. Honest results
+### 2:25.27 | 6. Honest results
 
 **Screen:** A plain results card, white ground, large navy type, held for the whole section:
 
@@ -95,14 +95,16 @@ npm run grade -- --preset sephardi --line "שַׁבָּת" --heard "sha-bos"
 > No child round yet.
 
 **Voiceover:**
-"I tested it on my own voice, with mistakes planted on purpose. In a sealed round, nobody hears the answers until the rules are frozen and the pass rule is written down. Five sealed rounds failed. They're all published. Round 1i passed all three runs. Every planted mistake caught. Nothing marked wrong by mistake."
+"I tested it on my own voice, with mistakes planted on purpose. In a sealed round, the rules are frozen before anyone hears the answers. Five sealed rounds failed. They're all published. Round 1i passed all three runs. Every planted mistake caught. Nothing marked wrong by mistake."
 
-### 2:46.97 | 7. Close
+### 2:41.07 | 7. Close
 
-**Screen:** The Who's reading screen from the simulated class, then an end card: "Kriah Listener" and "github.com/drlevidruin/meta-hackathon-entry".
+**Screen:** The Who's reading screen from the simulated class with its label (2:41.07). At 2:45.60 a card reads "Any language" in large type, with a row of three boxes joined by arrows: "Sounds in", "Rulebook", "Every letter graded". At 2:51.47 an end card: "Kriah Listener", "github.com/drlevidruin/meta-hackathon-entry", and a small line "Built with Muse Wonder, Muse Spark and Meta's wav2vec2".
 
 **Voiceover:**
-"Every child who reads Hebrew deserves a listener who catches the one dot. Next is a child's voice, with parent consent, in my own school. Kriah Listener."
+"Every child who reads Hebrew deserves a listener who catches the one dot. This one reads Hebrew. With a new rulebook, it could listen to a child reading any language. I'm so excited to bring this to the world. It was only possible because of Muse and Meta's open models. Kriah Listener."
+
+The any-language sentence is a design claim, not something tested, which is why it says "could".
 
 ## Where each number lives
 
@@ -116,7 +118,7 @@ npm run grade -- --preset sephardi --line "שַׁבָּת" --heard "sha-bos"
 
 ## Recording the voiceover
 
-- [ ] Read from `kriah-demo-voiceover-script.txt`, which lists every line with its start and end time. The video leaves silence for each line and plays Levi's recorded reading by itself at 0:16.67, 0:37.38 and 1:07.28.
+- [ ] Read from `kriah-demo-voiceover-script.txt`, which lists every line with its start and end time. The video leaves silence for each line and plays Levi's recorded reading by itself at 0:24.67, 0:44.23 and 1:10.93.
 - [ ] Quiet room, no fan or music. One microphone for the whole voiceover.
 - [ ] Say nothing during the three reading windows.
 - [ ] Each line fits its window. If a line runs long, re-record it faster; do not shorten the words.
