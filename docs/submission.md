@@ -139,7 +139,7 @@ The code is MIT licensed. The siddur text keeps its CC-BY license.
 
 - Repository: https://github.com/drlevidruin/meta-hackathon-entry
 - Live demo: https://levis-new-mac-mini.tail8bd372.ts.net
-- Video: VIDEO_URL
+- Video: https://youtu.be/VbqpDTlsqT0
 
 ## Testing instructions
 

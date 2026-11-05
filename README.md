@@ -1,6 +1,6 @@
 # Kriah Listener
 
-Kriah Listener is not a chatbot. [Live station](https://levis-new-mac-mini.tail8bd372.ts.net) | [Demo class for the teacher view](https://levis-new-mac-mini.tail8bd372.ts.net/?mock#/teacher)
+Kriah Listener is not a chatbot. [Live station](https://levis-new-mac-mini.tail8bd372.ts.net) | [Demo class for the teacher view](https://levis-new-mac-mini.tail8bd372.ts.net/?mock#/teacher) | [Demo video](https://youtu.be/VbqpDTlsqT0)
 
 A child reads one line of Hebrew aloud and sees, letter by letter, what they read right. The teacher gets practice groups, a letter and vowel map, and a printable packet without listening to a recording.
 
@@ -106,9 +106,9 @@ Meta may train on content sent in contributor mode, so only standard tier is use
 - Turn Meta Model API free credits off and a paid plan on. Meta's free-credit terms allow content to be used for product improvement.
 - Pass an adult sealed round first. Done: Round 1i, October 30.
 
-### The pledge
+### The prize
 
-A tenth of any prize this entry wins goes to tzedakah, charity. The rest goes to bringing the station to the world: the consent form, the child round and the first classroom pilot. Every child deserves to be heard.
+If I win, I hope to use part of the prize to bring this to the world: the consent form, the child round and the first classroom pilot. Every child deserves to be heard.
 
 ## Data and privacy
 
