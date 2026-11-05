@@ -137,4 +137,4 @@ The any-language sentence is a design claim, not something tested, which is why 
 - [x] Final cut timed at 3:00 or less: 2:59.33.
 - [x] No child's voice, face or name anywhere in the video.
 - [x] Every mock screen carries "Simulated class".
-- [ ] Uploaded to YouTube as Unlisted and opened in a logged-out browser before the link goes into the form.
+- [x] Uploaded to YouTube, https://youtu.be/VbqpDTlsqT0, and opened without signing in, November 4, before the link went into the form.
